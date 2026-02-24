@@ -268,12 +268,9 @@
             <div class="divider"></div>
             <div class="toolbar">
               <div class="toolbar-left">
-                <button id="btnReloadSheets" class="btn primary">Verileri Yenile (Google Sheet)</button>
-                <button id="btnReloadDbMeta" class="btn">Firebase Meta Yenile</button>
+                <button id="btnReloadSheets" class="btn primary">Verileri Yenile</button>
               </div>
-              <div class="toolbar-right">
-                <span id="lastSyncText" class="muted tiny">Son senkron: -</span>
-              </div>
+              <div class="toolbar-right"></div>
             </div>
           </div>
 
@@ -609,7 +606,6 @@
     const els = {
       sheetStatusChip: $("#sheetStatusChip"),
       dbStatusChip: $("#dbStatusChip"),
-      lastSyncText: $("#lastSyncText"),
 
       statTeachers: $("#statTeachers"),
       statStudents: $("#statStudents"),
@@ -1060,7 +1056,6 @@
         state.data.students = mapStudentRows(ogrenciTab.headers, ogrenciTab.rows);
 
         setChip(els.sheetStatusChip, "Sheet: bağlı ✓", true);
-        els.lastSyncText.textContent = `Son senkron: ${new Date().toLocaleString("tr-TR")}`;
         refreshGlobalStatsUI();
         renderTeacherSelectors();
         return true;
@@ -1383,7 +1378,19 @@
       const daySessions = await dbGet(`${ROOT_PATH}/sessionsByDate/${date}`);
       const existing = daySessions?.[sessionKey] || null;
       if (existing) {
-        return showToast("Bu öğretmen + tarih + saat + grup için kayıt zaten var. (Çift kayıt engellendi)");
+        await confirmDialog(
+          `Bu öğretmen için aynı gün, aynı ders saati ve aynı grup kaydı zaten açılmış.
+
+Çift kayıt oluşturamazsınız.`,
+          {
+            title: 'Kayıt Engellendi',
+            okText: 'Tamam',
+            cancelText: 'Kapat',
+            tone: 'danger',
+            icon: '⛔'
+          }
+        );
+        return;
       }
 
       // Aynı gün + aynı ders saati + aynı grup için başka öğretmen kaydı kontrolü
@@ -2551,13 +2558,10 @@
       // top
       $("#btnTopHome").addEventListener("click", () => setView("home"));
       $("#btnReloadSheets").addEventListener("click", async () => {
-        await loadGoogleSheetsData();
-        showToast("Google Sheet verileri yenilendi.");
-      });
-      $("#btnReloadDbMeta").addEventListener("click", async () => {
         invalidateSessionsCache();
+        const ok = await loadGoogleSheetsData();
         await refreshDbMeta();
-        showToast("Firebase meta verisi yenilendi.");
+        showToast(ok ? "Veriler yenilendi." : "Veri yenileme tamamlandı (bazı veriler alınamadı).");
       });
 
       // home nav
