@@ -877,12 +877,33 @@
         "ç":"c","Ç":"c","ğ":"g","Ğ":"g","ı":"i","I":"i","İ":"i","i":"i","ö":"o","Ö":"o","ş":"s","Ş":"s","ü":"u","Ü":"u"
       };
       return String(str)
+        .replace(/[​-‍﻿ ]/g, " ")
         .split("")
         .map(ch => map[ch] ?? ch)
         .join("")
+        .normalize("NFD")
+        .replace(/[̀-ͯ]/g, "")
         .toLowerCase()
         .replace(/\s+/g, "")
         .replace(/[^a-z0-9]/g, "");
+    }
+
+    function findHeaderIndex(headers, aliases){
+      const normHeaders = headers.map(h => normalizeText(h));
+      const aliasList = (aliases || []).map(a => normalizeText(a)).filter(Boolean);
+      for (const a of aliasList){
+        const exact = normHeaders.indexOf(a);
+        if (exact !== -1) return exact;
+      }
+      for (const a of aliasList){
+        const starts = normHeaders.findIndex(h => h && (h.startsWith(a) || a.startsWith(h)));
+        if (starts !== -1) return starts;
+      }
+      for (const a of aliasList){
+        const inc = normHeaders.findIndex(h => h && (h.includes(a) || a.includes(h)));
+        if (inc !== -1) return inc;
+      }
+      return null;
     }
 
     function extractSpreadsheetId(url){
@@ -1100,10 +1121,9 @@
     }
 
     function mapTeacherRows(headers, rows){
-      const idxMap = new Map(headers.map((h,i)=>[normalizeText(h), i]));
-      const idxId = idxMap.get("id") ?? idxMap.get("ogretmenid");
-      const idxName = idxMap.get("ogretmenadi") ?? idxMap.get("ogretmen") ?? idxMap.get("adsoyad") ?? idxMap.get("isimsoyisim");
-      const idxBrans = idxMap.get("brans") ?? idxMap.get("bransi");
+      const idxId = findHeaderIndex(headers, ["ID","OGRETMEN_ID","ÖĞRETMEN ID"]);
+      const idxName = findHeaderIndex(headers, ["OGRETMEN_ADI","ÖĞRETMEN ADI","OGRETMEN","ADSOYAD","ISIMSOYISIM"]);
+      const idxBrans = findHeaderIndex(headers, ["BRANS","BRANSI","BRANŞ","BRANŞI"]);
 
       if (idxId == null || idxName == null) {
         throw new Error("Ogretmenler sekmesinde 'ID' ve 'OGRETMEN_ADI' sütunları bulunamadı.");
@@ -1121,15 +1141,14 @@
     }
 
     function mapStudentRows(headers, rows){
-      const idxMap = new Map(headers.map((h,i)=>[normalizeText(h), i]));
-      const idxNo = idxMap.get("no") ?? idxMap.get("numara") ?? idxMap.get("ogrencino") ?? idxMap.get("okulno");
-      const idxAd = idxMap.get("adsoyad") ?? idxMap.get("ogrenci") ?? idxMap.get("isimsoyisim") ?? idxMap.get("ogrenciadisoyadi");
-      const idxSinif = idxMap.get("sinif") ?? idxMap.get("sinifi") ?? idxMap.get("sube");
-      const idxGrup = idxMap.get("grubu") ?? idxMap.get("grup") ?? idxMap.get("birebirgrubu");
-      const idxCins = idxMap.get("cinsiyet") ?? idxMap.get("cins");
+      const idxNo = findHeaderIndex(headers, ["NO","NUMARA","OGRENCI_NO","ÖĞRENCİ NO","OKULNO"]);
+      const idxAd = findHeaderIndex(headers, ["ADSOYAD","AD SOYAD","ÖĞRENCİ","OGRENCI","ISIMSOYISIM","OGRENCI ADI SOYADI"]);
+      const idxSinif = findHeaderIndex(headers, ["SINIF","SINIFI","SUBE","ŞUBE"]);
+      const idxGrup = findHeaderIndex(headers, ["GRUBU","GRUP","BIREBIRGRUBU","BIREBIR GRUBU"]);
+      const idxCins = findHeaderIndex(headers, ["CINSIYET","CINS"]);
 
       if (idxNo == null || idxAd == null || idxGrup == null) {
-        console.error("Ogrenciler başlıkları:", headers, "normalize:", headers.map(normalizeText));
+        console.error("Ogrenciler başlıkları:", headers, "normalize:", headers.map(normalizeText), "idx", {idxNo, idxAd, idxSinif, idxGrup, idxCins});
         throw new Error("Ogrenciler sekmesinde 'NO', 'ADSOYAD', 'Grubu' sütunları bulunamadı.");
       }
 
