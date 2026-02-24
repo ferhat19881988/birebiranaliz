@@ -534,6 +534,13 @@
       { id: "S4", start: "18:20", end: "18:55", active: true } // Not: Kullanıcı metninde 19:55 yazılmış; muhtemelen 18:55. İstersen 19:55 yapabilirsin.
     ];
 
+    // Öğrenci fotoğraf upload sınırları / optimizasyon
+    const STUDENT_PHOTO_UPLOAD_MAX_BYTES = 8 * 1024 * 1024; // 8 MB üstü dosyalar kesinlikle alınmaz
+    const STUDENT_PHOTO_EXPORT_TARGET_BYTES = 180 * 1024; // hedef ~180 KB
+    const STUDENT_PHOTO_EXPORT_HARD_MAX_BYTES = 260 * 1024; // üst sınır ~260 KB
+    const STUDENT_PHOTO_MIN_QUALITY = 0.45;
+
+
     /**********************
      * FIREBASE IMPORTS   *
      **********************/
@@ -754,6 +761,23 @@
     function initials(name=""){
       const parts = String(name).trim().split(/\s+/).filter(Boolean);
       return (parts.slice(0,2).map(x => x[0]?.toLocaleUpperCase("tr-TR") || "").join("") || "?");
+    }
+
+    function base64DataUrlSizeBytes(dataUrl=""){
+      const s = String(dataUrl || "");
+      const comma = s.indexOf(",");
+      if (comma < 0) return 0;
+      const b64 = s.slice(comma + 1).replace(/=+$/, "");
+      return Math.floor((b64.length * 3) / 4);
+    }
+
+    function formatBytes(bytes=0){
+      const b = Number(bytes) || 0;
+      if (b < 1024) return `${b} B`;
+      const kb = b / 1024;
+      if (kb < 1024) return `${kb.toFixed(kb >= 100 ? 0 : 1)} KB`;
+      const mb = kb / 1024;
+      return `${mb.toFixed(mb >= 100 ? 0 : mb >= 10 ? 1 : 2)} MB`;
     }
 
 
@@ -1378,19 +1402,7 @@
       const daySessions = await dbGet(`${ROOT_PATH}/sessionsByDate/${date}`);
       const existing = daySessions?.[sessionKey] || null;
       if (existing) {
-        await confirmDialog(
-          `Bu öğretmen için aynı gün, aynı ders saati ve aynı grup kaydı zaten açılmış.
-
-Çift kayıt oluşturamazsınız.`,
-          {
-            title: 'Kayıt Engellendi',
-            okText: 'Tamam',
-            cancelText: 'Kapat',
-            tone: 'danger',
-            icon: '⛔'
-          }
-        );
-        return;
+        return showToast("Bu öğretmen + tarih + saat + grup için kayıt zaten var. (Çift kayıt engellendi)");
       }
 
       // Aynı gün + aynı ders saati + aynı grup için başka öğretmen kaydı kontrolü
@@ -2159,6 +2171,7 @@
                 <canvas id="suCropCanvas" width="320" height="320"></canvas>
               </div>
               <div class="tiny muted" id="suPhotoInfo" style="margin-top:8px;">Mevcut foto / seçili görsel yok.</div>
+              <div class="tiny muted" style="margin-top:6px;">Sistem 320x320 JPEG olarak kaydeder. Büyük dosyalar yüklenmez; kayıt sırasında ek sıkıştırma uygulanır.</div>
               <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
                 <label class="btn small" for="suPhotoInput">Fotoğraf Seç</label>
                 <input id="suPhotoInput" type="file" accept="image/*" style="display:none;">
@@ -2210,6 +2223,8 @@
           canvas, ctx,
           img: null,
           currentBase64: currentPhoto || null,
+          sourceFileName: "",
+          sourceFileBytes: 0,
           zoom: 1,
           offsetX: 0,
           offsetY: 0
@@ -2274,13 +2289,27 @@
           ctx.lineWidth = 2;
           ctx.strokeRect(2,2,cw-4,ch-4);
 
-          info.textContent = `Önizleme: ${img.width}x${img.height}px`;
+          const srcInfo = cropCtx.sourceFileBytes ? ` • Dosya: ${formatBytes(cropCtx.sourceFileBytes)}` : "";
+          info.textContent = `Önizleme: ${img.width}x${img.height}px${srcInfo}`;
         }
 
         cropCtx.draw = draw;
         cropCtx.exportBase64 = () => {
-          const quality = Number($("#suQuality", els.modalBody)?.value || 0.78);
-          return canvas.toDataURL("image/jpeg", quality);
+          let quality = Number($("#suQuality", els.modalBody)?.value || 0.78);
+          quality = Math.min(0.95, Math.max(STUDENT_PHOTO_MIN_QUALITY, quality));
+          let out = canvas.toDataURL("image/jpeg", quality);
+          let outBytes = base64DataUrlSizeBytes(out);
+
+          while (outBytes > STUDENT_PHOTO_EXPORT_TARGET_BYTES && quality > STUDENT_PHOTO_MIN_QUALITY) {
+            quality = Math.max(STUDENT_PHOTO_MIN_QUALITY, +(quality - 0.05).toFixed(2));
+            const next = canvas.toDataURL("image/jpeg", quality);
+            const nextBytes = base64DataUrlSizeBytes(next);
+            if (nextBytes >= outBytes) break;
+            out = next;
+            outBytes = nextBytes;
+          }
+
+          return { dataUrl: out, bytes: outBytes, qualityUsed: quality };
         };
 
         if (currentPhoto) {
@@ -2309,16 +2338,29 @@
         const photoInput = $("#suPhotoInput", els.modalBody);
         const photoClearBtn = $("#suPhotoClearBtn", els.modalBody);
 
-        photoInput?.addEventListener("change", () => {
+        photoInput?.addEventListener("change", async () => {
           const file = photoInput.files?.[0];
           if (!file) return;
           if (!file.type.startsWith("image/")) return showToast("Lütfen resim dosyası seçin.");
+          if (file.size > STUDENT_PHOTO_UPLOAD_MAX_BYTES) {
+            photoInput.value = "";
+            await confirmDialog(`Seçtiğiniz fotoğraf çok büyük (${formatBytes(file.size)}).\nEn fazla ${formatBytes(STUDENT_PHOTO_UPLOAD_MAX_BYTES)} dosya yükleyebilirsiniz.`, {
+              title: "Fotoğraf Çok Büyük",
+              tone: "danger",
+              okText: "Tamam",
+              cancelText: "Kapat",
+              icon: "📷"
+            });
+            return;
+          }
           const reader = new FileReader();
           reader.onload = () => {
             const img = new Image();
             img.onload = () => {
               if (!cropCtx) return;
               cropCtx.img = img;
+              cropCtx.sourceFileName = file.name || "";
+              cropCtx.sourceFileBytes = Number(file.size || 0);
               cropCtx.zoom = 1;
               cropCtx.offsetX = 0;
               cropCtx.offsetY = 0;
@@ -2326,7 +2368,7 @@
               $("#suOffsetX", els.modalBody).value = "0";
               $("#suOffsetY", els.modalBody).value = "0";
               cropCtx.draw();
-              showToast("Fotoğraf yüklendi. Kırpma ayarlarını yapabilirsiniz.");
+              showToast(`Fotoğraf yüklendi (${formatBytes(file.size)}). Kırpma ayarlarını yapabilirsiniz.`);
             };
             img.src = reader.result;
           };
@@ -2337,6 +2379,8 @@
           if (!cropCtx) return;
           cropCtx.img = null;
           cropCtx.currentBase64 = null;
+          cropCtx.sourceFileName = "";
+          cropCtx.sourceFileBytes = 0;
           cropCtx.draw();
           showToast("Fotoğraf kaldırıldı (kaydetmeden veritabanına işlemez).");
         });
@@ -2351,15 +2395,29 @@
           if (!name) return showToast("Ad Soyad boş olamaz.");
 
           let photoBase64 = null;
+          let photoExportBytes = 0;
+          let photoQualityUsed = null;
           try {
-            photoBase64 = cropCtx?.img ? cropCtx.exportBase64() : null;
+            const exported = cropCtx?.img ? cropCtx.exportBase64() : null;
+            if (exported?.dataUrl) {
+              photoBase64 = exported.dataUrl;
+              photoExportBytes = Number(exported.bytes || 0);
+              photoQualityUsed = exported.qualityUsed;
+            }
           } catch (e) {
             console.warn("Foto export hatası:", e);
           }
 
-          // base64 boyutu kaba kontrol
-          if (photoBase64 && photoBase64.length > 500000) {
-            if (!await confirmDialog("Fotoğraf boyutu büyük görünüyor. Yine de kaydetmek istiyor musunuz?", { title:"Büyük Fotoğraf Uyarısı", tone:"warning" })) return;
+          if (photoBase64 && photoExportBytes > STUDENT_PHOTO_EXPORT_HARD_MAX_BYTES) {
+            await confirmDialog(
+              `Fotoğraf sıkıştırıldı ancak hâlâ büyük (${formatBytes(photoExportBytes)}).\nDaha küçük bir fotoğraf seçin veya kırpmayı daraltın.`,
+              { title:"Fotoğraf Kaydedilemedi", tone:"danger", okText:"Tamam", cancelText:"Kapat", icon:"📷" }
+            );
+            return;
+          }
+
+          if (photoBase64 && cropCtx?.sourceFileBytes && cropCtx.sourceFileBytes > (2 * 1024 * 1024)) {
+            showToast(`Fotoğraf ${formatBytes(photoExportBytes)} boyutunda kaydedilecek (kalite: ${photoQualityUsed ?? "-"})`, 2600);
           }
 
           const patch = {
@@ -2378,7 +2436,7 @@
             state.data.studentOverrides[safeKey(currentStudentNo)] = patch;
             renderTeacherSelectors();
             refreshGlobalStatsUI();
-            showToast("Öğrenci override kaydedildi ✅");
+            showToast(photoBase64 ? `Öğrenci kaydı kaydedildi ✅ (Foto: ${formatBytes(photoExportBytes)})` : "Öğrenci override kaydedildi ✅");
           } catch (e) {
             console.error(e);
             showToast("Kaydetme hatası.");
