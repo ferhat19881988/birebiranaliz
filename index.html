@@ -749,7 +749,9 @@
      * FIREBASE IMPORTS   *
      **********************/
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
-    import { getAnalytics, isSupported as analyticsIsSupported } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-analytics.js";
+    // Analytics opsiyonel: bazı tarayıcı/eklenti kombinasyonlarında (özellikle engelleyicilerde)
+    // firebase-analytics içinden "resource_url_builders" hatası düşebiliyor. Uygulama akışını
+    // etkilememesi için bu sürümde analytics devre dışı bırakıldı.
     import {
       getDatabase, ref, get, set, update, remove, serverTimestamp
     } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-database.js";
@@ -766,12 +768,7 @@
     };
 
     const app = initializeApp(firebaseConfig);
-    let analytics = null;
-    try {
-      if (await analyticsIsSupported()) analytics = getAnalytics(app);
-    } catch (e) {
-      console.warn("Analytics başlatılamadı:", e);
-    }
+    let analytics = null; // intentionally disabled (optional)
     const db = getDatabase(app);
 
     /**********************
@@ -1062,8 +1059,8 @@
       if (!m) throw new Error(`${tabName} yanıtı parse edilemedi.`);
       const json = JSON.parse(m[1]);
 
-      const table = json.table;
-      const headers = (table.cols || []).map(c => (c.label || c.id || "").trim());
+      const table = json.table || {};
+      let headers = (table.cols || []).map(c => String(c?.label || c?.id || "").trim());
 
       const rows = (table.rows || []).map(r => {
         const cells = (r.c || []).map(cell => {
@@ -1075,14 +1072,38 @@
         return cells;
       });
 
+      // GViz bazen ilk satırı başlık olarak algılamaz ve sütun adlarını A/B/C... döndürür.
+      // Bu durumda ilk dolu satırı başlık kabul edip veri satırlarından çıkarıyoruz.
+      const normalizedHeaders = headers.map(normalizeText);
+      const headerLooksGeneric = normalizedHeaders.length > 0 && normalizedHeaders.every(h => /^[a-z]+$/.test(h));
+      const hasKnownHeaderInCols = normalizedHeaders.some(h =>
+        ["id","ogretmenadi","adsoyad","ogrenci","no","numara","grup","grubu","sinif"].includes(h)
+      );
+
+      if ((!headers.length || !hasKnownHeaderInCols || headerLooksGeneric) && rows.length){
+        const firstNonEmptyRowIndex = rows.findIndex(r => (r || []).some(v => String(v).trim() !== ""));
+        if (firstNonEmptyRowIndex >= 0){
+          const candidateHeaders = rows[firstNonEmptyRowIndex].map(v => String(v || "").trim());
+          const normalizedCandidate = candidateHeaders.map(normalizeText);
+          const candidateHasKnown = normalizedCandidate.some(h =>
+            ["id","ogretmenadi","adsoyad","ogrenci","no","numara","grup","grubu","sinif"].includes(h)
+          );
+          if (candidateHasKnown){
+            headers = candidateHeaders;
+            rows.splice(firstNonEmptyRowIndex, 1);
+          }
+        }
+      }
+
+      console.log(`[${tabName}] Başlıklar:`, headers);
       return { headers, rows };
     }
 
     function mapTeacherRows(headers, rows){
       const idxMap = new Map(headers.map((h,i)=>[normalizeText(h), i]));
-      const idxId = idxMap.get("id");
-      const idxName = idxMap.get("ogretmenadi") ?? idxMap.get("ogretmen") ?? idxMap.get("adsoyad");
-      const idxBrans = idxMap.get("brans");
+      const idxId = idxMap.get("id") ?? idxMap.get("ogretmenid");
+      const idxName = idxMap.get("ogretmenadi") ?? idxMap.get("ogretmen") ?? idxMap.get("adsoyad") ?? idxMap.get("isimsoyisim");
+      const idxBrans = idxMap.get("brans") ?? idxMap.get("bransi");
 
       if (idxId == null || idxName == null) {
         throw new Error("Ogretmenler sekmesinde 'ID' ve 'OGRETMEN_ADI' sütunları bulunamadı.");
@@ -1101,13 +1122,14 @@
 
     function mapStudentRows(headers, rows){
       const idxMap = new Map(headers.map((h,i)=>[normalizeText(h), i]));
-      const idxNo = idxMap.get("no") ?? idxMap.get("numara");
-      const idxAd = idxMap.get("adsoyad") ?? idxMap.get("ogrenci") ?? idxMap.get("isimsoyisim");
-      const idxSinif = idxMap.get("sinif");
-      const idxGrup = idxMap.get("grubu") ?? idxMap.get("grup");
-      const idxCins = idxMap.get("cinsiyet");
+      const idxNo = idxMap.get("no") ?? idxMap.get("numara") ?? idxMap.get("ogrencino") ?? idxMap.get("okulno");
+      const idxAd = idxMap.get("adsoyad") ?? idxMap.get("ogrenci") ?? idxMap.get("isimsoyisim") ?? idxMap.get("ogrenciadisoyadi");
+      const idxSinif = idxMap.get("sinif") ?? idxMap.get("sinifi") ?? idxMap.get("sube");
+      const idxGrup = idxMap.get("grubu") ?? idxMap.get("grup") ?? idxMap.get("birebirgrubu");
+      const idxCins = idxMap.get("cinsiyet") ?? idxMap.get("cins");
 
       if (idxNo == null || idxAd == null || idxGrup == null) {
+        console.error("Ogrenciler başlıkları:", headers, "normalize:", headers.map(normalizeText));
         throw new Error("Ogrenciler sekmesinde 'NO', 'ADSOYAD', 'Grubu' sütunları bulunamadı.");
       }
 
