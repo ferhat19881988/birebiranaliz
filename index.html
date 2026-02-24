@@ -166,6 +166,16 @@
   .profile-meta h4 { margin: 0 0 8px; font-size: 1.25rem; color: var(--text); font-weight: 800; }
   .profile-meta p { margin: 4px 0; color: var(--text-muted); font-size: 0.9rem; font-weight: 500; }
 
+
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+  .summary-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .timeline { display: grid; gap: 12px; }
+  .timeline-item { border: 1px solid var(--panel-border); background: var(--bg); border-radius: var(--radius-md); padding: 14px 16px; }
+  .timeline-item .head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; margin-bottom: 8px; flex-wrap: wrap; }
+  .timeline-item .t { font-weight: 700; color: var(--text); }
+  .timeline-item .s { color: var(--text-muted); font-size: 0.85rem; margin-top: 2px; }
+  .modal-wide { width: min(1100px, 100%); }
+
   .toast { position: fixed; left: 50%; bottom: 40px; transform: translateX(-50%) translateY(20px); opacity: 0; pointer-events: none; background: #1e293b; color: #f8fafc; padding: 12px 24px; border-radius: 999px; font-weight: 600; font-size: 0.95rem; box-shadow: var(--shadow-md); transition: var(--trans); z-index: 1000; }
   .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
 </style>
@@ -194,9 +204,7 @@
         <div class="hero">
           <div class="card">
             <h2>Giriş Seçimi</h2>
-            <p class="muted tiny">
-
-            </p>
+            
             <div class="divider"></div>
 
             <div class="login-buttons">
@@ -231,9 +239,7 @@
               <div class="stat"><div class="k">Kayıtlı Ders</div><div class="v" id="statSessions">0</div></div>
             </div>
             <div class="divider"></div>
-            <div class="helper">
-
-            </div>
+            
           </div>
         </div>
       </section>
@@ -692,7 +698,7 @@
 
     function setChip(el, text, ok=true){
       el.textContent = text;
-      el.style.color = ok ? "var(--muted)" : "#ffd7d7";
+      el.style.color = ok ? "var(--text-muted)" : "#ffd7d7";
       el.style.borderColor = ok ? "rgba(255,255,255,.08)" : "rgba(239,68,68,.35)";
       el.style.background = ok ? "var(--chip)" : "rgba(239,68,68,.12)";
     }
@@ -1295,6 +1301,7 @@
                 <span class="badge late">Geç: ${counts.GEC}</span>
               </div>
             </div>
+          </div>
           <div class="divider"></div>
           <div class="timeline">
             ${timeline.length ? timeline.map(t => `
@@ -1309,7 +1316,8 @@
                 <div><b>İşlenen Konu:</b> ${htmlEscape(t.topic || "-")}</div>
                 <div class="tiny muted" style="margin-top:6px;">Kayıt zamanı: ${htmlEscape(formatDateTimeTR(t.clientSavedAt))}</div>
               </div>`).join("") : `<div class="empty">Bu öğrenci için henüz birebir kaydı yok.</div>`}
-          </div>`;
+          </div>
+        `;
     }
 
     async function openStudentReportFullModal(no){
