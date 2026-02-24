@@ -1,0 +1,2587 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Birebir Analiz Sistemi</title>
+  <meta name="theme-color" content="#0f172a" />
+  <style>
+    :root{
+      --bg:#0b1220;
+      --panel:#111a2e;
+      --panel2:#18233b;
+      --soft:#233251;
+      --line:#2a3a5f;
+      --text:#eaf1ff;
+      --muted:#9fb2d9;
+      --primary:#4f8cff;
+      --primary2:#2d6df6;
+      --success:#15b97a;
+      --warning:#f59e0b;
+      --danger:#ef4444;
+      --late:#a855f7;
+      --chip:#243559;
+      --shadow: 0 14px 40px rgba(0,0,0,.35);
+      --radius: 18px;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:linear-gradient(180deg,#07101d,#0b1220 35%, #0e1728);color:var(--text);font-family:Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif}
+    a{color:inherit;text-decoration:none}
+    button,input,select,textarea{font:inherit}
+    .app{
+      min-height:100dvh;
+      display:flex;
+      flex-direction:column;
+    }
+    .topbar{
+      position:sticky; top:0; z-index:20;
+      background:rgba(10,18,32,.78);
+      backdrop-filter: blur(10px);
+      border-bottom:1px solid rgba(255,255,255,.06);
+      padding:10px 14px;
+      display:flex; gap:12px; align-items:center; justify-content:space-between;
+    }
+    .brand{
+      display:flex; gap:10px; align-items:center; min-width:0;
+    }
+    .brand img{
+      width:42px;height:42px;object-fit:contain;border-radius:12px;background:#fff;padding:4px;
+      box-shadow:0 6px 18px rgba(0,0,0,.25);
+    }
+    .brand .titles{min-width:0}
+    .brand h1{
+      margin:0;font-size:1rem;line-height:1.1;font-weight:800;letter-spacing:.2px;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    }
+    .brand p{
+      margin:3px 0 0;color:var(--muted);font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    }
+    .top-actions{
+      display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end;
+    }
+    .chip{
+      padding:6px 10px;border-radius:999px;background:var(--chip);border:1px solid rgba(255,255,255,.08);
+      color:var(--muted);font-size:.76rem;font-weight:600;
+    }
+
+    .container{
+      width:min(1240px,100%);
+      margin:0 auto;
+      padding:16px 14px 90px;
+      flex:1;
+    }
+    .view{display:none; animation: fade .22s ease}
+    .view.active{display:block}
+    @keyframes fade { from{opacity:.5; transform:translateY(6px)} to{opacity:1; transform:none}}
+
+    .grid{
+      display:grid; gap:14px;
+    }
+    .grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .grid-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+    @media (max-width: 960px){
+      .grid-4,.grid-3{grid-template-columns:repeat(2,minmax(0,1fr))}
+    }
+    @media (max-width: 680px){
+      .grid-2,.grid-3,.grid-4{grid-template-columns:1fr}
+    }
+
+    .card{
+      background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.01));
+      border:1px solid rgba(255,255,255,.07);
+      box-shadow: var(--shadow);
+      border-radius: var(--radius);
+      padding:14px;
+    }
+    .card h2,.card h3{
+      margin:0 0 10px;
+      font-weight:800; letter-spacing:.2px;
+    }
+    .card h2{font-size:1.05rem}
+    .card h3{font-size:.95rem}
+    .muted{color:var(--muted)}
+    .tiny{font-size:.78rem}
+    .divider{height:1px;background:rgba(255,255,255,.06);margin:12px 0}
+
+    .btn{
+      border:none; cursor:pointer;
+      padding:10px 12px; border-radius:12px;
+      background:#223150; color:var(--text);
+      border:1px solid rgba(255,255,255,.08);
+      font-weight:700;
+      transition:.15s ease;
+      display:inline-flex; gap:8px; align-items:center; justify-content:center;
+      min-height:42px;
+    }
+    .btn:hover{transform:translateY(-1px)}
+    .btn:active{transform:translateY(0)}
+    .btn.primary{background:linear-gradient(180deg,var(--primary),var(--primary2)); border-color:rgba(255,255,255,.12)}
+    .btn.success{background:linear-gradient(180deg,#1fc88a,#12aa72)}
+    .btn.warning{background:linear-gradient(180deg,#f3ab1e,#df8d08)}
+    .btn.danger{background:linear-gradient(180deg,#f06161,#e63d3d)}
+    .btn.ghost{background:transparent}
+    .btn.small{padding:7px 10px; min-height:36px; font-size:.88rem}
+    .btn[disabled]{opacity:.45; cursor:not-allowed; transform:none}
+
+    .form-grid{
+      display:grid; gap:12px;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+    }
+    @media (max-width: 900px){ .form-grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
+    @media (max-width: 540px){ .form-grid{grid-template-columns:1fr} }
+    .field{display:flex; flex-direction:column; gap:6px}
+    .field label{font-size:.82rem; font-weight:700; color:var(--muted)}
+    .input, .select, .textarea{
+      width:100%;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.11);
+      background:rgba(17,26,46,.9);
+      color:var(--text);
+      padding:10px 12px;
+      outline:none;
+    }
+    .input:focus,.select:focus,.textarea:focus{
+      border-color:rgba(79,140,255,.8);
+      box-shadow:0 0 0 3px rgba(79,140,255,.15);
+    }
+    .textarea{min-height:88px; resize:vertical}
+
+    .hero{
+      display:grid; gap:14px;
+      grid-template-columns:1.2fr .8fr;
+      align-items:stretch;
+    }
+    @media (max-width: 900px){ .hero{grid-template-columns:1fr} }
+
+    .login-buttons{
+      display:grid; gap:12px; grid-template-columns:repeat(2,minmax(0,1fr));
+    }
+    @media (max-width:600px){ .login-buttons{grid-template-columns:1fr} }
+
+    .big-button{
+      min-height:110px; border-radius:16px;
+      padding:14px;
+      display:flex; flex-direction:column; align-items:flex-start; justify-content:center;
+      background:linear-gradient(180deg,#182642,#111c33);
+      border:1px solid rgba(255,255,255,.08);
+      cursor:pointer;
+      transition:.18s ease;
+    }
+    .big-button:hover{transform:translateY(-2px); border-color:rgba(79,140,255,.35)}
+    .big-button .t{font-size:1rem; font-weight:800}
+    .big-button .s{font-size:.82rem; color:var(--muted); margin-top:6px; line-height:1.4}
+
+    .stats{
+      display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px;
+    }
+    @media (max-width: 900px){ .stats{grid-template-columns:repeat(2,minmax(0,1fr))} }
+    @media (max-width: 520px){ .stats{grid-template-columns:1fr} }
+    .stat{
+      background:rgba(255,255,255,.02);
+      border:1px solid rgba(255,255,255,.06);
+      border-radius:14px;
+      padding:10px 12px;
+    }
+    .stat .k{color:var(--muted); font-size:.78rem; font-weight:700}
+    .stat .v{font-size:1.08rem; font-weight:800; margin-top:6px}
+
+    .toolbar{
+      display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:space-between;
+    }
+    .toolbar-left,.toolbar-right{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+
+    .teacher-header{
+      display:flex; justify-content:space-between; gap:12px; align-items:flex-start; flex-wrap:wrap;
+    }
+    .teacher-meta{
+      display:flex; gap:8px; flex-wrap:wrap;
+    }
+    .pill{
+      padding:6px 10px; border-radius:999px; font-size:.78rem; font-weight:700;
+      border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.03);
+    }
+
+    .student-list{
+      display:grid; gap:10px;
+      grid-template-columns:1fr;
+      max-height:52dvh;
+      overflow:auto;
+      padding-right:2px;
+    }
+    .student-row{
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.02);
+      border-radius:14px;
+      padding:10px;
+      display:grid; gap:10px;
+      grid-template-columns: minmax(0,1fr) auto;
+      align-items:center;
+    }
+    @media (max-width: 760px){
+      .student-row{grid-template-columns:1fr}
+    }
+    .student-main{
+      display:flex; flex-direction:column; gap:4px; min-width:0;
+    }
+    .student-name{
+      font-weight:800; font-size:.95rem;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .student-sub{
+      color:var(--muted); font-size:.78rem;
+      display:flex; gap:8px; flex-wrap:wrap;
+    }
+    .status-buttons{
+      display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;
+    }
+    @media (max-width:760px){ .status-buttons{justify-content:flex-start} }
+    .status-btn{
+      min-width:84px; min-height:38px;
+      padding:8px 10px;
+      border-radius:10px;
+      border:1px solid rgba(255,255,255,.09);
+      background:#223150; color:var(--text);
+      cursor:pointer; font-weight:800; font-size:.8rem;
+    }
+    .status-btn.active.present{background:rgba(21,185,122,.18); border-color:rgba(21,185,122,.45)}
+    .status-btn.active.absent{background:rgba(239,68,68,.16); border-color:rgba(239,68,68,.45)}
+    .status-btn.active.late{background:rgba(168,85,247,.16); border-color:rgba(168,85,247,.45)}
+
+    .summary-row{
+      display:flex; gap:8px; flex-wrap:wrap;
+    }
+    .badge{
+      border-radius:999px; padding:7px 10px; font-size:.78rem; font-weight:800;
+      border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.03);
+    }
+    .badge.success{background:rgba(21,185,122,.12); border-color:rgba(21,185,122,.35)}
+    .badge.danger{background:rgba(239,68,68,.12); border-color:rgba(239,68,68,.35)}
+    .badge.late{background:rgba(168,85,247,.12); border-color:rgba(168,85,247,.35)}
+    .badge.neutral{background:rgba(255,255,255,.04)}
+
+    .empty{
+      border:1px dashed rgba(255,255,255,.13);
+      border-radius:14px;
+      padding:16px;
+      color:var(--muted);
+      text-align:center;
+    }
+
+    .table-wrap{
+      width:100%; overflow:auto;
+      border-radius:14px; border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.02);
+    }
+    table{
+      width:100%; border-collapse:collapse; min-width:760px;
+    }
+    th,td{
+      padding:10px 12px; border-bottom:1px solid rgba(255,255,255,.06);
+      text-align:left; vertical-align:top; font-size:.88rem;
+    }
+    th{color:var(--muted); font-size:.78rem; font-weight:800; letter-spacing:.2px; position:sticky; top:0; background:#121d33}
+    tr:last-child td{border-bottom:none}
+
+    .modal-overlay{
+      position:fixed; inset:0; z-index:90;
+      background:rgba(2,6,14,.65);
+      display:none; align-items:flex-end; justify-content:center;
+      padding:14px;
+      backdrop-filter: blur(5px);
+    }
+    .modal-overlay.show{display:flex}
+    .modal{
+      width:min(1080px, 100%);
+      max-height:92dvh;
+      background:linear-gradient(180deg, #101a2f, #0e1729);
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:18px;
+      box-shadow:var(--shadow);
+      display:flex; flex-direction:column;
+      overflow:hidden;
+    }
+    @media (max-width:700px){
+      .modal{border-radius:18px 18px 12px 12px}
+    }
+    .modal-head{
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      padding:12px 14px;
+      border-bottom:1px solid rgba(255,255,255,.06);
+      background:rgba(255,255,255,.02);
+    }
+    .modal-head h3{margin:0;font-size:1rem}
+    .modal-body{
+      padding:14px;
+      overflow:auto;
+    }
+    .modal-foot{
+      padding:12px 14px;
+      border-top:1px solid rgba(255,255,255,.06);
+      display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap;
+      background:rgba(255,255,255,.02);
+    }
+
+    .search-box{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+    .search-results{
+      display:grid; gap:8px; max-height:280px; overflow:auto;
+      margin-top:10px;
+    }
+    .search-item{
+      border:1px solid rgba(255,255,255,.08);
+      background:rgba(255,255,255,.02);
+      border-radius:12px;
+      padding:10px;
+      cursor:pointer;
+      display:flex; justify-content:space-between; gap:10px; align-items:center;
+    }
+    .search-item:hover{border-color:rgba(79,140,255,.35)}
+    .search-item .l{min-width:0}
+    .search-item .name{font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+    .search-item .sub{font-size:.78rem; color:var(--muted)}
+
+    .profile-card{
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:16px;
+      background:rgba(255,255,255,.02);
+      padding:12px;
+      display:grid; gap:12px;
+      grid-template-columns:auto 1fr;
+      align-items:center;
+    }
+    @media (max-width:680px){ .profile-card{grid-template-columns:1fr; text-align:center} }
+    .avatar{
+      width:90px; height:90px; border-radius:16px; overflow:hidden;
+      border:1px solid rgba(255,255,255,.12);
+      background:#182844;
+      display:grid; place-items:center;
+      font-weight:800; font-size:1.6rem; color:#cfe0ff;
+    }
+    .avatar img{width:100%; height:100%; object-fit:cover}
+    .profile-meta h4{margin:0 0 6px; font-size:1rem}
+    .profile-meta p{margin:3px 0; color:var(--muted); font-size:.86rem}
+    .timeline{
+      display:grid; gap:10px; margin-top:12px;
+    }
+    .timeline-item{
+      border:1px solid rgba(255,255,255,.07);
+      border-radius:14px; padding:10px;
+      background:rgba(255,255,255,.02);
+    }
+    .timeline-item .head{
+      display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;
+      margin-bottom:6px;
+    }
+    .timeline-item .head .t{font-weight:800}
+    .timeline-item .head .s{font-size:.76rem; color:var(--muted)}
+    .status-chip{
+      padding:6px 10px; border-radius:999px; font-size:.76rem; font-weight:800; border:1px solid rgba(255,255,255,.08)
+    }
+    .status-chip.present{background:rgba(21,185,122,.12); border-color:rgba(21,185,122,.35)}
+    .status-chip.absent{background:rgba(239,68,68,.12); border-color:rgba(239,68,68,.35)}
+    .status-chip.late{background:rgba(168,85,247,.12); border-color:rgba(168,85,247,.35)}
+
+    .slot-row{
+      display:grid; gap:8px;
+      grid-template-columns: 110px 1fr 110px 110px auto auto;
+      align-items:center;
+      padding:8px;
+      border:1px solid rgba(255,255,255,.07);
+      border-radius:12px;
+      background:rgba(255,255,255,.02);
+    }
+    @media (max-width:900px){
+      .slot-row{grid-template-columns:1fr 1fr; align-items:stretch}
+      .slot-row .full{grid-column:1/-1}
+    }
+
+    .helper{
+      border-radius:12px; padding:10px; background:rgba(79,140,255,.08);
+      border:1px solid rgba(79,140,255,.22); color:#dbe8ff;
+      font-size:.83rem; line-height:1.45;
+    }
+    .helper.warn{
+      background:rgba(245,158,11,.08); border-color:rgba(245,158,11,.25);
+    }
+    .helper.danger{
+      background:rgba(239,68,68,.07); border-color:rgba(239,68,68,.2);
+    }
+
+    .crop-grid{
+      display:grid; gap:12px; grid-template-columns:280px 1fr;
+      align-items:start;
+    }
+    @media (max-width:800px){ .crop-grid{grid-template-columns:1fr} }
+    .crop-preview{
+      width:100%; aspect-ratio:1/1;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.1);
+      background:#0f1b33;
+      display:grid; place-items:center;
+      overflow:hidden;
+    }
+    .crop-preview canvas{width:100%; height:100%}
+    .range-row{display:grid; gap:6px; margin-bottom:8px}
+    .range-row label{font-size:.8rem; color:var(--muted); font-weight:700}
+    .range-row input[type="range"]{width:100%}
+    .photo-thumb{
+      width:56px;height:56px;border-radius:12px;object-fit:cover;border:1px solid rgba(255,255,255,.12);
+      background:#182844;
+    }
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
+
+    .toast{
+      position:fixed; left:50%; bottom:18px; transform:translateX(-50%) translateY(20px);
+      background:#121d33; color:var(--text);
+      border:1px solid rgba(255,255,255,.1);
+      padding:10px 14px; border-radius:12px;
+      z-index:120; opacity:0; pointer-events:none;
+      transition:.18s ease;
+      box-shadow:var(--shadow);
+      max-width:min(92vw,600px);
+      text-align:center;
+      font-weight:700;
+    }
+    .toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+
+    .footer-space{height:10px}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <img src="https://i.ibb.co/8L8bR92g/1.png" alt="Logo" />
+        <div class="titles">
+          <h1>Birebir Analiz Sistemi</h1>
+          <p>Öğretmen & Admin Paneli • Firebase + Google Sheets</p>
+        </div>
+      </div>
+      <div class="top-actions">
+        <span id="sheetStatusChip" class="chip">Sheet: yükleniyor…</span>
+        <span id="dbStatusChip" class="chip">Firebase: bağlanıyor…</span>
+        <button id="btnTopHome" class="btn small ghost">Ana Sayfa</button>
+      </div>
+    </header>
+
+    <main class="container">
+
+      <!-- HOME -->
+      <section id="view-home" class="view active">
+        <div class="hero">
+          <div class="card">
+            <h2>Giriş Seçimi</h2>
+            <p class="muted tiny">
+              Öğretmenler <b>Ogretmenler</b> sekmesindeki <b>ID</b> ile giriş yapar. Admin girişi ayrı şifre ile yapılır.
+            </p>
+            <div class="divider"></div>
+
+            <div class="login-buttons">
+              <button id="goTeacherLogin" class="big-button" type="button">
+                <div class="t">👩‍🏫 Öğretmen Girişi</div>
+                <div class="s">Öğretmen ID ile giriş • Grup seç • Yoklama al • Konu yaz • Ders bitti kaydı oluştur</div>
+              </button>
+              <button id="goAdminLogin" class="big-button" type="button">
+                <div class="t">🛠️ Admin Girişi</div>
+                <div class="s">Öğrenci karnesi • Günlük yoklama • Saat ayarları • Öğrenci güncelleme • Veri yönetimi</div>
+              </button>
+            </div>
+
+            <div class="divider"></div>
+            <div class="toolbar">
+              <div class="toolbar-left">
+                <button id="btnReloadSheets" class="btn primary">Verileri Yenile (Google Sheet)</button>
+                <button id="btnReloadDbMeta" class="btn">Firebase Meta Yenile</button>
+              </div>
+              <div class="toolbar-right">
+                <span id="lastSyncText" class="muted tiny">Son senkron: -</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Durum Özeti</h3>
+            <div class="stats" id="homeStats">
+              <div class="stat"><div class="k">Öğretmen</div><div class="v" id="statTeachers">0</div></div>
+              <div class="stat"><div class="k">Öğrenci</div><div class="v" id="statStudents">0</div></div>
+              <div class="stat"><div class="k">Grup</div><div class="v" id="statGroups">0</div></div>
+              <div class="stat"><div class="k">Kayıtlı Ders</div><div class="v" id="statSessions">0</div></div>
+            </div>
+            <div class="divider"></div>
+            <div class="helper">
+              <b>Not:</b> Google Sheet erişimi için tablo “bağlantıya sahip olanlar görüntüleyebilir” olmalı. Bu sürüm <b>Ogretmenler</b> ve <b>Ogrenciler</b> sekmelerini otomatik okur.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TEACHER LOGIN -->
+      <section id="view-teacher-login" class="view">
+        <div class="card" style="max-width:620px; margin:0 auto;">
+          <h2>Öğretmen Girişi</h2>
+          <p class="muted tiny">Giriş için <b>Ogretmenler</b> sekmesindeki <b>ID</b> numaranızı yazın.</p>
+
+          <div class="form-grid" style="grid-template-columns:1fr;">
+            <div class="field">
+              <label for="teacherIdInput">Öğretmen ID (Şifre)</label>
+              <input id="teacherIdInput" class="input mono" inputmode="numeric" placeholder="Örn: 101" />
+            </div>
+          </div>
+
+          <div class="divider"></div>
+          <div class="toolbar">
+            <div class="toolbar-left">
+              <button id="btnTeacherLogin" class="btn primary">Giriş Yap</button>
+            </div>
+            <div class="toolbar-right">
+              <button class="btn" data-go-home>Geri</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ADMIN LOGIN -->
+      <section id="view-admin-login" class="view">
+        <div class="card" style="max-width:620px; margin:0 auto;">
+          <h2>Admin Girişi</h2>
+          <p class="muted tiny">Admin şifresi sabittir (bu sürümde isteminize göre istemci tarafında tutulur).</p>
+
+          <div class="form-grid" style="grid-template-columns:1fr;">
+            <div class="field">
+              <label for="adminPassInput">Admin Şifresi</label>
+              <input id="adminPassInput" class="input mono" type="password" placeholder="Şifre" />
+            </div>
+          </div>
+
+          <div class="divider"></div>
+          <div class="toolbar">
+            <div class="toolbar-left">
+              <button id="btnAdminLogin" class="btn primary">Giriş Yap</button>
+            </div>
+            <div class="toolbar-right">
+              <button class="btn" data-go-home>Geri</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TEACHER PANEL -->
+      <section id="view-teacher" class="view">
+        <div class="grid">
+          <div class="card">
+            <div class="teacher-header">
+              <div>
+                <h2>Öğretmen Paneli</h2>
+                <div id="teacherWelcome" class="muted tiny">-</div>
+              </div>
+              <div class="teacher-meta">
+                <span id="teacherMetaId" class="pill">ID: -</span>
+                <span id="teacherMetaBranch" class="pill">Branş: -</span>
+                <span class="pill">Durum: <span id="teacherDraftState">Yeni oturum</span></span>
+              </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="form-grid">
+              <div class="field">
+                <label for="lessonDateInput">Tarih</label>
+                <input id="lessonDateInput" class="input" type="date" />
+              </div>
+              <div class="field">
+                <label for="lessonSlotSelect">Ders Saati</label>
+                <select id="lessonSlotSelect" class="select"></select>
+              </div>
+              <div class="field">
+                <label for="groupSelect">Öğrenci Grubu</label>
+                <select id="groupSelect" class="select"></select>
+              </div>
+              <div class="field">
+                <label>&nbsp;</label>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <button id="btnLoadGroup" class="btn">Grubu Yükle</button>
+                  <button id="btnTeacherResetDraft" class="btn ghost">Formu Temizle</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="field">
+              <label for="lessonTopicInput">İşlenen Konu / İçerik</label>
+              <textarea id="lessonTopicInput" class="textarea" placeholder="Örn: Sıfatlar, paragraf soruları, yeni nesil soru çözümü..."></textarea>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="toolbar">
+              <div class="toolbar-left">
+                <button id="btnAllPresent" class="btn success small">Tümünü Geldi</button>
+                <button id="btnClearStatuses" class="btn small">Seçimleri Temizle</button>
+              </div>
+              <div class="toolbar-right summary-row">
+                <span id="sumTotal" class="badge neutral">Toplam: 0</span>
+                <span id="sumPresent" class="badge success">Geldi: 0</span>
+                <span id="sumAbsent" class="badge danger">Gelmedi: 0</span>
+                <span id="sumLate" class="badge late">Geç: 0</span>
+                <span id="sumUnknown" class="badge neutral">Belirsiz: 0</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Öğrenci Listesi / Yoklama</h3>
+            <p class="muted tiny">
+              Grup yüklendikten sonra öğrenciler listelenir. Her öğrenci için <b>Geldi / Gelmedi / Geç Geldi</b> seçin.
+              Ders bitmeden önce düzenleme yapılabilir. <b>Ders Bitti</b> sonrası kayıt kilitlenir.
+            </p>
+
+            <div class="divider"></div>
+            <div id="teacherStudentList" class="student-list">
+              <div class="empty">Henüz grup yüklenmedi.</div>
+            </div>
+
+            <div class="divider"></div>
+            <div class="toolbar">
+              <div class="toolbar-left">
+                <button id="btnFinalizeLesson" class="btn primary">Ders Bitti • Kaydı Tamamla</button>
+              </div>
+              <div class="toolbar-right">
+                <button id="btnTeacherLogout" class="btn">Çıkış</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ADMIN PANEL -->
+      <section id="view-admin" class="view">
+        <div class="grid">
+          <div class="card">
+            <div class="teacher-header">
+              <div>
+                <h2>Admin Paneli</h2>
+                <div class="muted tiny">Yönetim işlemleri • Modallar üzerinden detay ekranları açılır</div>
+              </div>
+              <div class="toolbar-right">
+                <button id="btnAdminRefreshAll" class="btn primary small">Tüm Verileri Yenile</button>
+                <button id="btnAdminLogout" class="btn small">Çıkış</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-2">
+            <button id="btnOpenStudentDetail" class="big-button" type="button">
+              <div class="t">1) Öğrenci Detayı / Karne</div>
+              <div class="s">Numara veya adla ara • Foto, sınıf, grup ve zaman sıralı birebir geçmişi</div>
+            </button>
+
+            <button id="btnOpenDailyAttendance" class="big-button" type="button">
+              <div class="t">2) Birebir Yoklaması (Günlük)</div>
+              <div class="s">Seçilen tarihte gelmeyen / geç katılan öğrenciler + öğretmen ve saat bilgisi</div>
+            </button>
+
+            <button id="btnOpenSlotSettings" class="big-button" type="button">
+              <div class="t">3) Birebir Saati Ayarlama</div>
+              <div class="s">Varsayılan saatleri değiştir • Ders sayısını artır/azalt • Öğretmen paneline yansır</div>
+            </button>
+
+            <button id="btnOpenStudentUpdate" class="big-button" type="button">
+              <div class="t">4) Öğrenci Bilgileri Güncelleme</div>
+              <div class="s">Sheet verisini override et • Fotoğraf ekle • Kırp + küçült • Firebase’e kaydet</div>
+            </button>
+
+            <button id="btnOpenDataManager" class="big-button" type="button" style="grid-column:1/-1">
+              <div class="t">5) Kayıtlı Veri Yönetimi</div>
+              <div class="s">İstenilen tarih kayıtlarını veya tüm kayıtları (oturumlar / sistem verisi) sil</div>
+            </button>
+          </div>
+
+          <div class="card">
+            <h3>Hızlı Sistem Özeti</h3>
+            <div class="stats">
+              <div class="stat"><div class="k">Öğretmen</div><div class="v" id="adminStatTeachers">0</div></div>
+              <div class="stat"><div class="k">Öğrenci</div><div class="v" id="adminStatStudents">0</div></div>
+              <div class="stat"><div class="k">Grup</div><div class="v" id="adminStatGroups">0</div></div>
+              <div class="stat"><div class="k">Ders Kaydı</div><div class="v" id="adminStatSessions">0</div></div>
+            </div>
+            <div class="divider"></div>
+            <div id="adminSystemInfo" class="helper">
+              Yükleniyor...
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="footer-space"></div>
+    </main>
+  </div>
+
+  <!-- Generic Modal -->
+  <div id="modalOverlay" class="modal-overlay" aria-hidden="true">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="modalTitle">Modal</h3>
+        <button id="modalCloseBtn" class="btn small">Kapat</button>
+      </div>
+      <div id="modalBody" class="modal-body"></div>
+      <div id="modalFooter" class="modal-foot" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast">-</div>
+
+  <script type="module">
+    /**********************
+     * AYARLAR / SABİTLER *
+     **********************/
+    const GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1oJGMO7FOPV4U86peeA63lmMk-wVCKsfWuyw2yefMweg/edit?usp=sharing";
+    const ADMIN_PASSWORD = "13579";
+    const ROOT_PATH = "Birebirlerianaliz";
+    const DEFAULT_LESSON_SLOTS = [
+      { id: "S1", start: "16:00", end: "16:40", active: true },
+      { id: "S2", start: "16:50", end: "17:30", active: true },
+      { id: "S3", start: "17:35", end: "18:15", active: true },
+      { id: "S4", start: "18:20", end: "18:55", active: true } // Not: Kullanıcı metninde 19:55 yazılmış; muhtemelen 18:55. İstersen 19:55 yapabilirsin.
+    ];
+
+    /**********************
+     * FIREBASE IMPORTS   *
+     **********************/
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+    import { getAnalytics, isSupported as analyticsIsSupported } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-analytics.js";
+    import {
+      getDatabase, ref, get, set, update, remove, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAIzu6aNQstwQCdMWODyIwiaVVBm63OeGw",
+      authDomain: "odevfeno.firebaseapp.com",
+      databaseURL: "https://odevfeno-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "odevfeno",
+      storageBucket: "odevfeno.firebasestorage.app",
+      messagingSenderId: "662757516934",
+      appId: "1:662757516934:web:0042188832f63deb6fd307",
+      measurementId: "G-4Q99NQRB38"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    let analytics = null;
+    try {
+      if (await analyticsIsSupported()) analytics = getAnalytics(app);
+    } catch (e) {
+      console.warn("Analytics başlatılamadı:", e);
+    }
+    const db = getDatabase(app);
+
+    /**********************
+     * GLOBAL STATE       *
+     **********************/
+    const state = {
+      ui: {
+        activeView: "home",
+        modalOpen: false
+      },
+      auth: {
+        role: null, // 'teacher' | 'admin'
+        teacher: null
+      },
+      data: {
+        teachers: [],
+        students: [],
+        settings: {
+          lessonSlots: structuredClone(DEFAULT_LESSON_SLOTS)
+        },
+        studentOverrides: {},
+        sessionsByDate: null, // admin ihtiyaç duyduğunda yüklenir
+        dbMeta: {
+          sessionCount: 0,
+          lastMetaRefresh: null
+        }
+      },
+      teacherDraft: {
+        date: "",
+        slotId: "",
+        group: "",
+        topic: "",
+        loadedStudents: [],
+        statuses: {}, // no -> GELDI|GELMEDI|GEC
+        locked: false
+      }
+    };
+
+    /**********************
+     * DOM REFERENCES     *
+     **********************/
+    const $ = (sel, root=document) => root.querySelector(sel);
+    const $$ = (sel, root=document) => [...root.querySelectorAll(sel)];
+
+    const els = {
+      sheetStatusChip: $("#sheetStatusChip"),
+      dbStatusChip: $("#dbStatusChip"),
+      lastSyncText: $("#lastSyncText"),
+
+      statTeachers: $("#statTeachers"),
+      statStudents: $("#statStudents"),
+      statGroups: $("#statGroups"),
+      statSessions: $("#statSessions"),
+
+      adminStatTeachers: $("#adminStatTeachers"),
+      adminStatStudents: $("#adminStatStudents"),
+      adminStatGroups: $("#adminStatGroups"),
+      adminStatSessions: $("#adminStatSessions"),
+      adminSystemInfo: $("#adminSystemInfo"),
+
+      views: {
+        home: $("#view-home"),
+        teacherLogin: $("#view-teacher-login"),
+        adminLogin: $("#view-admin-login"),
+        teacher: $("#view-teacher"),
+        admin: $("#view-admin")
+      },
+
+      teacherIdInput: $("#teacherIdInput"),
+      adminPassInput: $("#adminPassInput"),
+
+      lessonDateInput: $("#lessonDateInput"),
+      lessonSlotSelect: $("#lessonSlotSelect"),
+      groupSelect: $("#groupSelect"),
+      lessonTopicInput: $("#lessonTopicInput"),
+      teacherStudentList: $("#teacherStudentList"),
+      teacherWelcome: $("#teacherWelcome"),
+      teacherMetaId: $("#teacherMetaId"),
+      teacherMetaBranch: $("#teacherMetaBranch"),
+      teacherDraftState: $("#teacherDraftState"),
+
+      sumTotal: $("#sumTotal"),
+      sumPresent: $("#sumPresent"),
+      sumAbsent: $("#sumAbsent"),
+      sumLate: $("#sumLate"),
+      sumUnknown: $("#sumUnknown"),
+
+      modalOverlay: $("#modalOverlay"),
+      modalTitle: $("#modalTitle"),
+      modalBody: $("#modalBody"),
+      modalFooter: $("#modalFooter"),
+      modalCloseBtn: $("#modalCloseBtn"),
+
+      toast: $("#toast")
+    };
+
+    /**********************
+     * UTILITIES          *
+     **********************/
+    function trLower(str="") {
+      return String(str).toLocaleLowerCase("tr-TR");
+    }
+
+    function normalizeText(str="") {
+      const map = {
+        "ç":"c","Ç":"c","ğ":"g","Ğ":"g","ı":"i","I":"i","İ":"i","i":"i","ö":"o","Ö":"o","ş":"s","Ş":"s","ü":"u","Ü":"u"
+      };
+      return String(str)
+        .split("")
+        .map(ch => map[ch] ?? ch)
+        .join("")
+        .toLowerCase()
+        .replace(/\s+/g, "")
+        .replace(/[^a-z0-9]/g, "");
+    }
+
+    function extractSpreadsheetId(url){
+      const m = String(url).match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+      return m ? m[1] : null;
+    }
+
+    function formatDateTR(isoDate){
+      if(!isoDate) return "-";
+      const d = new Date(isoDate);
+      if (Number.isNaN(d.getTime())) {
+        // date-only string
+        const p = String(isoDate).split("-");
+        if (p.length===3) return `${p[2]}.${p[1]}.${p[0]}`;
+        return String(isoDate);
+      }
+      return d.toLocaleDateString("tr-TR");
+    }
+
+    function formatDateTimeTR(value){
+      if(!value) return "-";
+      const d = new Date(value);
+      if(Number.isNaN(d.getTime())) return String(value);
+      return d.toLocaleString("tr-TR");
+    }
+
+    function todayISO(){
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,"0");
+      const day = String(d.getDate()).padStart(2,"0");
+      return `${y}-${m}-${day}`;
+    }
+
+    function makeSlotLabel(slot){
+      if (!slot) return "-";
+      return `${slot.start || "??:??"} - ${slot.end || "??:??"}`;
+    }
+
+    function safeKey(value=""){
+      return String(value).replace(/[.#$[\]/]/g, "_");
+    }
+
+    function htmlEscape(str=""){
+      return String(str)
+        .replace(/&/g,"&amp;")
+        .replace(/</g,"&lt;")
+        .replace(/>/g,"&gt;")
+        .replace(/"/g,"&quot;");
+    }
+
+    function initials(name=""){
+      const parts = String(name).trim().split(/\s+/).filter(Boolean);
+      return (parts.slice(0,2).map(x => x[0]?.toLocaleUpperCase("tr-TR") || "").join("") || "?");
+    }
+
+    function showToast(msg, ms=2200){
+      els.toast.textContent = msg;
+      els.toast.classList.add("show");
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => els.toast.classList.remove("show"), ms);
+    }
+
+    function setChip(el, text, ok=true){
+      el.textContent = text;
+      el.style.color = ok ? "var(--muted)" : "#ffd7d7";
+      el.style.borderColor = ok ? "rgba(255,255,255,.08)" : "rgba(239,68,68,.35)";
+      el.style.background = ok ? "var(--chip)" : "rgba(239,68,68,.12)";
+    }
+
+    function setView(name){
+      Object.entries(els.views).forEach(([k, node]) => {
+        node.classList.toggle("active", k===name);
+      });
+      state.ui.activeView = name;
+    }
+
+    function openModal(title, html, { footerHtml="", onRender=null } = {}){
+      els.modalTitle.textContent = title;
+      els.modalBody.innerHTML = html;
+      if (footerHtml) {
+        els.modalFooter.style.display = "flex";
+        els.modalFooter.innerHTML = footerHtml;
+      } else {
+        els.modalFooter.style.display = "none";
+        els.modalFooter.innerHTML = "";
+      }
+      els.modalOverlay.classList.add("show");
+      els.modalOverlay.setAttribute("aria-hidden", "false");
+      state.ui.modalOpen = true;
+      if (typeof onRender === "function") onRender();
+    }
+
+    function closeModal(){
+      els.modalOverlay.classList.remove("show");
+      els.modalOverlay.setAttribute("aria-hidden", "true");
+      els.modalBody.innerHTML = "";
+      els.modalFooter.innerHTML = "";
+      els.modalFooter.style.display = "none";
+      state.ui.modalOpen = false;
+    }
+
+    function getActiveSlots(){
+      const slots = Array.isArray(state.data.settings.lessonSlots)
+        ? state.data.settings.lessonSlots
+        : DEFAULT_LESSON_SLOTS;
+      return slots.filter(s => s && s.active !== false);
+    }
+
+    function getAllGroups(){
+      const set = new Set();
+      for (const s of mergedStudents()) {
+        if (s.grup) set.add(String(s.grup).trim());
+      }
+      return [...set].sort((a,b)=>a.localeCompare(b,"tr"));
+    }
+
+    function mergedStudents(){
+      const baseMap = new Map();
+      for (const s of state.data.students) {
+        baseMap.set(String(s.no), { ...s });
+      }
+      for (const [no, ov] of Object.entries(state.data.studentOverrides || {})) {
+        const prev = baseMap.get(String(no)) || { no: String(no) };
+        baseMap.set(String(no), {
+          ...prev,
+          ...ov,
+          no: String(no),
+          _isOverride: true
+        });
+      }
+      return [...baseMap.values()].sort((a,b)=>{
+        const na = Number(a.no), nb = Number(b.no);
+        if (!Number.isNaN(na) && !Number.isNaN(nb) && na!==nb) return na-nb;
+        return String(a.adsoyad||"").localeCompare(String(b.adsoyad||""),"tr");
+      });
+    }
+
+    function findTeacherById(id){
+      return state.data.teachers.find(t => String(t.id) === String(id)) || null;
+    }
+
+    function getSlotById(slotId){
+      return (state.data.settings.lessonSlots || []).find(s => s.id === slotId) || null;
+    }
+
+    function summarizeTeacherDraft(){
+      const students = state.teacherDraft.loadedStudents;
+      const statuses = state.teacherDraft.statuses || {};
+      let present=0, absent=0, late=0, unknown=0;
+      for (const s of students) {
+        const st = statuses[s.no];
+        if (st === "GELDI") present++;
+        else if (st === "GELMEDI") absent++;
+        else if (st === "GEC") late++;
+        else unknown++;
+      }
+      return { total: students.length, present, absent, late, unknown };
+    }
+
+    /**********************
+     * GOOGLE SHEETS READ *
+     **********************/
+    async function fetchGoogleTabRows(tabName){
+      const spreadsheetId = extractSpreadsheetId(GOOGLE_SHEET_URL);
+      if (!spreadsheetId) throw new Error("Google Sheet ID çözümlenemedi.");
+      const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(tabName)}`;
+
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) throw new Error(`${tabName} sekmesi okunamadı (HTTP ${res.status})`);
+      const txt = await res.text();
+
+      const m = txt.match(/google\.visualization\.Query\.setResponse\(([\s\S]+)\);/);
+      if (!m) throw new Error(`${tabName} yanıtı parse edilemedi.`);
+      const json = JSON.parse(m[1]);
+
+      const table = json.table;
+      const headers = (table.cols || []).map(c => (c.label || c.id || "").trim());
+
+      const rows = (table.rows || []).map(r => {
+        const cells = (r.c || []).map(cell => {
+          if (!cell) return "";
+          if (typeof cell.f !== "undefined" && cell.f !== null && cell.f !== "") return String(cell.f);
+          if (typeof cell.v === "undefined" || cell.v === null) return "";
+          return String(cell.v);
+        });
+        return cells;
+      });
+
+      return { headers, rows };
+    }
+
+    function mapTeacherRows(headers, rows){
+      const idxMap = new Map(headers.map((h,i)=>[normalizeText(h), i]));
+      const idxId = idxMap.get("id");
+      const idxName = idxMap.get("ogretmenadi") ?? idxMap.get("ogretmen") ?? idxMap.get("adsoyad");
+      const idxBrans = idxMap.get("brans");
+
+      if (idxId == null || idxName == null) {
+        throw new Error("Ogretmenler sekmesinde 'ID' ve 'OGRETMEN_ADI' sütunları bulunamadı.");
+      }
+
+      const out = [];
+      for (const row of rows) {
+        const id = (row[idxId] ?? "").trim();
+        const name = (row[idxName] ?? "").trim();
+        const brans = (row[idxBrans] ?? "").trim();
+        if (!id || !name) continue;
+        out.push({ id, name, brans });
+      }
+      return out;
+    }
+
+    function mapStudentRows(headers, rows){
+      const idxMap = new Map(headers.map((h,i)=>[normalizeText(h), i]));
+      const idxNo = idxMap.get("no") ?? idxMap.get("numara");
+      const idxAd = idxMap.get("adsoyad") ?? idxMap.get("ogrenci") ?? idxMap.get("isimsoyisim");
+      const idxSinif = idxMap.get("sinif");
+      const idxGrup = idxMap.get("grubu") ?? idxMap.get("grup");
+      const idxCins = idxMap.get("cinsiyet");
+
+      if (idxNo == null || idxAd == null || idxGrup == null) {
+        throw new Error("Ogrenciler sekmesinde 'NO', 'ADSOYAD', 'Grubu' sütunları bulunamadı.");
+      }
+
+      const out = [];
+      for (const row of rows) {
+        const no = String(row[idxNo] ?? "").trim();
+        const adsoyad = String(row[idxAd] ?? "").trim();
+        const sinif = String(row[idxSinif] ?? "").trim();
+        const grup = String(row[idxGrup] ?? "").trim();
+        const cinsiyet = String(row[idxCins] ?? "").trim();
+        if (!no || !adsoyad) continue;
+        out.push({ no, adsoyad, sinif, grup, cinsiyet });
+      }
+      return out;
+    }
+
+    async function loadGoogleSheetsData(){
+      setChip(els.sheetStatusChip, "Sheet: yükleniyor…", true);
+      try {
+        const [ogretmenTab, ogrenciTab] = await Promise.all([
+          fetchGoogleTabRows("Ogretmenler"),
+          fetchGoogleTabRows("Ogrenciler")
+        ]);
+
+        state.data.teachers = mapTeacherRows(ogretmenTab.headers, ogretmenTab.rows);
+        state.data.students = mapStudentRows(ogrenciTab.headers, ogrenciTab.rows);
+
+        setChip(els.sheetStatusChip, "Sheet: bağlı ✓", true);
+        els.lastSyncText.textContent = `Son senkron: ${new Date().toLocaleString("tr-TR")}`;
+        refreshGlobalStatsUI();
+        renderTeacherSelectors();
+        return true;
+      } catch (err) {
+        console.error(err);
+        setChip(els.sheetStatusChip, "Sheet: hata", false);
+        showToast("Google Sheet okunamadı. Paylaşım ayarını kontrol edin.");
+        return false;
+      }
+    }
+
+    /**********************
+     * FIREBASE HELPERS   *
+     **********************/
+    async function dbGet(path){
+      const snap = await get(ref(db, path));
+      return snap.exists() ? snap.val() : null;
+    }
+    async function dbSet(path, value){
+      await set(ref(db, path), value);
+    }
+    async function dbUpdate(path, patch){
+      await update(ref(db, path), patch);
+    }
+    async function dbRemove(path){
+      await remove(ref(db, path));
+    }
+
+    async function loadSettingsFromDb(){
+      setChip(els.dbStatusChip, "Firebase: bağlanıyor…", true);
+      try {
+        const [settings, studentOverrides] = await Promise.all([
+          dbGet(`${ROOT_PATH}/settings`),
+          dbGet(`${ROOT_PATH}/studentOverrides`)
+        ]);
+
+        if (settings?.lessonSlots) {
+          const arr = Array.isArray(settings.lessonSlots) ? settings.lessonSlots : Object.values(settings.lessonSlots);
+          state.data.settings.lessonSlots = arr.map((s, i) => ({
+            id: s.id || `S${i+1}`,
+            start: s.start || "16:00",
+            end: s.end || "16:40",
+            active: s.active !== false
+          }));
+        } else {
+          state.data.settings.lessonSlots = structuredClone(DEFAULT_LESSON_SLOTS);
+          await dbSet(`${ROOT_PATH}/settings/lessonSlots`, state.data.settings.lessonSlots);
+        }
+
+        state.data.studentOverrides = studentOverrides || {};
+        setChip(els.dbStatusChip, "Firebase: bağlı ✓", true);
+        await refreshDbMeta();
+        renderTeacherSelectors();
+        return true;
+      } catch (e) {
+        console.error(e);
+        setChip(els.dbStatusChip, "Firebase: hata", false);
+        showToast("Firebase bağlantısında hata oluştu.");
+        return false;
+      }
+    }
+
+    async function refreshDbMeta(){
+      try {
+        const sessionsByDate = await dbGet(`${ROOT_PATH}/sessionsByDate`);
+        let count = 0;
+        if (sessionsByDate && typeof sessionsByDate === "object") {
+          for (const dayVal of Object.values(sessionsByDate)) {
+            if (dayVal && typeof dayVal === "object") count += Object.keys(dayVal).length;
+          }
+        }
+        state.data.dbMeta.sessionCount = count;
+        state.data.dbMeta.lastMetaRefresh = new Date().toISOString();
+        refreshGlobalStatsUI();
+      } catch (e) {
+        console.warn("DB meta okunamadı:", e);
+      }
+    }
+
+    async function ensureSessionsLoaded(force=false){
+      if (!force && state.data.sessionsByDate) return state.data.sessionsByDate;
+      const data = await dbGet(`${ROOT_PATH}/sessionsByDate`);
+      state.data.sessionsByDate = data || {};
+      return state.data.sessionsByDate;
+    }
+
+    function invalidateSessionsCache(){
+      state.data.sessionsByDate = null;
+    }
+
+    /**********************
+     * RENDER GLOBAL UI   *
+     **********************/
+    function refreshGlobalStatsUI(){
+      const teachers = state.data.teachers.length;
+      const students = mergedStudents().length;
+      const groups = new Set(mergedStudents().map(s => s.grup).filter(Boolean)).size;
+      const sessions = state.data.dbMeta.sessionCount || 0;
+
+      els.statTeachers.textContent = teachers;
+      els.statStudents.textContent = students;
+      els.statGroups.textContent = groups;
+      els.statSessions.textContent = sessions;
+
+      els.adminStatTeachers.textContent = teachers;
+      els.adminStatStudents.textContent = students;
+      els.adminStatGroups.textContent = groups;
+      els.adminStatSessions.textContent = sessions;
+
+      const activeSlots = getActiveSlots().map(s => `${s.id}: ${makeSlotLabel(s)}`).join(" • ");
+      els.adminSystemInfo.innerHTML = `
+        <div><b>Aktif ders saatleri:</b> ${activeSlots || "-"}</div>
+        <div style="margin-top:6px;"><b>Firebase kök yolu:</b> <span class="mono">${ROOT_PATH}</span></div>
+        <div style="margin-top:6px;"><b>Öğrenci override / foto:</b> <span class="mono">${ROOT_PATH}/studentOverrides</span></div>
+      `;
+    }
+
+    function renderTeacherSelectors(){
+      // Slots
+      const slots = getActiveSlots();
+      const prevSlot = state.teacherDraft.slotId;
+      els.lessonSlotSelect.innerHTML = `
+        <option value="">Ders saati seçin</option>
+        ${slots.map(s => `<option value="${htmlEscape(s.id)}">${htmlEscape(s.id)} • ${htmlEscape(makeSlotLabel(s))}</option>`).join("")}
+      `;
+      if (slots.some(s => s.id===prevSlot)) els.lessonSlotSelect.value = prevSlot;
+
+      // Groups
+      const groups = getAllGroups();
+      const prevGroup = state.teacherDraft.group;
+      els.groupSelect.innerHTML = `
+        <option value="">Grup seçin</option>
+        ${groups.map(g => `<option value="${htmlEscape(g)}">${htmlEscape(g)}</option>`).join("")}
+      `;
+      if (groups.includes(prevGroup)) els.groupSelect.value = prevGroup;
+    }
+
+    /**********************
+     * TEACHER FLOW       *
+     **********************/
+    function resetTeacherDraft({keepDate=true} = {}){
+      const dateVal = keepDate ? (state.teacherDraft.date || todayISO()) : todayISO();
+      state.teacherDraft = {
+        date: dateVal,
+        slotId: "",
+        group: "",
+        topic: "",
+        loadedStudents: [],
+        statuses: {},
+        locked: false
+      };
+      els.lessonDateInput.value = dateVal;
+      els.lessonSlotSelect.value = "";
+      els.groupSelect.value = "";
+      els.lessonTopicInput.value = "";
+      renderTeacherStudentList();
+      updateTeacherDraftSummary();
+      updateTeacherDraftState();
+    }
+
+    function setTeacherContextUI(){
+      const t = state.auth.teacher;
+      if (!t) return;
+      els.teacherWelcome.textContent = `${t.name} (${t.brans || "Branş yok"}) olarak giriş yapıldı.`;
+      els.teacherMetaId.textContent = `ID: ${t.id}`;
+      els.teacherMetaBranch.textContent = `Branş: ${t.brans || "-"}`;
+      if (!state.teacherDraft.date) state.teacherDraft.date = todayISO();
+      els.lessonDateInput.value = state.teacherDraft.date;
+      renderTeacherSelectors();
+      renderTeacherStudentList();
+      updateTeacherDraftSummary();
+      updateTeacherDraftState();
+    }
+
+    function updateTeacherDraftState(){
+      els.teacherDraftState.textContent = state.teacherDraft.locked ? "Kilitli (Kaydedildi)" : "Düzenlenebilir";
+    }
+
+    function loadTeacherGroupStudents(){
+      if (state.teacherDraft.locked) {
+        showToast("Bu oturum kaydedildi. Yeni ders için formu temizleyin.");
+        return;
+      }
+      const group = (els.groupSelect.value || "").trim();
+      if (!group) return showToast("Önce grup seçin.");
+      const list = mergedStudents().filter(s => String(s.grup).trim() === group);
+      state.teacherDraft.group = group;
+      state.teacherDraft.loadedStudents = list;
+      // Var olan seçimleri grup değişince resetleyelim
+      state.teacherDraft.statuses = {};
+      renderTeacherStudentList();
+      updateTeacherDraftSummary();
+      showToast(`${group} grubu yüklendi (${list.length} öğrenci).`);
+    }
+
+    function renderTeacherStudentList(){
+      const list = state.teacherDraft.loadedStudents || [];
+      if (!list.length) {
+        els.teacherStudentList.innerHTML = `<div class="empty">Henüz grup yüklenmedi.</div>`;
+        return;
+      }
+
+      els.teacherStudentList.innerHTML = list.map(s => {
+        const st = state.teacherDraft.statuses[s.no] || "";
+        return `
+          <div class="student-row" data-student-no="${htmlEscape(s.no)}">
+            <div class="student-main">
+              <div class="student-name">${htmlEscape(s.adsoyad || "-")}</div>
+              <div class="student-sub">
+                <span>No: <b>${htmlEscape(s.no || "-")}</b></span>
+                <span>Sınıf: <b>${htmlEscape(s.sinif || "-")}</b></span>
+                <span>Grup: <b>${htmlEscape(s.grup || "-")}</b></span>
+                <span>Cinsiyet: <b>${htmlEscape(s.cinsiyet || "-")}</b></span>
+              </div>
+            </div>
+            <div class="status-buttons">
+              <button class="status-btn ${st==="GELDI" ? "active present" : ""}" data-status="GELDI">Geldi</button>
+              <button class="status-btn ${st==="GELMEDI" ? "active absent" : ""}" data-status="GELMEDI">Gelmedi</button>
+              <button class="status-btn ${st==="GEC" ? "active late" : ""}" data-status="GEC">Geç Geldi</button>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function setStudentStatus(no, status){
+      if (state.teacherDraft.locked) {
+        showToast("Kayıt tamamlandı. Değişiklik yapılamaz.");
+        return;
+      }
+      state.teacherDraft.statuses[String(no)] = status;
+      renderTeacherStudentList();
+      updateTeacherDraftSummary();
+    }
+
+    function updateTeacherDraftSummary(){
+      const sum = summarizeTeacherDraft();
+      els.sumTotal.textContent = `Toplam: ${sum.total}`;
+      els.sumPresent.textContent = `Geldi: ${sum.present}`;
+      els.sumAbsent.textContent = `Gelmedi: ${sum.absent}`;
+      els.sumLate.textContent = `Geç: ${sum.late}`;
+      els.sumUnknown.textContent = `Belirsiz: ${sum.unknown}`;
+    }
+
+    function teacherBulkAllPresent(){
+      if (state.teacherDraft.locked) return showToast("Kayıt tamamlandı.");
+      if (!state.teacherDraft.loadedStudents.length) return showToast("Önce grup yükleyin.");
+      const statuses = {};
+      for (const s of state.teacherDraft.loadedStudents) statuses[s.no] = "GELDI";
+      state.teacherDraft.statuses = statuses;
+      renderTeacherStudentList();
+      updateTeacherDraftSummary();
+    }
+
+    function teacherClearStatuses(){
+      if (state.teacherDraft.locked) return showToast("Kayıt tamamlandı.");
+      state.teacherDraft.statuses = {};
+      renderTeacherStudentList();
+      updateTeacherDraftSummary();
+    }
+
+    async function finalizeTeacherLesson(){
+      const teacher = state.auth.teacher;
+      if (!teacher) return showToast("Öğretmen oturumu yok.");
+      if (state.teacherDraft.locked) return showToast("Bu ders zaten kaydedildi.");
+
+      const date = (els.lessonDateInput.value || "").trim();
+      const slotId = (els.lessonSlotSelect.value || "").trim();
+      const group = (els.groupSelect.value || "").trim();
+      const topic = (els.lessonTopicInput.value || "").trim();
+
+      state.teacherDraft.date = date;
+      state.teacherDraft.slotId = slotId;
+      state.teacherDraft.group = group;
+      state.teacherDraft.topic = topic;
+
+      if (!date) return showToast("Tarih seçin.");
+      if (!slotId) return showToast("Ders saati seçin.");
+      if (!group) return showToast("Grup seçin.");
+      if (!state.teacherDraft.loadedStudents.length) return showToast("Önce 'Grubu Yükle' butonuna basın.");
+      if (!topic) return showToast("İşlenen konu alanını doldurun.");
+
+      const sum = summarizeTeacherDraft();
+      if (sum.total === 0) return showToast("Öğrenci listesi boş.");
+      if (sum.unknown > 0) return showToast("Tüm öğrenciler için yoklama durumu seçilmeli.");
+
+      const slot = getSlotById(slotId);
+      const sessionKey = safeKey(`${teacher.id}_${date}_${slotId}_${group}`);
+
+      const existing = await dbGet(`${ROOT_PATH}/sessionsByDate/${date}/${sessionKey}`);
+      if (existing) {
+        return showToast("Bu öğretmen + tarih + saat + grup için kayıt zaten var. (Çift kayıt engellendi)");
+      }
+
+      const studentsPayload = {};
+      for (const s of state.teacherDraft.loadedStudents) {
+        studentsPayload[s.no] = {
+          no: String(s.no),
+          adsoyad: s.adsoyad || "",
+          sinif: s.sinif || "",
+          grup: s.grup || "",
+          cinsiyet: s.cinsiyet || "",
+          status: state.teacherDraft.statuses[s.no] || ""
+        };
+      }
+
+      const payload = {
+        sessionId: sessionKey,
+        date,
+        slotId,
+        slotLabel: slot ? makeSlotLabel(slot) : slotId,
+        teacherId: String(teacher.id),
+        teacherName: teacher.name || "",
+        brans: teacher.brans || "",
+        group,
+        topic,
+        totalStudents: sum.total,
+        counts: {
+          geldi: sum.present,
+          gelmedi: sum.absent,
+          gec: sum.late
+        },
+        students: studentsPayload,
+        clientSavedAt: new Date().toISOString(),
+        serverSavedAt: serverTimestamp(),
+        finalized: true,
+        version: 1
+      };
+
+      const ok = confirm(
+        `Ders kaydı tamamlanacak ve geri alınamayacak.\n\n` +
+        `Tarih: ${date}\nSaat: ${slot ? makeSlotLabel(slot) : slotId}\nGrup: ${group}\n` +
+        `Konu: ${topic}\n\nDevam edilsin mi?`
+      );
+      if (!ok) return;
+
+      try {
+        await dbSet(`${ROOT_PATH}/sessionsByDate/${date}/${sessionKey}`, payload);
+        invalidateSessionsCache();
+        await refreshDbMeta();
+
+        state.teacherDraft.locked = true;
+        updateTeacherDraftState();
+        showToast("Ders kaydı başarıyla tamamlandı ✅", 2600);
+
+        // formu yeni ders için hazırlamak istersen otomatik temizleme yapabilirsin:
+        // setTimeout(() => resetTeacherDraft({keepDate:true}), 800);
+      } catch (e) {
+        console.error(e);
+        showToast("Kayıt sırasında hata oluştu.");
+      }
+    }
+
+    /**********************
+     * ADMIN MODALS       *
+     **********************/
+    async function openStudentDetailModal(){
+      const html = `
+        <div class="grid">
+          <div class="card">
+            <h3>Öğrenci Arama</h3>
+            <div class="search-box">
+              <input id="sdSearchInput" class="input" placeholder="Öğrenci no veya ad soyad ile ara..." />
+              <button id="sdSearchBtn" class="btn primary">Ara</button>
+              <button id="sdClearBtn" class="btn">Temizle</button>
+            </div>
+            <div id="sdSearchResults" class="search-results"></div>
+          </div>
+
+          <div class="card">
+            <h3>Öğrenci Karnesi</h3>
+            <div id="sdDetailArea" class="empty">Öğrenci seçilmedi.</div>
+          </div>
+        </div>
+      `;
+      openModal("Öğrenci Detayı / Karne", html, { onRender: bindStudentDetailModal });
+    }
+
+    function bindStudentDetailModal(){
+      const input = $("#sdSearchInput", els.modalBody);
+      const btn = $("#sdSearchBtn", els.modalBody);
+      const clear = $("#sdClearBtn", els.modalBody);
+      const results = $("#sdSearchResults", els.modalBody);
+      const detail = $("#sdDetailArea", els.modalBody);
+
+      function search(){
+        const q = trLower(input.value.trim());
+        const all = mergedStudents();
+        if (!q) {
+          results.innerHTML = `<div class="empty">Arama metni girin.</div>`;
+          return;
+        }
+        const filtered = all.filter(s => {
+          const n = trLower(s.adsoyad || "");
+          const no = String(s.no || "");
+          return no.includes(q) || n.includes(q);
+        }).slice(0, 50);
+
+        if (!filtered.length) {
+          results.innerHTML = `<div class="empty">Sonuç bulunamadı.</div>`;
+          return;
+        }
+
+        results.innerHTML = filtered.map(s => `
+          <div class="search-item" data-no="${htmlEscape(s.no)}">
+            <div class="l">
+              <div class="name">${htmlEscape(s.adsoyad || "-")}</div>
+              <div class="sub">No: ${htmlEscape(s.no)} • Sınıf: ${htmlEscape(s.sinif || "-")} • Grup: ${htmlEscape(s.grup || "-")}</div>
+            </div>
+            <button class="btn small">Seç</button>
+          </div>
+        `).join("");
+      }
+
+      async function renderStudentDetail(no){
+        const s = mergedStudents().find(x => String(x.no) === String(no));
+        if (!s) {
+          detail.innerHTML = `<div class="empty">Öğrenci bulunamadı.</div>`;
+          return;
+        }
+
+        detail.innerHTML = `<div class="empty">Kayıtlar okunuyor...</div>`;
+        const sessionsByDate = await ensureSessionsLoaded();
+
+        const timeline = [];
+        for (const [date, sessions] of Object.entries(sessionsByDate || {})) {
+          for (const [sid, session] of Object.entries(sessions || {})) {
+            const stInfo = session?.students?.[no];
+            if (!stInfo) continue;
+            timeline.push({
+              date,
+              sessionId: sid,
+              slotLabel: session.slotLabel || session.slotId || "-",
+              teacherName: session.teacherName || "-",
+              teacherId: session.teacherId || "-",
+              brans: session.brans || "-",
+              group: session.group || "-",
+              topic: session.topic || "-",
+              status: stInfo.status || "-",
+              clientSavedAt: session.clientSavedAt || null
+            });
+          }
+        }
+
+        timeline.sort((a,b)=>{
+          const aKey = `${a.date} ${a.slotLabel}`;
+          const bKey = `${b.date} ${b.slotLabel}`;
+          return aKey.localeCompare(bKey, "tr");
+        });
+
+        const counts = { GELDI:0, GELMEDI:0, GEC:0 };
+        for (const t of timeline) if (t.status in counts) counts[t.status]++;
+
+        const photoHtml = s.photoBase64
+          ? `<img src="${s.photoBase64}" alt="Öğrenci Fotoğrafı" />`
+          : `${htmlEscape(initials(s.adsoyad || ""))}`;
+
+        detail.innerHTML = `
+          <div class="profile-card">
+            <div class="avatar">${photoHtml}</div>
+            <div class="profile-meta">
+              <h4>${htmlEscape(s.adsoyad || "-")}</h4>
+              <p><b>No:</b> ${htmlEscape(s.no || "-")} • <b>Sınıf:</b> ${htmlEscape(s.sinif || "-")} • <b>Grup:</b> ${htmlEscape(s.grup || "-")}</p>
+              <p><b>Cinsiyet:</b> ${htmlEscape(s.cinsiyet || "-")}</p>
+              <div class="summary-row" style="margin-top:8px;">
+                <span class="badge neutral">Toplam Birebir: ${timeline.length}</span>
+                <span class="badge success">Geldi: ${counts.GELDI}</span>
+                <span class="badge danger">Gelmedi: ${counts.GELMEDI}</span>
+                <span class="badge late">Geç: ${counts.GEC}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+          <h3 style="margin-top:0;">Birebir Geçmişi</h3>
+
+          <div class="timeline">
+            ${
+              timeline.length
+                ? timeline.map(t => `
+                  <div class="timeline-item">
+                    <div class="head">
+                      <div>
+                        <div class="t">${htmlEscape(formatDateTR(t.date))} • ${htmlEscape(t.slotLabel)}</div>
+                        <div class="s">${htmlEscape(t.teacherName)} (${htmlEscape(t.brans)}) • Grup: ${htmlEscape(t.group)}</div>
+                      </div>
+                      <span class="status-chip ${
+                        t.status==="GELDI" ? "present" : t.status==="GELMEDI" ? "absent" : "late"
+                      }">${
+                        t.status==="GELDI" ? "Geldi" : t.status==="GELMEDI" ? "Gelmedi" : t.status==="GEC" ? "Geç Geldi" : htmlEscape(t.status)
+                      }</span>
+                    </div>
+                    <div><b>İşlenen Konu:</b> ${htmlEscape(t.topic || "-")}</div>
+                    <div class="tiny muted" style="margin-top:6px;">Kayıt zamanı: ${htmlEscape(formatDateTimeTR(t.clientSavedAt))}</div>
+                  </div>
+                `).join("")
+                : `<div class="empty">Bu öğrenci için henüz birebir kaydı yok.</div>`
+            }
+          </div>
+        `;
+      }
+
+      btn.addEventListener("click", search);
+      clear.addEventListener("click", ()=>{
+        input.value = "";
+        results.innerHTML = "";
+        detail.innerHTML = `<div class="empty">Öğrenci seçilmedi.</div>`;
+      });
+      input.addEventListener("keydown", e => { if (e.key === "Enter") search(); });
+
+      results.addEventListener("click", e => {
+        const item = e.target.closest(".search-item");
+        if (!item) return;
+        const no = item.dataset.no;
+        renderStudentDetail(no);
+      });
+    }
+
+    async function openDailyAttendanceModal(){
+      const html = `
+        <div class="card">
+          <h3>Günlük Birebir Yoklama Özeti</h3>
+          <div class="form-grid" style="grid-template-columns:repeat(4,minmax(0,1fr));">
+            <div class="field">
+              <label>Tarih</label>
+              <input id="daDate" class="input" type="date" value="${todayISO()}" />
+            </div>
+            <div class="field">
+              <label>Filtre</label>
+              <select id="daFilter" class="select">
+                <option value="ALL">Gelmedi + Geç</option>
+                <option value="GELMEDI">Sadece Gelmedi</option>
+                <option value="GEC">Sadece Geç</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>&nbsp;</label>
+              <button id="daLoadBtn" class="btn primary">Listele</button>
+            </div>
+            <div class="field">
+              <label>&nbsp;</label>
+              <button id="daRefreshBtn" class="btn">Veriyi Yeniden Oku</button>
+            </div>
+          </div>
+          <div class="divider"></div>
+          <div id="daSummary" class="summary-row"></div>
+          <div class="divider"></div>
+          <div id="daTableArea" class="empty">Tarih seçip “Listele” butonuna basın.</div>
+        </div>
+      `;
+      openModal("Birebir Yoklaması (Günlük)", html, { onRender: bindDailyAttendanceModal });
+    }
+
+    function bindDailyAttendanceModal(){
+      const dateInput = $("#daDate", els.modalBody);
+      const filterSel = $("#daFilter", els.modalBody);
+      const loadBtn = $("#daLoadBtn", els.modalBody);
+      const refreshBtn = $("#daRefreshBtn", els.modalBody);
+      const summary = $("#daSummary", els.modalBody);
+      const tableArea = $("#daTableArea", els.modalBody);
+
+      async function load({force=false}={}){
+        const date = dateInput.value || todayISO();
+        const filter = filterSel.value;
+        if (force) invalidateSessionsCache();
+        const sessionsByDate = await ensureSessionsLoaded(force);
+        const daySessions = sessionsByDate?.[date] || {};
+
+        const rows = [];
+        let sessionCount = 0;
+        for (const session of Object.values(daySessions)) {
+          sessionCount++;
+          for (const st of Object.values(session.students || {})) {
+            if (!st?.status) continue;
+            if (st.status === "GELDI") continue;
+            if (filter !== "ALL" && st.status !== filter) continue;
+            rows.push({
+              no: st.no || "",
+              adsoyad: st.adsoyad || "",
+              sinif: st.sinif || "",
+              grup: st.grup || session.group || "",
+              status: st.status,
+              teacherName: session.teacherName || "",
+              brans: session.brans || "",
+              slotLabel: session.slotLabel || session.slotId || "",
+              topic: session.topic || "",
+              savedAt: session.clientSavedAt || ""
+            });
+          }
+        }
+
+        rows.sort((a,b)=>{
+          const t = String(a.slotLabel).localeCompare(String(b.slotLabel), "tr");
+          if (t!==0) return t;
+          return String(a.adsoyad).localeCompare(String(b.adsoyad), "tr");
+        });
+
+        const absentCount = rows.filter(r=>r.status==="GELMEDI").length;
+        const lateCount = rows.filter(r=>r.status==="GEC").length;
+
+        summary.innerHTML = `
+          <span class="badge neutral">Tarih: ${htmlEscape(formatDateTR(date))}</span>
+          <span class="badge neutral">Ders kaydı: ${sessionCount}</span>
+          <span class="badge danger">Gelmedi: ${absentCount}</span>
+          <span class="badge late">Geç: ${lateCount}</span>
+          <span class="badge neutral">Liste: ${rows.length}</span>
+        `;
+
+        if (!rows.length) {
+          tableArea.innerHTML = `<div class="empty">Seçilen filtrede kayıt bulunamadı.</div>`;
+          return;
+        }
+
+        tableArea.innerHTML = `
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Öğrenci</th>
+                  <th>No</th>
+                  <th>Sınıf</th>
+                  <th>Grup</th>
+                  <th>Durum</th>
+                  <th>Öğretmen</th>
+                  <th>Branş</th>
+                  <th>Saat</th>
+                  <th>İçerik</th>
+                  <th>Yoklama/Kayıt</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows.map(r => `
+                  <tr>
+                    <td>${htmlEscape(r.adsoyad)}</td>
+                    <td>${htmlEscape(r.no)}</td>
+                    <td>${htmlEscape(r.sinif || "-")}</td>
+                    <td>${htmlEscape(r.grup || "-")}</td>
+                    <td>${
+                      r.status==="GELMEDI"
+                        ? `<span class="status-chip absent">Gelmedi</span>`
+                        : `<span class="status-chip late">Geç Geldi</span>`
+                    }</td>
+                    <td>${htmlEscape(r.teacherName || "-")}</td>
+                    <td>${htmlEscape(r.brans || "-")}</td>
+                    <td>${htmlEscape(r.slotLabel || "-")}</td>
+                    <td>${htmlEscape(r.topic || "-")}</td>
+                    <td>${htmlEscape(formatDateTimeTR(r.savedAt))}</td>
+                  </tr>
+                `).join("")}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      loadBtn.addEventListener("click", ()=>load({force:false}));
+      refreshBtn.addEventListener("click", ()=>load({force:true}));
+
+      // ilk açılışta bugün
+      load({force:false});
+    }
+
+    async function openSlotSettingsModal(){
+      const slots = state.data.settings.lessonSlots || [];
+      const html = `
+        <div class="grid">
+          <div class="card">
+            <h3>Birebir Saati Ayarlama</h3>
+            <p class="muted tiny">
+              Öğretmen panelindeki saat seçenekleri buradan yönetilir. İstediğiniz kadar satır ekleyebilir veya silebilirsiniz.
+            </p>
+            <div class="helper">
+              Varsayılan tanım: 16:00-16:40 / 16:50-17:30 / 17:35-18:15 / 18:20-18:55 (isterseniz değiştirin)
+            </div>
+            <div class="divider"></div>
+            <div id="slotRows"></div>
+            <div class="divider"></div>
+            <div class="toolbar">
+              <div class="toolbar-left">
+                <button id="slotAddBtn" class="btn">+ Satır Ekle</button>
+                <button id="slotResetDefaultBtn" class="btn warning">Varsayılanı Yükle</button>
+              </div>
+              <div class="toolbar-right">
+                <button id="slotSaveBtn" class="btn primary">Kaydet</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      openModal("Birebir Saati Ayarlama", html, {
+        onRender: () => bindSlotSettingsModal(structuredClone(slots))
+      });
+    }
+
+    function bindSlotSettingsModal(initialSlots){
+      let slotList = (initialSlots?.length ? initialSlots : structuredClone(DEFAULT_LESSON_SLOTS)).map((s,i)=>({
+        id: s.id || `S${i+1}`,
+        start: s.start || "16:00",
+        end: s.end || "16:40",
+        active: s.active !== false
+      }));
+
+      const rowsWrap = $("#slotRows", els.modalBody);
+
+      function renderRows(){
+        rowsWrap.innerHTML = slotList.map((s,idx)=>`
+          <div class="slot-row" data-idx="${idx}">
+            <div class="field">
+              <label>ID</label>
+              <input class="input slot-id mono" value="${htmlEscape(s.id)}" />
+            </div>
+            <div class="field">
+              <label>Etiket (otomatik görüntü)</label>
+              <input class="input" value="${htmlEscape(makeSlotLabel(s))}" disabled />
+            </div>
+            <div class="field">
+              <label>Başlangıç</label>
+              <input type="time" class="input slot-start" value="${htmlEscape(s.start)}" />
+            </div>
+            <div class="field">
+              <label>Bitiş</label>
+              <input type="time" class="input slot-end" value="${htmlEscape(s.end)}" />
+            </div>
+            <div class="field">
+              <label>Aktif</label>
+              <select class="select slot-active">
+                <option value="true" ${s.active ? "selected" : ""}>Evet</option>
+                <option value="false" ${!s.active ? "selected" : ""}>Hayır</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>İşlem</label>
+              <button class="btn danger slot-del">Sil</button>
+            </div>
+          </div>
+        `).join("");
+      }
+
+      function readRows(){
+        slotList = $$(".slot-row", rowsWrap).map((row, idx) => {
+          const id = $(".slot-id", row).value.trim() || `S${idx+1}`;
+          const start = $(".slot-start", row).value || "16:00";
+          const end = $(".slot-end", row).value || "16:40";
+          const active = $(".slot-active", row).value === "true";
+          return { id, start, end, active };
+        });
+      }
+
+      rowsWrap.addEventListener("input", () => {
+        readRows();
+        renderRows();
+      });
+
+      rowsWrap.addEventListener("click", e => {
+        const btn = e.target.closest(".slot-del");
+        if (!btn) return;
+        const row = e.target.closest(".slot-row");
+        const idx = Number(row?.dataset.idx);
+        if (Number.isNaN(idx)) return;
+        slotList.splice(idx, 1);
+        if (!slotList.length) slotList.push({ id:"S1", start:"16:00", end:"16:40", active:true });
+        renderRows();
+      });
+
+      $("#slotAddBtn", els.modalBody).addEventListener("click", () => {
+        readRows();
+        const n = slotList.length + 1;
+        slotList.push({ id:`S${n}`, start:"16:00", end:"16:40", active:true });
+        renderRows();
+      });
+
+      $("#slotResetDefaultBtn", els.modalBody).addEventListener("click", () => {
+        if (!confirm("Varsayılan saatler yüklensin mi?")) return;
+        slotList = structuredClone(DEFAULT_LESSON_SLOTS);
+        renderRows();
+      });
+
+      $("#slotSaveBtn", els.modalBody).addEventListener("click", async () => {
+        readRows();
+        const ids = new Set();
+        for (const s of slotList) {
+          if (!s.id) return showToast("Slot ID boş olamaz.");
+          if (ids.has(s.id)) return showToast("Aynı slot ID tekrar ediyor.");
+          ids.add(s.id);
+          if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(s.start) || !/^([01]\d|2[0-3]):([0-5]\d)$/.test(s.end)) {
+            return showToast("Saat formatı geçersiz.");
+          }
+        }
+
+        try {
+          await dbSet(`${ROOT_PATH}/settings/lessonSlots`, slotList);
+          state.data.settings.lessonSlots = slotList;
+          renderTeacherSelectors();
+          refreshGlobalStatsUI();
+          showToast("Ders saatleri kaydedildi ✅");
+          closeModal();
+        } catch (e) {
+          console.error(e);
+          showToast("Kaydetme hatası.");
+        }
+      });
+
+      renderRows();
+    }
+
+    async function openStudentUpdateModal(){
+      const html = `
+        <div class="grid">
+          <div class="card">
+            <h3>Öğrenci Seçimi</h3>
+            <div class="search-box">
+              <input id="suSearchInput" class="input" placeholder="Numara / ad soyad..." />
+              <button id="suSearchBtn" class="btn primary">Ara</button>
+            </div>
+            <div id="suSearchResults" class="search-results"></div>
+          </div>
+
+          <div class="card">
+            <h3>Öğrenci Bilgisi Güncelleme (Firebase Override)</h3>
+            <div class="helper">
+              Bu ekran Google Sheet verisini <b>değiştirmez</b>; sadece Firebase üzerinde override oluşturur. Öğretmen/Admin ekranlarında birleşik veri gösterilir.
+            </div>
+            <div class="divider"></div>
+
+            <div id="suEditorArea" class="empty">Önce bir öğrenci seçin.</div>
+          </div>
+        </div>
+      `;
+      openModal("Öğrenci Bilgileri Güncelleme", html, { onRender: bindStudentUpdateModal });
+    }
+
+    function bindStudentUpdateModal(){
+      const input = $("#suSearchInput", els.modalBody);
+      const btn = $("#suSearchBtn", els.modalBody);
+      const results = $("#suSearchResults", els.modalBody);
+      const editor = $("#suEditorArea", els.modalBody);
+
+      let currentStudentNo = null;
+      let cropCtx = null; // local crop state
+
+      function search(){
+        const q = trLower(input.value.trim());
+        if (!q) {
+          results.innerHTML = `<div class="empty">Arama metni girin.</div>`;
+          return;
+        }
+        const list = mergedStudents().filter(s =>
+          String(s.no || "").includes(q) || trLower(s.adsoyad || "").includes(q)
+        ).slice(0, 50);
+
+        results.innerHTML = list.length ? list.map(s => `
+          <div class="search-item" data-no="${htmlEscape(s.no)}">
+            <div class="l">
+              <div class="name">${htmlEscape(s.adsoyad || "-")}</div>
+              <div class="sub">No: ${htmlEscape(s.no)} • Sınıf: ${htmlEscape(s.sinif || "-")} • Grup: ${htmlEscape(s.grup || "-")}</div>
+            </div>
+            ${s.photoBase64 ? `<img src="${s.photoBase64}" class="photo-thumb" alt="">` : `<div class="photo-thumb" style="display:grid;place-items:center;font-weight:800;">${htmlEscape(initials(s.adsoyad))}</div>`}
+          </div>
+        `).join("") : `<div class="empty">Sonuç bulunamadı.</div>`;
+      }
+
+      function renderEditor(studentNo){
+        const s = mergedStudents().find(x => String(x.no) === String(studentNo));
+        if (!s) {
+          editor.innerHTML = `<div class="empty">Öğrenci bulunamadı.</div>`;
+          return;
+        }
+        currentStudentNo = String(s.no);
+        cropCtx = null;
+
+        editor.innerHTML = `
+          <div class="form-grid">
+            <div class="field">
+              <label>No</label>
+              <input id="suNo" class="input mono" value="${htmlEscape(s.no || "")}" disabled />
+            </div>
+            <div class="field">
+              <label>Ad Soyad</label>
+              <input id="suName" class="input" value="${htmlEscape(s.adsoyad || "")}" />
+            </div>
+            <div class="field">
+              <label>Sınıf</label>
+              <input id="suClass" class="input" value="${htmlEscape(s.sinif || "")}" />
+            </div>
+            <div class="field">
+              <label>Grup</label>
+              <input id="suGroup" class="input" value="${htmlEscape(s.grup || "")}" />
+            </div>
+            <div class="field">
+              <label>Cinsiyet</label>
+              <select id="suGender" class="select">
+                <option value="">Belirtme</option>
+                <option value="KIZ" ${(s.cinsiyet||"").toUpperCase()==="KIZ" ? "selected":""}>KIZ</option>
+                <option value="ERKEK" ${(s.cinsiyet||"").toUpperCase()==="ERKEK" ? "selected":""}>ERKEK</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+
+          <h3 style="margin-top:0;">Öğrenci Fotoğrafı</h3>
+          <div class="helper warn">
+            Bu sürümde fotoğraf, <b>kırpılıp küçültülmüş Base64</b> olarak Realtime Database'e kaydedilir (GitHub Pages için pratik).
+            Çok sayıda fotoğraf için daha iyi yöntem: <b>Firebase Storage + RTDB/Firestore URL kaydı</b>.
+          </div>
+
+          <div class="divider"></div>
+
+          <div class="crop-grid">
+            <div>
+              <div class="crop-preview">
+                <canvas id="suCropCanvas" width="320" height="320"></canvas>
+              </div>
+              <div class="tiny muted" id="suPhotoInfo" style="margin-top:8px;">Mevcut foto / seçili görsel yok.</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+                <label class="btn small" for="suPhotoInput">Fotoğraf Seç</label>
+                <input id="suPhotoInput" type="file" accept="image/*" style="display:none;">
+                <button id="suPhotoClearBtn" class="btn small">Fotoğrafı Kaldır</button>
+              </div>
+            </div>
+
+            <div>
+              <div class="range-row">
+                <label>Yakınlaştırma</label>
+                <input id="suZoom" type="range" min="1" max="3" step="0.01" value="1" />
+              </div>
+              <div class="range-row">
+                <label>Yatay Kaydırma</label>
+                <input id="suOffsetX" type="range" min="-160" max="160" step="1" value="0" />
+              </div>
+              <div class="range-row">
+                <label>Dikey Kaydırma</label>
+                <input id="suOffsetY" type="range" min="-160" max="160" step="1" value="0" />
+              </div>
+              <div class="range-row">
+                <label>Kalite (Sıkıştırma)</label>
+                <input id="suQuality" type="range" min="0.5" max="0.95" step="0.01" value="0.78" />
+              </div>
+
+              <div class="divider"></div>
+
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button id="suSaveBtn" class="btn primary">Güncellemeyi Kaydet</button>
+                <button id="suDeleteOverrideBtn" class="btn danger">Override'ı Sil</button>
+              </div>
+            </div>
+          </div>
+        `;
+
+        initStudentPhotoCropper(s.photoBase64 || null);
+        bindStudentUpdateEditorEvents();
+      }
+
+      function initStudentPhotoCropper(currentPhoto){
+        const canvas = $("#suCropCanvas", els.modalBody);
+        const ctx = canvas.getContext("2d");
+        const info = $("#suPhotoInfo", els.modalBody);
+        const zoom = $("#suZoom", els.modalBody);
+        const offx = $("#suOffsetX", els.modalBody);
+        const offy = $("#suOffsetY", els.modalBody);
+
+        cropCtx = {
+          canvas, ctx,
+          img: null,
+          currentBase64: currentPhoto || null,
+          zoom: 1,
+          offsetX: 0,
+          offsetY: 0
+        };
+
+        function drawChecker(){
+          const size = 20;
+          for (let y=0; y<canvas.height; y+=size){
+            for (let x=0; x<canvas.width; x+=size){
+              ctx.fillStyle = ((x+y)/size)%2===0 ? "#0f1c34" : "#132444";
+              ctx.fillRect(x,y,size,size);
+            }
+          }
+        }
+
+        function drawPlaceholder(){
+          drawChecker();
+          ctx.strokeStyle = "rgba(255,255,255,.25)";
+          ctx.setLineDash([6,6]);
+          ctx.strokeRect(8,8,canvas.width-16,canvas.height-16);
+          ctx.setLineDash([]);
+          ctx.fillStyle = "rgba(255,255,255,.7)";
+          ctx.font = "700 14px Inter, sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText("Fotoğraf yok", canvas.width/2, canvas.height/2);
+          info.textContent = "Mevcut foto / seçili görsel yok.";
+        }
+
+        function draw(){
+          if (!cropCtx) return;
+          const { img } = cropCtx;
+          if (!img) {
+            if (cropCtx.currentBase64) {
+              // sadece mevcut görsel gösterilsin
+              const temp = new Image();
+              temp.onload = () => {
+                cropCtx.img = temp;
+                draw();
+              };
+              temp.src = cropCtx.currentBase64;
+              cropCtx.currentBase64 = null;
+              return;
+            }
+            drawPlaceholder();
+            return;
+          }
+
+          drawChecker();
+          const cw = canvas.width, ch = canvas.height;
+          const scaleBase = Math.max(cw / img.width, ch / img.height);
+          const scale = scaleBase * Number(cropCtx.zoom || 1);
+
+          const dw = img.width * scale;
+          const dh = img.height * scale;
+          const dx = (cw - dw)/2 + Number(cropCtx.offsetX || 0);
+          const dy = (ch - dh)/2 + Number(cropCtx.offsetY || 0);
+
+          ctx.drawImage(img, dx, dy, dw, dh);
+
+          // crop frame overlay
+          ctx.strokeStyle = "rgba(255,255,255,.95)";
+          ctx.lineWidth = 2;
+          ctx.strokeRect(2,2,cw-4,ch-4);
+
+          info.textContent = `Önizleme: ${img.width}x${img.height}px`;
+        }
+
+        cropCtx.draw = draw;
+        cropCtx.exportBase64 = () => {
+          const quality = Number($("#suQuality", els.modalBody)?.value || 0.78);
+          return canvas.toDataURL("image/jpeg", quality);
+        };
+
+        if (currentPhoto) {
+          const img = new Image();
+          img.onload = () => {
+            cropCtx.img = img;
+            draw();
+          };
+          img.src = currentPhoto;
+        } else {
+          drawPlaceholder();
+        }
+
+        [zoom, offx, offy].forEach(el => {
+          el.addEventListener("input", () => {
+            if (!cropCtx) return;
+            cropCtx.zoom = Number(zoom.value);
+            cropCtx.offsetX = Number(offx.value);
+            cropCtx.offsetY = Number(offy.value);
+            cropCtx.draw();
+          });
+        });
+      }
+
+      function bindStudentUpdateEditorEvents(){
+        const photoInput = $("#suPhotoInput", els.modalBody);
+        const photoClearBtn = $("#suPhotoClearBtn", els.modalBody);
+
+        photoInput?.addEventListener("change", () => {
+          const file = photoInput.files?.[0];
+          if (!file) return;
+          if (!file.type.startsWith("image/")) return showToast("Lütfen resim dosyası seçin.");
+          const reader = new FileReader();
+          reader.onload = () => {
+            const img = new Image();
+            img.onload = () => {
+              if (!cropCtx) return;
+              cropCtx.img = img;
+              cropCtx.zoom = 1;
+              cropCtx.offsetX = 0;
+              cropCtx.offsetY = 0;
+              $("#suZoom", els.modalBody).value = "1";
+              $("#suOffsetX", els.modalBody).value = "0";
+              $("#suOffsetY", els.modalBody).value = "0";
+              cropCtx.draw();
+              showToast("Fotoğraf yüklendi. Kırpma ayarlarını yapabilirsiniz.");
+            };
+            img.src = reader.result;
+          };
+          reader.readAsDataURL(file);
+        });
+
+        photoClearBtn?.addEventListener("click", () => {
+          if (!cropCtx) return;
+          cropCtx.img = null;
+          cropCtx.currentBase64 = null;
+          cropCtx.draw();
+          showToast("Fotoğraf kaldırıldı (kaydetmeden veritabanına işlemez).");
+        });
+
+        $("#suSaveBtn", els.modalBody)?.addEventListener("click", async () => {
+          if (!currentStudentNo) return showToast("Öğrenci seçin.");
+          const name = ($("#suName", els.modalBody)?.value || "").trim();
+          const sinif = ($("#suClass", els.modalBody)?.value || "").trim();
+          const grup = ($("#suGroup", els.modalBody)?.value || "").trim();
+          const cinsiyet = ($("#suGender", els.modalBody)?.value || "").trim();
+
+          if (!name) return showToast("Ad Soyad boş olamaz.");
+
+          let photoBase64 = null;
+          try {
+            photoBase64 = cropCtx?.img ? cropCtx.exportBase64() : null;
+          } catch (e) {
+            console.warn("Foto export hatası:", e);
+          }
+
+          // base64 boyutu kaba kontrol
+          if (photoBase64 && photoBase64.length > 500000) {
+            if (!confirm("Fotoğraf verisi büyük görünüyor. Yine de kaydetmek istiyor musunuz?")) return;
+          }
+
+          const patch = {
+            no: currentStudentNo,
+            adsoyad: name,
+            sinif,
+            grup,
+            cinsiyet,
+            updatedAt: new Date().toISOString()
+          };
+          if (photoBase64) patch.photoBase64 = photoBase64;
+          else patch.photoBase64 = null;
+
+          try {
+            await dbSet(`${ROOT_PATH}/studentOverrides/${safeKey(currentStudentNo)}`, patch);
+            state.data.studentOverrides[safeKey(currentStudentNo)] = patch;
+            renderTeacherSelectors();
+            refreshGlobalStatsUI();
+            showToast("Öğrenci override kaydedildi ✅");
+          } catch (e) {
+            console.error(e);
+            showToast("Kaydetme hatası.");
+          }
+        });
+
+        $("#suDeleteOverrideBtn", els.modalBody)?.addEventListener("click", async () => {
+          if (!currentStudentNo) return;
+          if (!confirm("Bu öğrenci için Firebase override kaydı silinsin mi?")) return;
+          try {
+            await dbRemove(`${ROOT_PATH}/studentOverrides/${safeKey(currentStudentNo)}`);
+            delete state.data.studentOverrides[safeKey(currentStudentNo)];
+            renderTeacherSelectors();
+            refreshGlobalStatsUI();
+            showToast("Override silindi.");
+            renderEditor(currentStudentNo); // sheet verisine geri döner
+          } catch (e) {
+            console.error(e);
+            showToast("Silme hatası.");
+          }
+        });
+      }
+
+      btn.addEventListener("click", search);
+      input.addEventListener("keydown", e => { if (e.key==="Enter") search(); });
+      results.addEventListener("click", e => {
+        const item = e.target.closest(".search-item");
+        if (!item) return;
+        renderEditor(item.dataset.no);
+      });
+    }
+
+    async function openDataManagerModal(){
+      const html = `
+        <div class="grid">
+          <div class="card">
+            <h3>Kayıtlı Veri Yönetimi</h3>
+            <div class="helper danger">
+              Dikkat: Aşağıdaki işlemler <b>geri alınamaz</b>.
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="form-grid">
+              <div class="field">
+                <label>Tarihe Göre Oturum Sil</label>
+                <input id="dmDate" class="input" type="date" value="${todayISO()}" />
+              </div>
+              <div class="field">
+                <label>&nbsp;</label>
+                <button id="dmDeleteDateBtn" class="btn danger">Seçili Tarih Kayıtlarını Sil</button>
+              </div>
+              <div class="field">
+                <label>&nbsp;</label>
+                <button id="dmDeleteAllSessionsBtn" class="btn danger">Tüm Ders/Oturum Kayıtlarını Sil</button>
+              </div>
+              <div class="field">
+                <label>&nbsp;</label>
+                <button id="dmDeleteRootBtn" class="btn danger">TÜM Birebirlerianaliz Verisini Sil</button>
+              </div>
+            </div>
+
+            <div class="divider"></div>
+
+            <h3 style="margin-top:0;">Sistem Verisi Durumu</h3>
+            <div id="dmInfo" class="helper">Yükleniyor...</div>
+            <div class="divider"></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button id="dmRefreshInfoBtn" class="btn">Bilgiyi Yenile</button>
+            </div>
+          </div>
+        </div>
+      `;
+      openModal("Kayıtlı Veri Yönetimi", html, { onRender: bindDataManagerModal });
+    }
+
+    function bindDataManagerModal(){
+      const info = $("#dmInfo", els.modalBody);
+
+      async function refreshInfo(){
+        const [sessionsByDate, studentOverrides, settings] = await Promise.all([
+          dbGet(`${ROOT_PATH}/sessionsByDate`),
+          dbGet(`${ROOT_PATH}/studentOverrides`),
+          dbGet(`${ROOT_PATH}/settings`)
+        ]);
+
+        let sessionCount = 0;
+        let dateCount = 0;
+        if (sessionsByDate && typeof sessionsByDate === "object") {
+          dateCount = Object.keys(sessionsByDate).length;
+          for (const day of Object.values(sessionsByDate)) sessionCount += Object.keys(day || {}).length;
+        }
+        const overrideCount = studentOverrides ? Object.keys(studentOverrides).length : 0;
+        const slotCount = Array.isArray(settings?.lessonSlots)
+          ? settings.lessonSlots.length
+          : (settings?.lessonSlots ? Object.keys(settings.lessonSlots).length : 0);
+
+        info.innerHTML = `
+          <div><b>Oturum tarihi sayısı:</b> ${dateCount}</div>
+          <div style="margin-top:6px;"><b>Toplam ders kaydı:</b> ${sessionCount}</div>
+          <div style="margin-top:6px;"><b>Öğrenci override kaydı:</b> ${overrideCount}</div>
+          <div style="margin-top:6px;"><b>Saat ayarı satırı:</b> ${slotCount}</div>
+          <div style="margin-top:6px;"><b>Kök yol:</b> <span class="mono">${ROOT_PATH}</span></div>
+        `;
+
+        state.data.dbMeta.sessionCount = sessionCount;
+        refreshGlobalStatsUI();
+      }
+
+      $("#dmRefreshInfoBtn", els.modalBody).addEventListener("click", refreshInfo);
+
+      $("#dmDeleteDateBtn", els.modalBody).addEventListener("click", async () => {
+        const date = $("#dmDate", els.modalBody).value;
+        if (!date) return showToast("Tarih seçin.");
+        const conf = prompt(`${date} tarihli tüm ders kayıtlarını silmek için "SIL" yazın:`);
+        if (conf !== "SIL") return showToast("İşlem iptal edildi.");
+        try {
+          await dbRemove(`${ROOT_PATH}/sessionsByDate/${date}`);
+          invalidateSessionsCache();
+          await refreshDbMeta();
+          await refreshInfo();
+          showToast(`${date} kayıtları silindi.`);
+        } catch (e) {
+          console.error(e);
+          showToast("Silme hatası.");
+        }
+      });
+
+      $("#dmDeleteAllSessionsBtn", els.modalBody).addEventListener("click", async () => {
+        const conf = prompt(`Tüm ders/oturum kayıtlarını silmek için "TUM OTURUMLAR SIL" yazın:`);
+        if (conf !== "TUM OTURUMLAR SIL") return showToast("İşlem iptal edildi.");
+        try {
+          await dbRemove(`${ROOT_PATH}/sessionsByDate`);
+          invalidateSessionsCache();
+          await refreshDbMeta();
+          await refreshInfo();
+          showToast("Tüm oturum kayıtları silindi.");
+        } catch (e) {
+          console.error(e);
+          showToast("Silme hatası.");
+        }
+      });
+
+      $("#dmDeleteRootBtn", els.modalBody).addEventListener("click", async () => {
+        const conf = prompt(`UYARI! Tüm ${ROOT_PATH} verisi silinecek. Onay için "TUM SISTEM SIL" yazın:`);
+        if (conf !== "TUM SISTEM SIL") return showToast("İşlem iptal edildi.");
+        try {
+          await dbRemove(`${ROOT_PATH}`);
+          invalidateSessionsCache();
+          state.data.studentOverrides = {};
+          state.data.settings.lessonSlots = structuredClone(DEFAULT_LESSON_SLOTS);
+          await loadSettingsFromDb(); // ayarları tekrar oluşturur
+          await refreshDbMeta();
+          renderTeacherSelectors();
+          await refreshInfo();
+          showToast("Tüm sistem verisi silindi ve varsayılan ayarlar yeniden oluşturuldu.");
+        } catch (e) {
+          console.error(e);
+          showToast("Silme hatası.");
+        }
+      });
+
+      refreshInfo();
+    }
+
+    /**********************
+     * EVENT BINDINGS     *
+     **********************/
+    function bindEvents(){
+      // top
+      $("#btnTopHome").addEventListener("click", () => setView("home"));
+      $("#btnReloadSheets").addEventListener("click", async () => {
+        await loadGoogleSheetsData();
+        showToast("Google Sheet verileri yenilendi.");
+      });
+      $("#btnReloadDbMeta").addEventListener("click", async () => {
+        invalidateSessionsCache();
+        await refreshDbMeta();
+        showToast("Firebase meta verisi yenilendi.");
+      });
+
+      // home nav
+      $("#goTeacherLogin").addEventListener("click", () => {
+        setView("teacherLogin");
+        els.teacherIdInput.focus();
+      });
+      $("#goAdminLogin").addEventListener("click", () => {
+        setView("adminLogin");
+        els.adminPassInput.focus();
+      });
+      $$("[data-go-home]").forEach(btn => btn.addEventListener("click", () => setView("home")));
+
+      // teacher login
+      $("#btnTeacherLogin").addEventListener("click", () => {
+        const id = (els.teacherIdInput.value || "").trim();
+        if (!id) return showToast("ID girin.");
+        const t = findTeacherById(id);
+        if (!t) return showToast("Öğretmen ID bulunamadı.");
+        state.auth.role = "teacher";
+        state.auth.teacher = t;
+        resetTeacherDraft({keepDate:false});
+        setTeacherContextUI();
+        setView("teacher");
+        els.teacherIdInput.value = "";
+      });
+      els.teacherIdInput.addEventListener("keydown", e => { if (e.key==="Enter") $("#btnTeacherLogin").click(); });
+
+      // admin login
+      $("#btnAdminLogin").addEventListener("click", async () => {
+        const pass = (els.adminPassInput.value || "").trim();
+        if (pass !== ADMIN_PASSWORD) return showToast("Admin şifresi hatalı.");
+        state.auth.role = "admin";
+        state.auth.teacher = null;
+        setView("admin");
+        els.adminPassInput.value = "";
+        await refreshDbMeta();
+      });
+      els.adminPassInput.addEventListener("keydown", e => { if (e.key==="Enter") $("#btnAdminLogin").click(); });
+
+      // teacher panel inputs
+      els.lessonDateInput.addEventListener("change", () => {
+        if (state.teacherDraft.locked) return;
+        state.teacherDraft.date = els.lessonDateInput.value;
+      });
+      els.lessonSlotSelect.addEventListener("change", () => {
+        if (state.teacherDraft.locked) return;
+        state.teacherDraft.slotId = els.lessonSlotSelect.value;
+      });
+      els.groupSelect.addEventListener("change", () => {
+        if (state.teacherDraft.locked) return;
+        state.teacherDraft.group = els.groupSelect.value;
+      });
+      els.lessonTopicInput.addEventListener("input", () => {
+        if (state.teacherDraft.locked) return;
+        state.teacherDraft.topic = els.lessonTopicInput.value;
+      });
+
+      $("#btnLoadGroup").addEventListener("click", loadTeacherGroupStudents);
+      $("#btnAllPresent").addEventListener("click", teacherBulkAllPresent);
+      $("#btnClearStatuses").addEventListener("click", teacherClearStatuses);
+      $("#btnTeacherResetDraft").addEventListener("click", () => {
+        if (state.teacherDraft.loadedStudents.length || els.lessonTopicInput.value.trim()) {
+          if (!confirm("Mevcut ders formu temizlensin mi?")) return;
+        }
+        resetTeacherDraft({keepDate:true});
+      });
+      $("#btnFinalizeLesson").addEventListener("click", finalizeTeacherLesson);
+      $("#btnTeacherLogout").addEventListener("click", () => {
+        state.auth.role = null;
+        state.auth.teacher = null;
+        resetTeacherDraft({keepDate:false});
+        setView("home");
+      });
+
+      els.teacherStudentList.addEventListener("click", e => {
+        const btn = e.target.closest(".status-btn");
+        if (!btn) return;
+        const row = e.target.closest(".student-row");
+        if (!row) return;
+        const no = row.dataset.studentNo;
+        const status = btn.dataset.status;
+        if (!no || !status) return;
+        setStudentStatus(no, status);
+      });
+
+      // admin buttons
+      $("#btnAdminLogout").addEventListener("click", () => {
+        state.auth.role = null;
+        setView("home");
+      });
+      $("#btnAdminRefreshAll").addEventListener("click", async () => {
+        invalidateSessionsCache();
+        await Promise.all([loadGoogleSheetsData(), loadSettingsFromDb(), refreshDbMeta()]);
+        showToast("Tüm veriler yenilendi.");
+      });
+      $("#btnOpenStudentDetail").addEventListener("click", openStudentDetailModal);
+      $("#btnOpenDailyAttendance").addEventListener("click", openDailyAttendanceModal);
+      $("#btnOpenSlotSettings").addEventListener("click", openSlotSettingsModal);
+      $("#btnOpenStudentUpdate").addEventListener("click", openStudentUpdateModal);
+      $("#btnOpenDataManager").addEventListener("click", openDataManagerModal);
+
+      // modal close
+      els.modalCloseBtn.addEventListener("click", closeModal);
+      els.modalOverlay.addEventListener("click", e => {
+        if (e.target === els.modalOverlay) closeModal();
+      });
+      document.addEventListener("keydown", e => {
+        if (e.key === "Escape" && state.ui.modalOpen) closeModal();
+      });
+    }
+
+    /**********************
+     * INIT               *
+     **********************/
+    async function init(){
+      bindEvents();
+
+      // teacher varsayılan tarih
+      resetTeacherDraft({keepDate:false});
+
+      // paralel yükle
+      await Promise.all([
+        loadGoogleSheetsData(),
+        loadSettingsFromDb()
+      ]);
+
+      refreshGlobalStatsUI();
+      showToast("Sistem hazır ✅", 1500);
+    }
+
+    init();
+  </script>
+</body>
+</html>
