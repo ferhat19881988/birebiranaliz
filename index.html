@@ -113,9 +113,15 @@
   .student-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
   .student-row { border: 1px solid var(--panel-border); background: var(--panel); border-radius: var(--radius-md); padding: 16px 20px; display: flex; flex-wrap: wrap; gap: 16px; justify-content: space-between; align-items: center; transition: var(--trans); }
   .student-row:hover { border-color: var(--primary); box-shadow: var(--shadow-sm); }
-  .student-main { display: flex; flex-direction: column; gap: 6px; }
+  .student-main { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 220px; }
   .student-name { font-weight: 700; font-size: 1.1rem; color: var(--text); }
   .student-sub { color: var(--text-muted); font-size: 0.85rem; font-weight: 500; display: flex; gap: 12px; flex-wrap: wrap; }
+  .student-left { display:flex; align-items:center; gap:14px; flex:1; min-width:260px; }
+  .student-mini-avatar { width:44px; height:44px; border-radius:12px; overflow:hidden; border:1px solid var(--panel-border); background:var(--bg); display:grid; place-items:center; font-weight:800; color:var(--primary); flex:0 0 44px; }
+  .student-mini-avatar img { width:100%; height:100%; object-fit:cover; display:block; }
+  .student-note-box { flex: 1 1 100%; margin-top: 4px; }
+  .student-note-input { min-height: 44px; padding:10px 12px; font-size:0.86rem; }
+
 
   .status-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
   .status-btn { padding: 10px 16px; border-radius: var(--radius-sm); border: 1px solid var(--panel-border); background: var(--bg); color: var(--text); cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: var(--trans); }
@@ -175,6 +181,27 @@
   .timeline-item .t { font-weight: 700; color: var(--text); }
   .timeline-item .s { color: var(--text-muted); font-size: 0.85rem; margin-top: 2px; }
   .modal-wide { width: min(1100px, 100%); }
+
+  
+  .modal-xl { width: min(1380px, 98vw); }
+  .da-table-wrap table { min-width: 1180px; }
+  .da-table-wrap th { font-size: 0.85rem; }
+  .da-table-wrap td { font-size: 0.92rem; line-height: 1.45; }
+  .da-table-wrap th, .da-table-wrap td { padding: 14px 16px; white-space: nowrap; }
+  .da-table-wrap td:nth-child(1), .da-table-wrap td:nth-child(9) { white-space: normal; min-width: 180px; }
+  .profile-card.student-report { align-items: center; }
+  .profile-card.student-report .avatar { width: 135px; height: 135px; border-radius: 22px; font-size: 2.35rem; transition: transform .2s ease, box-shadow .2s ease; cursor: zoom-in; }
+  .profile-card.student-report .avatar:hover { transform: scale(1.25); box-shadow: var(--shadow-lg); position: relative; z-index: 2; }
+  .profile-card.student-report .avatar img { transition: transform .2s ease; }
+  @media (max-width: 720px) {
+    .student-row { padding: 14px; gap: 12px; }
+    .student-left { min-width: 100%; }
+    .status-buttons { width: 100%; }
+    .status-btn { flex: 1; min-width: 0; padding: 10px 8px; }
+    .student-mini-avatar { width:40px; height:40px; border-radius:10px; flex-basis:40px; }
+    .profile-card.student-report { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+    .profile-card.student-report .summary-row { justify-content: center; }
+  }
 
   .toast { position: fixed; left: 50%; bottom: 40px; transform: translateX(-50%) translateY(20px); opacity: 0; pointer-events: none; background: #1e293b; color: #f8fafc; padding: 12px 24px; border-radius: 999px; font-weight: 600; font-size: 0.95rem; box-shadow: var(--shadow-md); transition: var(--trans); z-index: 1000; }
   .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
@@ -532,6 +559,7 @@
         topic: "",
         loadedStudents: [],
         statuses: {}, // no -> GELDI|GELMEDI|GEC
+        studentNotes: {}, // no -> öğretmene özel/öğrenciye özgü not
         locked: false
       }
     };
@@ -689,6 +717,34 @@
       return (parts.slice(0,2).map(x => x[0]?.toLocaleUpperCase("tr-TR") || "").join("") || "?");
     }
 
+
+    function studentPhotoSrc(student){
+      return student?.photoBase64 || null;
+    }
+
+    function renderStudentAvatarHtml(student, cls="student-mini-avatar"){
+      const src = studentPhotoSrc(student);
+      if (src) return `<div class="${cls}"><img src="${htmlEscape(src)}" alt="${htmlEscape(student?.adsoyad || 'Öğrenci')}" loading="lazy" /></div>`;
+      return `<div class="${cls}" aria-label="${htmlEscape(student?.adsoyad || 'Öğrenci')}">${htmlEscape(initials(student?.adsoyad || ''))}</div>`;
+    }
+
+    function sortGroupsByClassThenGroup(groups){
+      const parse = (g) => {
+        const txt = String(g||'').trim();
+        const m = txt.match(/^G\s*(\d+)\s*[-–]\s*(.+)$/i);
+        if (m) return {raw:txt, gNo:Number(m[1]), cls:String(m[2]).trim()};
+        const p = txt.split('-');
+        return {raw:txt, gNo:Number.MAX_SAFE_INTEGER, cls:(p[1]||p[0]||'').trim()};
+      };
+      return [...groups].sort((a,b)=>{
+        const A=parse(a), B=parse(b);
+        const c=A.cls.localeCompare(B.cls,'tr',{numeric:true,sensitivity:'base'});
+        if(c!==0) return c;
+        if(A.gNo!==B.gNo) return A.gNo-B.gNo;
+        return A.raw.localeCompare(B.raw,'tr',{numeric:true,sensitivity:'base'});
+      });
+    }
+
     function showToast(msg, ms=2200){
       els.toast.textContent = msg;
       els.toast.classList.add("show");
@@ -751,7 +807,7 @@
       for (const s of mergedStudents()) {
         if (s.grup) set.add(String(s.grup).trim());
       }
-      return [...set].sort((a,b)=>a.localeCompare(b,"tr"));
+      return sortGroupsByClassThenGroup([...set]);
     }
 
     function mergedStudents(){
@@ -1060,6 +1116,7 @@
         topic: "",
         loadedStudents: [],
         statuses: {},
+        studentNotes: {},
         locked: false
       };
       els.lessonDateInput.value = dateVal;
@@ -1107,6 +1164,7 @@
       state.teacherDraft.loadedStudents = list;
       // Var olan seçimleri grup değişince resetleyelim
       state.teacherDraft.statuses = {};
+      state.teacherDraft.studentNotes = {};
       renderTeacherStudentList();
       updateTeacherDraftSummary();
       showToast(`${group} grubu yüklendi (${list.length} öğrenci).`);
@@ -1121,21 +1179,28 @@
 
       els.teacherStudentList.innerHTML = list.map(s => {
         const st = state.teacherDraft.statuses[s.no] || "";
+        const note = state.teacherDraft.studentNotes?.[s.no] || "";
         return `
           <div class="student-row" data-student-no="${htmlEscape(s.no)}">
-            <div class="student-main">
-              <div class="student-name">${htmlEscape(s.adsoyad || "-")}</div>
-              <div class="student-sub">
-                <span>No: <b>${htmlEscape(s.no || "-")}</b></span>
-                <span>Sınıf: <b>${htmlEscape(s.sinif || "-")}</b></span>
-                <span>Grup: <b>${htmlEscape(s.grup || "-")}</b></span>
-                <span>Cinsiyet: <b>${htmlEscape(s.cinsiyet || "-")}</b></span>
+            <div class="student-left">
+              ${renderStudentAvatarHtml(s)}
+              <div class="student-main">
+                <div class="student-name">${htmlEscape(s.adsoyad || "-")}</div>
+                <div class="student-sub">
+                  <span>No: <b>${htmlEscape(s.no || "-")}</b></span>
+                  <span>Sınıf: <b>${htmlEscape(s.sinif || "-")}</b></span>
+                  <span>Grup: <b>${htmlEscape(s.grup || "-")}</b></span>
+                  <span>Cinsiyet: <b>${htmlEscape(s.cinsiyet || "-")}</b></span>
+                </div>
               </div>
             </div>
             <div class="status-buttons">
               <button class="status-btn ${st==="GELDI" ? "active present" : ""}" data-status="GELDI">Geldi</button>
               <button class="status-btn ${st==="GELMEDI" ? "active absent" : ""}" data-status="GELMEDI">Gelmedi</button>
               <button class="status-btn ${st==="GEC" ? "active late" : ""}" data-status="GEC">Geç Geldi</button>
+            </div>
+            <div class="student-note-box">
+              <textarea class="textarea student-note-input" data-note-input="1" placeholder="Öğrenciye özel not (opsiyonel) — admin karnesinde görünür">${htmlEscape(note)}</textarea>
             </div>
           </div>
         `;
@@ -1219,7 +1284,8 @@
           sinif: s.sinif || "",
           grup: s.grup || "",
           cinsiyet: s.cinsiyet || "",
-          status: state.teacherDraft.statuses[s.no] || ""
+          status: state.teacherDraft.statuses[s.no] || "",
+          teacherNote: (state.teacherDraft.studentNotes?.[s.no] || "").trim()
         };
       }
 
@@ -1271,24 +1337,41 @@
     /**********************
      * ADMIN MODALS       *
      **********************/
-    async function buildStudentReportHtml(no){
+    async function getStudentReportData(no){
       const s = mergedStudents().find(x => String(x.no) === String(no));
-      if (!s) return `<div class="empty">Öğrenci bulunamadı.</div>`;
+      if (!s) return { student:null, timeline:[], counts:{GELDI:0,GELMEDI:0,GEC:0} };
       const sessionsByDate = await ensureSessionsLoaded();
       const timeline = [];
       for (const [date, sessions] of Object.entries(sessionsByDate || {})) {
         for (const [sid, session] of Object.entries(sessions || {})) {
           const stInfo = session?.students?.[no];
           if (!stInfo) continue;
-          timeline.push({ date, sessionId: sid, slotLabel: session.slotLabel || session.slotId || "-", teacherName: session.teacherName || "-", teacherId: session.teacherId || "-", brans: session.brans || "-", group: session.group || "-", topic: session.topic || "-", status: stInfo.status || "-", clientSavedAt: session.clientSavedAt || null });
+          timeline.push({
+            date, sessionId: sid,
+            slotLabel: session.slotLabel || session.slotId || "-",
+            teacherName: session.teacherName || "-",
+            teacherId: session.teacherId || "-",
+            brans: session.brans || "-",
+            group: session.group || "-",
+            topic: session.topic || "-",
+            status: stInfo.status || "-",
+            teacherNote: stInfo.teacherNote || "",
+            clientSavedAt: session.clientSavedAt || null
+          });
         }
       }
       timeline.sort((a,b)=>`${a.date} ${a.slotLabel}`.localeCompare(`${b.date} ${b.slotLabel}`, "tr"));
       const counts = { GELDI:0, GELMEDI:0, GEC:0 };
       for (const t of timeline) if (t.status in counts) counts[t.status]++;
+      return { student:s, timeline, counts };
+    }
+
+    async function buildStudentReportHtml(no){
+      const { student: s, timeline, counts } = await getStudentReportData(no);
+      if (!s) return `<div class="empty">Öğrenci bulunamadı.</div>`;
       const photoHtml = s.photoBase64 ? `<img src="${s.photoBase64}" alt="Öğrenci Fotoğrafı" />` : `${htmlEscape(initials(s.adsoyad || ""))}`;
       return `
-          <div class="profile-card">
+          <div class="profile-card student-report">
             <div class="avatar">${photoHtml}</div>
             <div class="profile-meta">
               <h4>${htmlEscape(s.adsoyad || "-")}</h4>
@@ -1314,6 +1397,7 @@
                   <span class="status-chip ${t.status==="GELDI" ? "present" : t.status==="GELMEDI" ? "absent" : "late"}">${t.status==="GELDI" ? "Geldi" : t.status==="GELMEDI" ? "Gelmedi" : t.status==="GEC" ? "Geç Geldi" : htmlEscape(t.status)}</span>
                 </div>
                 <div><b>İşlenen Konu:</b> ${htmlEscape(t.topic || "-")}</div>
+                ${t.teacherNote ? `<div style="margin-top:6px;"><b>Öğrenciye Özel Not:</b> ${htmlEscape(t.teacherNote)}</div>` : ""}
                 <div class="tiny muted" style="margin-top:6px;">Kayıt zamanı: ${htmlEscape(formatDateTimeTR(t.clientSavedAt))}</div>
               </div>`).join("") : `<div class="empty">Bu öğrenci için henüz birebir kaydı yok.</div>`}
           </div>
@@ -1329,13 +1413,65 @@
             <button id="sdBackBtnModal" class="btn small">← Öğrenci Detayı / Karne ekranına dön</button>
           </div>
           <div class="toolbar-right">
-            <button id="sdCloseFullBtn" class="btn small">Kapat</button>
+            <button id="sdPrintBtn" class="btn primary small">🖨️ Yazdır</button>
           </div>
         </div>
         ${html}
       `;
       $("#sdBackBtnModal", els.modalBody)?.addEventListener("click", () => openStudentDetailModal());
-      $("#sdCloseFullBtn", els.modalBody)?.addEventListener("click", closeModal);
+      $("#sdPrintBtn", els.modalBody)?.addEventListener("click", () => printStudentReport(no));
+    }
+
+
+    async function printStudentReport(no){
+      const { student: s, timeline, counts } = await getStudentReportData(no);
+      if (!s) return showToast("Öğrenci bulunamadı.");
+      const total = timeline.length;
+      const photoCell = s.photoBase64
+        ? `<img src="${s.photoBase64}" alt="Foto" style="width:110px;height:110px;object-fit:cover;border-radius:14px;border:1px solid #dbe2ea;" />`
+        : `<div style="width:110px;height:110px;border-radius:14px;border:1px solid #dbe2ea;display:grid;place-items:center;font-weight:800;font-size:30px;color:#334155;background:#f8fafc;">${htmlEscape(initials(s.adsoyad||''))}</div>`;
+      const rows = timeline.map((t, i) => `
+        <tr>
+          <td>${i+1}</td>
+          <td>${htmlEscape(formatDateTR(t.date))}</td>
+          <td>${htmlEscape(t.slotLabel||'-')}</td>
+          <td>${htmlEscape(t.teacherName||'-')}</td>
+          <td>${htmlEscape(t.brans||'-')}</td>
+          <td>${htmlEscape(t.group||'-')}</td>
+          <td>${htmlEscape(t.status==='GELDI'?'Geldi':t.status==='GELMEDI'?'Gelmedi':t.status==='GEC'?'Geç Geldi':t.status||'-')}</td>
+          <td>${htmlEscape(t.topic||'-')}</td>
+          <td>${htmlEscape(t.teacherNote||'-')}</td>
+        </tr>`).join('');
+      const win = window.open('', '_blank', 'noopener,noreferrer');
+      if (!win) return showToast('Yazdırma penceresi açılamadı. Tarayıcı engelliyor olabilir.');
+      win.document.write(`<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>Öğrenci Karnesi - ${htmlEscape(s.adsoyad||'')}</title>
+      <style>
+      @page { size: A4 portrait; margin: 12mm; }
+      body{font-family:Inter,Arial,sans-serif;color:#0f172a;margin:0;background:#eef2f7;}
+      .page{width:100%;max-width:190mm;margin:0 auto;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:14px;box-sizing:border-box;}
+      .head{display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:2px solid #e2e8f0;padding-bottom:10px;margin-bottom:12px;}
+      .brand{font-weight:800;font-size:18px;color:#1e293b;} .sub{font-size:11px;color:#64748b;margin-top:3px;}
+      .chip{display:inline-block;padding:4px 8px;border-radius:999px;background:#f1f5f9;border:1px solid #e2e8f0;font-size:11px;margin-right:6px;margin-top:6px;}
+      .profile{display:grid;grid-template-columns:120px 1fr;gap:14px;align-items:center;border:1px solid #e2e8f0;border-radius:12px;padding:12px;background:#fbfdff;}
+      .title{font-size:16px;font-weight:800;margin:0 0 6px;} .meta{font-size:12px;color:#334155;line-height:1.45;}
+      .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px;}
+      .stat{border:1px solid #e2e8f0;border-radius:10px;padding:8px;background:#fff;} .stat .k{font-size:10px;color:#64748b;text-transform:uppercase;font-weight:700;} .stat .v{font-size:16px;font-weight:800;margin-top:4px;}
+      table{width:100%;border-collapse:collapse;margin-top:12px;table-layout:fixed;} th,td{border:1px solid #e2e8f0;padding:6px;font-size:10.5px;vertical-align:top;word-wrap:break-word;} th{background:#f8fafc;text-align:left;font-weight:700;} h3{font-size:13px;margin:12px 0 6px;}
+      .footer{margin-top:10px;font-size:10px;color:#64748b;display:flex;justify-content:space-between;gap:8px;}
+      @media print { body{background:#fff;} .page{border:none;border-radius:0;padding:0;max-width:none;} }
+      </style></head><body>
+      <div class="page">
+        <div class="head"><div><div class="brand">Birebir Analiz Sistemi • Öğrenci Karnesi</div><div class="sub">Veli bilgilendirme raporu • ${htmlEscape(new Date().toLocaleString('tr-TR'))}</div></div><div class="sub">Kurumsal Öğrenci Bilgi Sistemi</div></div>
+        <div class="profile"><div>${photoCell}</div><div><p class="title">${htmlEscape(s.adsoyad||'-')}</p><div class="meta"><b>Öğrenci No:</b> ${htmlEscape(s.no||'-')} &nbsp; • &nbsp; <b>Sınıf:</b> ${htmlEscape(s.sinif||'-')} &nbsp; • &nbsp; <b>Grup:</b> ${htmlEscape(s.grup||'-')}<br><b>Cinsiyet:</b> ${htmlEscape(s.cinsiyet||'-')}</div>
+          <div class="stats"><div class="stat"><div class="k">Toplam Birebir</div><div class="v">${total}</div></div><div class="stat"><div class="k">Geldi</div><div class="v">${counts.GELDI}</div></div><div class="stat"><div class="k">Gelmedi</div><div class="v">${counts.GELMEDI}</div></div><div class="stat"><div class="k">Geç</div><div class="v">${counts.GEC}</div></div></div>
+        </div></div>
+        <h3>Ders / Yoklama Geçmişi</h3>
+        <table><thead><tr><th style="width:22px;">#</th><th style="width:64px;">Tarih</th><th style="width:68px;">Saat</th><th style="width:78px;">Öğretmen</th><th style="width:55px;">Branş</th><th style="width:42px;">Grup</th><th style="width:52px;">Durum</th><th>İşlenen Konu</th><th>Özel Not</th></tr></thead><tbody>${rows || `<tr><td colspan="9">Kayıt bulunamadı.</td></tr>`}</tbody></table>
+        <div class="footer"><span>Bu rapor yalnızca seçili öğrencinin verilerini içerir.</span><span>Sayfa: 1</span></div>
+      </div></body></html>`);
+      win.document.close();
+      win.focus();
+      setTimeout(() => { try { win.print(); } catch(e){} }, 250);
     }
 
     async function openStudentDetailModal(){
@@ -2032,7 +2168,7 @@
 
         $("#suDeleteOverrideBtn", els.modalBody)?.addEventListener("click", async () => {
           if (!currentStudentNo) return;
-          if (!confirm("Bu öğrenci için Firebase override kaydı silinsin mi?")) return;
+          if (!confirm("Bu öğrenci için Firebase override kaydı silinecek. Emin misiniz?")) return;
           try {
             await dbRemove(`${ROOT_PATH}/studentOverrides/${safeKey(currentStudentNo)}`);
             delete state.data.studentOverrides[safeKey(currentStudentNo)];
@@ -2145,8 +2281,8 @@
       $("#dmDeleteDateBtn", els.modalBody).addEventListener("click", async () => {
         const date = $("#dmDate", els.modalBody).value;
         if (!date) return showToast("Tarih seçin.");
-        const conf = prompt(`${date} tarihli tüm ders kayıtlarını silmek için "SIL" yazın:`);
-        if (conf !== "SIL") return showToast("İşlem iptal edildi.");
+        const ok = confirm(`${formatDateTR(date)} tarihli tüm ders kayıtları silinecek. Emin misiniz?`);
+        if (!ok) return showToast("İşlem iptal edildi.");
         try {
           await dbRemove(`${ROOT_PATH}/sessionsByDate/${date}`);
           invalidateSessionsCache();
@@ -2160,8 +2296,8 @@
       });
 
       $("#dmDeleteAllSessionsBtn", els.modalBody).addEventListener("click", async () => {
-        const conf = prompt(`Tüm ders/oturum kayıtlarını silmek için "TUM OTURUMLAR SIL" yazın:`);
-        if (conf !== "TUM OTURUMLAR SIL") return showToast("İşlem iptal edildi.");
+        const ok = confirm(`Tüm ders/oturum kayıtları silinecek. Emin misiniz?`);
+        if (!ok) return showToast("İşlem iptal edildi.");
         try {
           await dbRemove(`${ROOT_PATH}/sessionsByDate`);
           invalidateSessionsCache();
@@ -2175,8 +2311,8 @@
       });
 
       $("#dmDeleteRootBtn", els.modalBody).addEventListener("click", async () => {
-        const conf = prompt(`UYARI! Tüm ${ROOT_PATH} verisi silinecek. Onay için "TUM SISTEM SIL" yazın:`);
-        if (conf !== "TUM SISTEM SIL") return showToast("İşlem iptal edildi.");
+        const ok = confirm(`UYARI! ${ROOT_PATH} altındaki tüm sistem verisi silinecek. Emin misiniz?`);
+        if (!ok) return showToast("İşlem iptal edildi.");
         try {
           await dbRemove(`${ROOT_PATH}`);
           invalidateSessionsCache();
@@ -2283,6 +2419,16 @@
         state.auth.teacher = null;
         resetTeacherDraft({keepDate:false});
         setView("home");
+      });
+
+      els.teacherStudentList.addEventListener("input", e => {
+        const noteEl = e.target.closest("[data-note-input]");
+        if (!noteEl) return;
+        const row = e.target.closest(".student-row");
+        if (!row) return;
+        const no = row.dataset.studentNo;
+        if (!no) return;
+        state.teacherDraft.studentNotes[no] = noteEl.value || "";
       });
 
       els.teacherStudentList.addEventListener("click", e => {
