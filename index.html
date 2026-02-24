@@ -1380,9 +1380,40 @@
       const slot = getSlotById(slotId);
       const sessionKey = safeKey(`${teacher.id}_${date}_${slotId}_${group}`);
 
-      const existing = await dbGet(`${ROOT_PATH}/sessionsByDate/${date}/${sessionKey}`);
+      const daySessions = await dbGet(`${ROOT_PATH}/sessionsByDate/${date}`);
+      const existing = daySessions?.[sessionKey] || null;
       if (existing) {
         return showToast("Bu öğretmen + tarih + saat + grup için kayıt zaten var. (Çift kayıt engellendi)");
+      }
+
+      // Aynı gün + aynı ders saati + aynı grup için başka öğretmen kaydı kontrolü
+      if (daySessions && typeof daySessions === 'object') {
+        const conflictingSession = Object.values(daySessions).find(sess => {
+          if (!sess || typeof sess !== 'object') return false;
+          const sameDate = String(sess.date || date) === String(date);
+          const sameSlot = String(sess.slotId || '') === String(slotId);
+          const sameGroup = String(sess.group || '').trim() === String(group).trim();
+          const differentTeacher = String(sess.teacherId || '') !== String(teacher.id);
+          return sameDate && sameSlot && sameGroup && differentTeacher;
+        });
+        if (conflictingSession) {
+          const conflictTeacherName = conflictingSession.teacherName || 'Başka bir öğretmen';
+          const conflictSlotLabel = conflictingSession.slotLabel || (slot ? makeSlotLabel(slot) : slotId);
+          await confirmDialog(
+            `Bu saatte bu öğretmen bu grupla birebir kayıt açmıştır. Siz üzerine yazamazsınız.
+
+` +
+            `Öğretmen: ${conflictTeacherName}
+` +
+            `Tarih: ${date}
+` +
+            `Saat: ${conflictSlotLabel}
+` +
+            `Grup: ${group}`,
+            { title: 'Kayıt Engellendi', okText: 'Tamam', cancelText: 'Kapat', tone: 'danger', icon: '⛔' }
+          );
+          return;
+        }
       }
 
       const studentsPayload = {};
