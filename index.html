@@ -210,6 +210,19 @@
     .profile-card.student-report .summary-row { justify-content: center; }
   }
 
+
+  .app-dialog-overlay { position: fixed; inset: 0; z-index: 1200; background: rgba(15,23,42,.48); backdrop-filter: blur(6px); display:none; align-items:center; justify-content:center; padding:18px; }
+  .app-dialog-overlay.show { display:flex; animation: fadeIn .18s ease; }
+  .app-dialog { width:min(520px, 100%); background:var(--panel); border:1px solid var(--panel-border); border-radius:20px; box-shadow:var(--shadow-lg); overflow:hidden; }
+  .app-dialog-head { display:flex; gap:12px; align-items:flex-start; padding:18px 20px 12px; }
+  .app-dialog-icon { width:42px; height:42px; border-radius:14px; display:grid; place-items:center; font-size:1.25rem; flex:0 0 42px; background:#fff7ed; border:1px solid #fed7aa; }
+  .app-dialog-title { margin:0; font-size:1.05rem; font-weight:800; color:var(--text); }
+  .app-dialog-message { margin:6px 0 0; color:var(--text-muted); line-height:1.55; white-space:pre-line; font-size:.92rem; }
+  .app-dialog-foot { display:flex; justify-content:flex-end; gap:10px; padding:14px 20px 18px; border-top:1px solid var(--panel-border); background:linear-gradient(180deg,#fff,#f8fafc); }
+  .app-dialog.danger .app-dialog-icon { background:#fef2f2; border-color:#fecaca; }
+  .app-dialog.success .app-dialog-icon { background:#ecfdf5; border-color:#a7f3d0; }
+  @media (max-width:560px){ .app-dialog-head{padding:16px 16px 10px;} .app-dialog-foot{padding:12px 16px 16px; flex-direction:column-reverse;} .app-dialog-foot .btn{width:100%;} }
+
   .toast { position: fixed; left: 50%; bottom: 40px; transform: translateX(-50%) translateY(20px); opacity: 0; pointer-events: none; background: #1e293b; color: #f8fafc; padding: 12px 24px; border-radius: 999px; font-weight: 600; font-size: 0.95rem; box-shadow: var(--shadow-md); transition: var(--trans); z-index: 1000; }
   .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
 </style>
@@ -494,6 +507,22 @@
 
   <div id="toast" class="toast">-</div>
 
+  <div id="appDialogOverlay" class="app-dialog-overlay" aria-hidden="true">
+    <div id="appDialog" class="app-dialog" role="dialog" aria-modal="true" aria-labelledby="appDialogTitle">
+      <div class="app-dialog-head">
+        <div id="appDialogIcon" class="app-dialog-icon">⚠️</div>
+        <div>
+          <h3 id="appDialogTitle" class="app-dialog-title">Onay</h3>
+          <p id="appDialogMessage" class="app-dialog-message">Devam etmek istiyor musunuz?</p>
+        </div>
+      </div>
+      <div class="app-dialog-foot">
+        <button id="appDialogCancel" class="btn">Hayır</button>
+        <button id="appDialogOk" class="btn danger">Evet</button>
+      </div>
+    </div>
+  </div>
+
   <script type="module">
     /**********************
      * AYARLAR / SABİTLER *
@@ -626,7 +655,14 @@
       modalFooter: $("#modalFooter"),
       modalCloseBtn: $("#modalCloseBtn"),
 
-      toast: $("#toast")
+      toast: $("#toast"),
+      appDialogOverlay: $("#appDialogOverlay"),
+      appDialog: $("#appDialog"),
+      appDialogTitle: $("#appDialogTitle"),
+      appDialogMessage: $("#appDialogMessage"),
+      appDialogIcon: $("#appDialogIcon"),
+      appDialogOk: $("#appDialogOk"),
+      appDialogCancel: $("#appDialogCancel")
     };
 
     /**********************
@@ -757,6 +793,57 @@
       els.toast.classList.add("show");
       clearTimeout(showToast._t);
       showToast._t = setTimeout(() => els.toast.classList.remove("show"), ms);
+    }
+
+    function confirmDialog(message, opts={}){
+      const { title = "Onay", okText = "Evet", cancelText = "Hayır", tone = "warning", icon = null } = opts || {};
+      return new Promise(resolve => {
+        const overlay = els.appDialogOverlay;
+        const box = els.appDialog;
+        if (!overlay || !box) return resolve(window.confirm(String(message || "Devam etmek istiyor musunuz?")));
+
+        const toneClass = tone === "danger" ? "danger" : (tone === "success" ? "success" : "warning");
+        box.className = `app-dialog ${toneClass}`;
+        els.appDialogTitle.textContent = title;
+        els.appDialogMessage.textContent = String(message || "Devam etmek istiyor musunuz?");
+        els.appDialogOk.textContent = okText;
+        els.appDialogCancel.textContent = cancelText;
+        els.appDialogOk.className = `btn ${tone === "danger" ? "danger" : (tone === "success" ? "success" : "warning")}`;
+        els.appDialogIcon.textContent = icon || (tone === "danger" ? "🗑️" : (tone === "success" ? "✅" : "⚠️"));
+
+        overlay.classList.add("show");
+        overlay.setAttribute("aria-hidden", "false");
+        document.body.style.overflow = "hidden";
+
+        let done = false;
+        const finish = (val) => {
+          if (done) return; done = true;
+          overlay.classList.remove("show");
+          overlay.setAttribute("aria-hidden", "true");
+          document.body.style.overflow = "";
+          cleanup();
+          resolve(Boolean(val));
+        };
+        const onOverlayClick = (e) => { if (e.target === overlay) finish(false); };
+        const onKey = (e) => {
+          if (e.key === "Escape") finish(false);
+          if (e.key === "Enter") finish(true);
+        };
+        const cleanup = () => {
+          overlay.removeEventListener("click", onOverlayClick);
+          els.appDialogOk.removeEventListener("click", onOk);
+          els.appDialogCancel.removeEventListener("click", onCancel);
+          document.removeEventListener("keydown", onKey);
+        };
+        const onOk = () => finish(true);
+        const onCancel = () => finish(false);
+
+        overlay.addEventListener("click", onOverlayClick);
+        els.appDialogOk.addEventListener("click", onOk);
+        els.appDialogCancel.addEventListener("click", onCancel);
+        document.addEventListener("keydown", onKey);
+        setTimeout(() => els.appDialogOk?.focus(), 0);
+      });
     }
 
     function setChip(el, text, ok=true){
@@ -1334,7 +1421,7 @@
         version: 1
       };
 
-      const ok = confirm(
+      const ok = await confirmDialog(
         `Ders kaydı tamamlanacak ve geri alınamayacak.\n\n` +
         `Tarih: ${date}\nSaat: ${slot ? makeSlotLabel(slot) : slotId}\nGrup: ${group}\n` +
         `Konu: ${topic}\n\nDevam edilsin mi?`
@@ -1886,8 +1973,8 @@
         renderRows();
       });
 
-      $("#slotResetDefaultBtn", els.modalBody).addEventListener("click", () => {
-        if (!confirm("Varsayılan saatler yüklensin mi?")) return;
+      $("#slotResetDefaultBtn", els.modalBody).addEventListener("click", async () => {
+        if (!await confirmDialog("Varsayılan ders saatleri yüklensin mi?", { title:"Saatleri Sıfırla", tone:"warning" })) return;
         slotList = structuredClone(DEFAULT_LESSON_SLOTS);
         renderRows();
       });
@@ -2220,7 +2307,7 @@
 
           // base64 boyutu kaba kontrol
           if (photoBase64 && photoBase64.length > 500000) {
-            if (!confirm("Fotoğraf verisi büyük görünüyor. Yine de kaydetmek istiyor musunuz?")) return;
+            if (!await confirmDialog("Fotoğraf boyutu büyük görünüyor. Yine de kaydetmek istiyor musunuz?", { title:"Büyük Fotoğraf Uyarısı", tone:"warning" })) return;
           }
 
           const patch = {
@@ -2248,7 +2335,7 @@
 
         $("#suDeleteOverrideBtn", els.modalBody)?.addEventListener("click", async () => {
           if (!currentStudentNo) return;
-          if (!confirm("Bu öğrenci için Firebase override kaydı silinecek. Emin misiniz?")) return;
+          if (!await confirmDialog("Bu öğrenci için kayıtlı özel güncelleme silinecek. Emin misiniz?", { title:"Öğrenci Kaydını Sil", tone:"danger" })) return;
           try {
             await dbRemove(`${ROOT_PATH}/studentOverrides/${safeKey(currentStudentNo)}`);
             delete state.data.studentOverrides[safeKey(currentStudentNo)];
@@ -2361,7 +2448,7 @@
       $("#dmDeleteDateBtn", els.modalBody).addEventListener("click", async () => {
         const date = $("#dmDate", els.modalBody).value;
         if (!date) return showToast("Tarih seçin.");
-        const ok = confirm(`${formatDateTR(date)} tarihli tüm ders kayıtları silinecek. Emin misiniz?`);
+        const ok = await confirmDialog(`${formatDateTR(date)} tarihli tüm ders kayıtları silinecek. Emin misiniz?`, { title:"Günlük Kayıtları Sil", tone:"danger" });
         if (!ok) return showToast("İşlem iptal edildi.");
         try {
           await dbRemove(`${ROOT_PATH}/sessionsByDate/${date}`);
@@ -2376,7 +2463,7 @@
       });
 
       $("#dmDeleteAllSessionsBtn", els.modalBody).addEventListener("click", async () => {
-        const ok = confirm(`Tüm ders/oturum kayıtları silinecek. Emin misiniz?`);
+        const ok = await confirmDialog(`Tüm ders/oturum kayıtları silinecek. Emin misiniz?`, { title:"Tüm Oturumları Sil", tone:"danger" });
         if (!ok) return showToast("İşlem iptal edildi.");
         try {
           await dbRemove(`${ROOT_PATH}/sessionsByDate`);
@@ -2391,7 +2478,7 @@
       });
 
       $("#dmDeleteRootBtn", els.modalBody).addEventListener("click", async () => {
-        const ok = confirm(`UYARI! ${ROOT_PATH} altındaki tüm sistem verisi silinecek. Emin misiniz?`);
+        const ok = await confirmDialog(`UYARI! ${ROOT_PATH} altındaki tüm sistem verisi silinecek. Emin misiniz?`, { title:"Tüm Sistemi Sil", tone:"danger" });
         if (!ok) return showToast("İşlem iptal edildi.");
         try {
           await dbRemove(`${ROOT_PATH}`);
@@ -2487,9 +2574,9 @@
       $("#btnLoadGroup").addEventListener("click", loadTeacherGroupStudents);
       $("#btnAllPresent").addEventListener("click", teacherBulkAllPresent);
       $("#btnClearStatuses").addEventListener("click", teacherClearStatuses);
-      $("#btnTeacherResetDraft").addEventListener("click", () => {
+      $("#btnTeacherResetDraft").addEventListener("click", async () => {
         if (state.teacherDraft.loadedStudents.length || els.lessonTopicInput.value.trim()) {
-          if (!confirm("Mevcut ders formu temizlensin mi?")) return;
+          if (!await confirmDialog("Mevcut ders formu temizlensin mi?", { title:"Formu Temizle", tone:"warning" })) return;
         }
         resetTeacherDraft({keepDate:true});
       });
