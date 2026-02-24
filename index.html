@@ -1443,10 +1443,12 @@
       }
     }
 
-    function openStudentImagePreview(studentNo){
+    function openStudentImagePreview(studentNo, options = {}){
       const s = mergedStudents().find(x => String(x.no) === String(studentNo));
       if (!s) return showToast("Öğrenci bulunamadı.");
       const src = studentPhotoSrc(s);
+      const source = options?.source === "report" ? "report" : "teacher";
+      const backLabel = source === "report" ? "← Öğrenci Karnesine Geri Dön" : "← Listeye Geri Dön";
       const body = `
         <div class="image-preview-wrap">
           ${src ? `<img src="${htmlEscape(src)}" alt="${htmlEscape(s.adsoyad || "Öğrenci")}" />` : `<div class="image-preview-fallback" aria-label="${htmlEscape(s.adsoyad || "Öğrenci")}">${htmlEscape(initials(s.adsoyad || ""))}</div>`}
@@ -1455,7 +1457,19 @@
           ${htmlEscape(s.adsoyad || "-")} • No: ${htmlEscape(s.no || "-")} • Sınıf: ${htmlEscape(s.sinif || "-")}
         </div>
       `;
-      openModal("Öğrenci Fotoğrafı", body, { modalClass: "image-preview-modal" });
+      openModal("Öğrenci Fotoğrafı", body, {
+        modalClass: "image-preview-modal",
+        footerHtml: `<button id="imagePreviewBackBtn" class="btn small">${backLabel}</button>`,
+        onRender: () => {
+          $("#imagePreviewBackBtn", els.modalFooter)?.addEventListener("click", async () => {
+            if (source === "report") {
+              await openStudentReportFullModal(String(studentNo));
+            } else {
+              closeModal();
+            }
+          });
+        }
+      });
     }
 
     /**********************
@@ -1545,11 +1559,11 @@
       $("#sdBackBtnModal", els.modalBody)?.addEventListener("click", () => openStudentDetailModal());
       $("#sdPrintBtn", els.modalBody)?.addEventListener("click", () => printStudentReport(no));
       const reportAvatar = $(".profile-card.student-report .avatar[data-photo-preview]", els.modalBody);
-      reportAvatar?.addEventListener("click", () => openStudentImagePreview(no));
+      reportAvatar?.addEventListener("click", () => openStudentImagePreview(no, { source: "report" }));
       reportAvatar?.addEventListener("keydown", (e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          openStudentImagePreview(no);
+          openStudentImagePreview(no, { source: "report" });
         }
       });
     }
@@ -1586,9 +1600,9 @@
       body{font-family:Inter,Arial,sans-serif;color:#0f172a;margin:0;background:#eef2f7;}
       .page{width:100%;max-width:190mm;margin:0 auto;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:14px;box-sizing:border-box;}
       .head{display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:2px solid #e2e8f0;padding-bottom:10px;margin-bottom:12px;}
-      .head-left{display:flex;align-items:center;gap:10px;min-width:0;}
-      .logo{width:48px;height:48px;border-radius:10px;object-fit:cover;border:1px solid #dbe2ea;background:#fff;flex:0 0 48px;}
-      .brand{font-weight:800;font-size:18px;color:#1e293b;} .sub{font-size:11px;color:#64748b;margin-top:3px;}
+      .head-left{display:flex;align-items:center;gap:12px;min-width:0;}
+      .logo{width:72px;height:72px;border-radius:12px;object-fit:contain;object-position:center;border:1px solid #dbe2ea;background:#fff;flex:0 0 72px;padding:4px;}
+      .brand{font-weight:800;font-size:19px;color:#1e293b;} .sub{font-size:11px;color:#64748b;margin-top:3px;}
       .head-right{font-size:11px;color:#475569;text-align:right;}
       .profile{display:grid;grid-template-columns:120px 1fr;gap:14px;align-items:center;border:1px solid #e2e8f0;border-radius:12px;padding:12px;background:#fbfdff;}
       .title{font-size:16px;font-weight:800;margin:0 0 6px;} .meta{font-size:12px;color:#334155;line-height:1.45;}
@@ -1700,7 +1714,7 @@
         const photoBtn = e.target.closest(".profile-card.student-report .avatar[data-photo-preview]");
         if (!photoBtn) return;
         const no = photoBtn.dataset.studentNo;
-        if (no) openStudentImagePreview(no);
+        if (no) openStudentImagePreview(no, { source: "report" });
       });
       detail.addEventListener("keydown", e => {
         const photoBtn = e.target.closest(".profile-card.student-report .avatar[data-photo-preview]");
@@ -1708,7 +1722,7 @@
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           const no = photoBtn.dataset.studentNo;
-          if (no) openStudentImagePreview(no);
+          if (no) openStudentImagePreview(no, { source: "report" });
         }
       });
 
