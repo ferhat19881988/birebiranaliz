@@ -117,7 +117,8 @@
   .student-name { font-weight: 700; font-size: 1.1rem; color: var(--text); }
   .student-sub { color: var(--text-muted); font-size: 0.85rem; font-weight: 500; display: flex; gap: 12px; flex-wrap: wrap; }
   .student-left { display:flex; align-items:center; gap:14px; flex:1; min-width:260px; }
-  .student-mini-avatar { width:44px; height:44px; border-radius:12px; overflow:hidden; border:1px solid var(--panel-border); background:var(--bg); display:grid; place-items:center; font-weight:800; color:var(--primary); flex:0 0 44px; }
+  .student-mini-avatar { width:44px; height:44px; border-radius:12px; overflow:hidden; border:1px solid var(--panel-border); background:var(--bg); display:grid; place-items:center; font-weight:800; color:var(--primary); flex:0 0 44px; cursor:zoom-in; transition:transform .15s ease, box-shadow .15s ease; }
+  .student-mini-avatar:hover { transform: scale(1.05); box-shadow: var(--shadow-sm); }
   .student-mini-avatar img { width:100%; height:100%; object-fit:cover; display:block; }
   .student-note-box { flex: 1 1 100%; margin-top: 4px; }
   .student-note-input { min-height: 44px; padding:10px 12px; font-size:0.86rem; }
@@ -184,6 +185,12 @@
 
   
   .modal-xl { width: min(1380px, 98vw); }
+  .image-preview-modal { width:min(900px, 100%); max-height:92dvh; }
+  .image-preview-wrap { display:grid; place-items:center; min-height:220px; background:linear-gradient(180deg,#f8fafc,#eef2ff); border:1px solid var(--panel-border); border-radius:16px; padding:12px; }
+  .image-preview-wrap img { max-width:100%; max-height:70dvh; width:auto; height:auto; object-fit:contain; border-radius:14px; box-shadow: var(--shadow-md); }
+  .image-preview-fallback { width:min(280px, 70vw); aspect-ratio:1; border-radius:20px; border:1px solid var(--panel-border); background:var(--bg); display:grid; place-items:center; font-size:3rem; font-weight:800; color:var(--primary); }
+  .search-item .photo-thumb { width:44px; height:44px; border-radius:10px; object-fit:cover; border:1px solid var(--panel-border); background:var(--chip); flex:0 0 44px; }
+  .search-item .l { min-width:0; }
   .da-table-wrap table { min-width: 1180px; }
   .da-table-wrap th { font-size: 0.85rem; }
   .da-table-wrap td { font-size: 0.92rem; line-height: 1.45; }
@@ -429,27 +436,27 @@
           <div class="grid grid-2">
             <button id="btnOpenStudentDetail" class="big-button" type="button">
               <div class="t">1) Öğrenci Detayı / Karne</div>
-              <div class="s">Numara veya adla ara • Foto, sınıf, grup ve zaman sıralı birebir geçmişi</div>
+              <div class="s">Numara veya isimle öğrenci ara. Karne ve geçmiş ders kayıtlarını gör.</div>
             </button>
 
             <button id="btnOpenDailyAttendance" class="big-button" type="button">
               <div class="t">2) Birebir Yoklaması (Günlük)</div>
-              <div class="s">Seçilen tarihte gelmeyen / geç katılan öğrenciler + öğretmen ve saat bilgisi</div>
+              <div class="s">Seçilen gün için yoklama özetini gör. Kim gelmedi, kim geç geldi bak.</div>
             </button>
 
             <button id="btnOpenSlotSettings" class="big-button" type="button">
               <div class="t">3) Birebir Saati Ayarlama</div>
-              <div class="s">Varsayılan saatleri değiştir • Ders sayısını artır/azalt • Öğretmen paneline yansır</div>
+              <div class="s">Ders saatlerini düzenle. Ekleyip çıkar ve kaydet.</div>
             </button>
 
             <button id="btnOpenStudentUpdate" class="big-button" type="button">
               <div class="t">4) Öğrenci Bilgileri Güncelleme</div>
-              <div class="s">Sheet verisini override et • Fotoğraf ekle • Kırp + küçült • Firebase’e kaydet</div>
+              <div class="s">Öğrenci bilgisi ve fotoğrafını güncelle, kaydet.</div>
             </button>
 
             <button id="btnOpenDataManager" class="big-button" type="button" style="grid-column:1/-1">
               <div class="t">5) Kayıtlı Veri Yönetimi</div>
-              <div class="s">İstenilen tarih kayıtlarını veya tüm kayıtları (oturumlar / sistem verisi) sil</div>
+              <div class="s">Kayıt silme işlemlerini buradan yap. Dikkatli kullan.</div>
             </button>
           </div>
 
@@ -724,7 +731,7 @@
 
     function renderStudentAvatarHtml(student, cls="student-mini-avatar"){
       const src = studentPhotoSrc(student);
-      if (src) return `<div class="${cls}"><img src="${htmlEscape(src)}" alt="${htmlEscape(student?.adsoyad || 'Öğrenci')}" loading="lazy" /></div>`;
+      if (src) return `<div class="${cls}"><img src="${htmlEscape(src)}" alt="${htmlEscape(student?.adsoyad || 'Öğrenci')}" loading="lazy" decoding="async" /></div>`;
       return `<div class="${cls}" aria-label="${htmlEscape(student?.adsoyad || 'Öğrenci')}">${htmlEscape(initials(student?.adsoyad || ''))}</div>`;
     }
 
@@ -1183,7 +1190,7 @@
         return `
           <div class="student-row" data-student-no="${htmlEscape(s.no)}">
             <div class="student-left">
-              ${renderStudentAvatarHtml(s)}
+              ${renderStudentAvatarHtml(s).replace('class="student-mini-avatar"', `class="student-mini-avatar" data-photo-preview="1" role="button" tabindex="0"`)}
               <div class="student-main">
                 <div class="student-name">${htmlEscape(s.adsoyad || "-")}</div>
                 <div class="student-sub">
@@ -1212,8 +1219,23 @@
         showToast("Kayıt tamamlandı. Değişiklik yapılamaz.");
         return;
       }
-      state.teacherDraft.statuses[String(no)] = status;
-      renderTeacherStudentList();
+      no = String(no);
+      state.teacherDraft.statuses[no] = status;
+
+      const row = els.teacherStudentList.querySelector(`.student-row[data-student-no="${CSS.escape(no)}"]`);
+      if (row) {
+        $$(".status-btn", row).forEach(b => {
+          b.classList.remove("active","present","absent","late");
+          if (b.dataset.status === status) {
+            b.classList.add("active");
+            if (status === "GELDI") b.classList.add("present");
+            else if (status === "GELMEDI") b.classList.add("absent");
+            else if (status === "GEC") b.classList.add("late");
+          }
+        });
+      } else {
+        renderTeacherStudentList();
+      }
       updateTeacherDraftSummary();
     }
 
@@ -1334,6 +1356,21 @@
       }
     }
 
+    function openStudentImagePreview(studentNo){
+      const s = mergedStudents().find(x => String(x.no) === String(studentNo));
+      if (!s) return showToast("Öğrenci bulunamadı.");
+      const src = studentPhotoSrc(s);
+      const body = `
+        <div class="image-preview-wrap">
+          ${src ? `<img src="${htmlEscape(src)}" alt="${htmlEscape(s.adsoyad || "Öğrenci")}" />` : `<div class="image-preview-fallback" aria-label="${htmlEscape(s.adsoyad || "Öğrenci")}">${htmlEscape(initials(s.adsoyad || ""))}</div>`}
+        </div>
+        <div class="tiny muted" style="margin-top:10px;text-align:center;">
+          ${htmlEscape(s.adsoyad || "-")} • No: ${htmlEscape(s.no || "-")} • Sınıf: ${htmlEscape(s.sinif || "-")}
+        </div>
+      `;
+      openModal("Öğrenci Fotoğrafı", body, { modalClass: "image-preview-modal" });
+    }
+
     /**********************
      * ADMIN MODALS       *
      **********************/
@@ -1424,8 +1461,14 @@
 
 
     async function printStudentReport(no){
+      const win = window.open('', '_blank');
+      if (!win) return showToast('Yazdırma penceresi açılamadı. Tarayıcı engelliyor olabilir.');
+      try {
+        win.document.write('<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>Rapor hazırlanıyor...</title></head><body style="font-family:Arial,sans-serif;padding:20px;">Rapor hazırlanıyor...</body></html>');
+        win.document.close();
+      } catch(e) {}
       const { student: s, timeline, counts } = await getStudentReportData(no);
-      if (!s) return showToast("Öğrenci bulunamadı.");
+      if (!s) { try { win.close(); } catch(e){} return showToast("Öğrenci bulunamadı."); }
       const total = timeline.length;
       const photoCell = s.photoBase64
         ? `<img src="${s.photoBase64}" alt="Foto" style="width:110px;height:110px;object-fit:cover;border-radius:14px;border:1px solid #dbe2ea;" />`
@@ -1442,8 +1485,6 @@
           <td>${htmlEscape(t.topic||'-')}</td>
           <td>${htmlEscape(t.teacherNote||'-')}</td>
         </tr>`).join('');
-      const win = window.open('', '_blank', 'noopener,noreferrer');
-      if (!win) return showToast('Yazdırma penceresi açılamadı. Tarayıcı engelliyor olabilir.');
       win.document.write(`<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>Öğrenci Karnesi - ${htmlEscape(s.adsoyad||'')}</title>
       <style>
       @page { size: A4 portrait; margin: 12mm; }
@@ -1471,7 +1512,7 @@
       </div></body></html>`);
       win.document.close();
       win.focus();
-      setTimeout(() => { try { win.print(); } catch(e){} }, 250);
+      setTimeout(() => { try { win.focus(); win.print(); } catch(e){} }, 500);
     }
 
     async function openStudentDetailModal(){
@@ -1704,7 +1745,7 @@
           <div class="card">
             <h3>Birebir Saati Ayarlama</h3>
             <p class="muted tiny">
-              Öğretmen panelindeki saat seçenekleri buradan yönetilir. İstediğiniz kadar satır ekleyebilir veya silebilirsiniz.
+              Öğretmen panelinde görünen ders saatlerini buradan düzenleyin. Satır ekleyip silebilirsiniz.
             </p>
             <div class="helper">
               Varsayılan tanım: 16:00-16:40 / 16:50-17:30 / 17:35-18:15 / 18:20-18:55 (isterseniz değiştirin)
@@ -1859,7 +1900,7 @@
           </div>
         </div>
       `;
-      openModal("Öğrenci Bilgileri Güncelleme", html, { onRender: bindStudentUpdateModal });
+      openModal("Öğrenci Bilgileri Güncelleme", html, { onRender: bindStudentUpdateModal, modalClass: "modal-xl" });
     }
 
     function bindStudentUpdateModal(){
@@ -2205,7 +2246,7 @@
           <div class="card">
             <h3>Kayıtlı Veri Yönetimi</h3>
             <div class="helper danger">
-              Dikkat: Aşağıdaki işlemler <b>geri alınamaz</b>.
+              Dikkat: Bu silme işlemleri geri alınamaz.
             </div>
 
             <div class="divider"></div>
@@ -2432,6 +2473,13 @@
       });
 
       els.teacherStudentList.addEventListener("click", e => {
+        const photoBtn = e.target.closest("[data-photo-preview]");
+        if (photoBtn) {
+          const row = e.target.closest(".student-row");
+          const no = row?.dataset.studentNo;
+          if (no) openStudentImagePreview(no);
+          return;
+        }
         const btn = e.target.closest(".status-btn");
         if (!btn) return;
         const row = e.target.closest(".student-row");
@@ -2440,6 +2488,16 @@
         const status = btn.dataset.status;
         if (!no || !status) return;
         setStudentStatus(no, status);
+      });
+      els.teacherStudentList.addEventListener("keydown", e => {
+        const photoBtn = e.target.closest("[data-photo-preview]");
+        if (!photoBtn) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          const row = e.target.closest(".student-row");
+          const no = row?.dataset.studentNo;
+          if (no) openStudentImagePreview(no);
+        }
       });
 
       // admin buttons
