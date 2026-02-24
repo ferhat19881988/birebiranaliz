@@ -4,40 +4,37 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Birebir Analiz Sistemi</title>
-  <meta name="theme-color" content="#0f172a" />
+  <meta name="theme-color" content="#eaf2ff" />
   <style>
-  :root {
-    /* Modern Koyu Pastel (Soft Dark) Konsepti */
-    --bg: #181825;
-    --bg-gradient: linear-gradient(135deg, #11111b, #1e1e2e);
-    --panel: #1e1e2e;
-    --panel-border: rgba(255, 255, 255, 0.05);
-    --text: #cdd6f4;
-    --text-muted: #a6adc8;
-    
-    /* Pastel Vurgu Renkleri */
-    --primary: #89b4fa; /* Pastel Mavi */
-    --primary-hover: #b4befe;
-    --success: #a6e3a1; /* Pastel Nane Yeşili */
-    --warning: #f9e2af; /* Pastel Şeftali / Sarı */
-    --danger: #f38ba8;  /* Pastel Kırmızı */
-    --late: #cba6f7;    /* Pastel Mor */
-    --chip: #313244;
-    
-    /* Derinlik ve Gölgeler */
-    --shadow-color: rgba(0, 0, 0, 0.25);
-    --shadow-sm: 0 4px 12px var(--shadow-color);
-    --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.4);
-    --shadow-glow: 0 8px 24px rgba(137, 180, 250, 0.2);
-    
-    /* Yuvarlak Hatlar */
+    :root {
+    /* Açık tema */
+    --bg: #eef3fb;
+    --bg-gradient: linear-gradient(135deg, #f6f9ff, #e7eefb);
+    --panel: #ffffff;
+    --panel-border: rgba(15, 23, 42, 0.08);
+    --text: #1f2937;
+    --text-muted: #64748b;
+
+    --primary: #3b82f6;
+    --primary-hover: #2563eb;
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --late: #8b5cf6;
+    --chip: #eef2ff;
+
+    --shadow-color: rgba(15, 23, 42, 0.08);
+    --shadow-sm: 0 6px 18px var(--shadow-color);
+    --shadow-lg: 0 14px 34px rgba(15, 23, 42, 0.10);
+    --shadow-glow: 0 8px 24px rgba(59, 130, 246, 0.15);
+
     --radius-sm: 12px;
     --radius-md: 20px;
     --radius-lg: 28px;
-    
-    /* Animasyonlar */
-    --trans-bounce: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+    --trans-bounce: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.1);
     --trans-smooth: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
   }
 
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -59,7 +56,7 @@
   /* --- ÜST BAR VE LOGO (Temiz ve Büyük) --- */
   .topbar {
     position: sticky; top: 0; z-index: 50;
-    background: rgba(30, 30, 46, 0.85);
+    background: rgba(255, 255, 255, 0.88);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     border-bottom: 1px solid var(--panel-border);
@@ -78,7 +75,7 @@
   .brand .titles { min-width: 0; }
   .brand h1 {
     margin: 0; font-size: 1.45rem; font-weight: 900; letter-spacing: -0.5px;
-    background: linear-gradient(90deg, #cba6f7, #89b4fa);
+    background: linear-gradient(90deg, #6366f1, #3b82f6);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -144,21 +141,21 @@
   }
   .btn:hover {
     transform: translateY(-4px);
-    background: #45475a;
+    background: #dde6fb;
     box-shadow: 0 10px 25px rgba(0,0,0,0.4);
   }
   .btn:active { transform: scale(0.93); box-shadow: none; } /* Basılma Hissi */
 
-  .btn.primary { background: var(--primary); color: #11111b; box-shadow: 0 8px 24px rgba(137, 180, 250, 0.3); border: none; }
+  .btn.primary { background: var(--primary); color: #fff; box-shadow: 0 8px 24px rgba(137, 180, 250, 0.3); border: none; }
   .btn.primary:hover { background: var(--primary-hover); box-shadow: 0 14px 30px rgba(137, 180, 250, 0.5); }
   
-  .btn.success { background: var(--success); color: #11111b; box-shadow: 0 8px 24px rgba(166, 227, 161, 0.3); border: none; }
+  .btn.success { background: var(--success); color: #fff; box-shadow: 0 8px 24px rgba(166, 227, 161, 0.3); border: none; }
   .btn.success:hover { background: #b6f3b1; }
   
-  .btn.warning { background: var(--warning); color: #11111b; box-shadow: 0 8px 24px rgba(249, 226, 175, 0.3); border: none; }
+  .btn.warning { background: var(--warning); color: #fff; box-shadow: 0 8px 24px rgba(249, 226, 175, 0.3); border: none; }
   .btn.warning:hover { background: #ffeabf; }
   
-  .btn.danger { background: var(--danger); color: #11111b; box-shadow: 0 8px 24px rgba(243, 139, 168, 0.3); border: none; }
+  .btn.danger { background: var(--danger); color: #fff; box-shadow: 0 8px 24px rgba(243, 139, 168, 0.3); border: none; }
   .btn.danger:hover { background: #ff9bba; }
   
   .btn.ghost { background: transparent; border-color: transparent; box-shadow: none; }
@@ -199,13 +196,13 @@
   .input, .select, .textarea {
     width: 100%; border-radius: var(--radius-sm);
     border: 2px solid transparent;
-    background: #11111b; color: var(--text);
+    background: #f8fafc; color: var(--text);
     padding: 16px 20px; font-size: 1.05rem; font-weight: 700;
     transition: var(--trans-smooth);
     box-shadow: inset 0 2px 6px rgba(0,0,0,0.3);
   }
   .input:focus, .select:focus, .textarea:focus {
-    border-color: var(--primary); background: #181825;
+    border-color: var(--primary); background: #ffffff;
     box-shadow: 0 0 0 4px rgba(137, 180, 250, 0.2);
     transform: translateY(-2px);
   }
@@ -216,13 +213,13 @@
   @media (max-width: 900px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (max-width: 520px) { .stats { grid-template-columns: 1fr; } }
   .stat {
-    background: #313244;
+    background: #f3f6ff;
     border: 1px solid rgba(255,255,255,0.03);
     border-radius: var(--radius-md);
     padding: 20px 16px; text-align: center;
     transition: var(--trans-bounce);
   }
-  .stat:hover { transform: translateY(-5px); background: #3b3c54; box-shadow: var(--shadow-sm); }
+  .stat:hover { transform: translateY(-5px); background: #e9efff; box-shadow: var(--shadow-sm); }
   .stat .k { color: var(--text-muted); font-size: 0.85rem; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; }
   .stat .v { font-size: 1.8rem; font-weight: 900; margin-top: 10px; color: #fff; }
 
@@ -238,7 +235,7 @@
     max-height: 55dvh; overflow-y: auto; padding-right: 8px;
   }
   .student-list::-webkit-scrollbar { width: 8px; }
-  .student-list::-webkit-scrollbar-thumb { background: #45475a; border-radius: 99px; }
+  .student-list::-webkit-scrollbar-thumb { background: #dde6fb; border-radius: 99px; }
   .student-row {
     border: 1px solid var(--panel-border); background: rgba(255,255,255,0.02);
     border-radius: var(--radius-md); padding: 20px;
@@ -262,12 +259,12 @@
     cursor: pointer; font-weight: 900; font-size: 0.95rem;
     transition: var(--trans-bounce);
   }
-  .status-btn:hover { transform: translateY(-4px); background: #45475a; border-color: rgba(255,255,255,0.2); }
+  .status-btn:hover { transform: translateY(-4px); background: #dde6fb; border-color: rgba(255,255,255,0.2); }
   .status-btn:active { transform: scale(0.9); }
   
-  .status-btn.active.present { background: var(--success); color: #11111b; border-color: var(--success); box-shadow: 0 6px 20px rgba(166,227,161,0.4); }
-  .status-btn.active.absent { background: var(--danger); color: #11111b; border-color: var(--danger); box-shadow: 0 6px 20px rgba(243,139,168,0.4); }
-  .status-btn.active.late { background: var(--late); color: #11111b; border-color: var(--late); box-shadow: 0 6px 20px rgba(203,166,247,0.4); }
+  .status-btn.active.present { background: var(--success); color: #fff; border-color: var(--success); box-shadow: 0 6px 20px rgba(166,227,161,0.4); }
+  .status-btn.active.absent { background: var(--danger); color: #fff; border-color: var(--danger); box-shadow: 0 6px 20px rgba(243,139,168,0.4); }
+  .status-btn.active.late { background: var(--late); color: #fff; border-color: var(--late); box-shadow: 0 6px 20px rgba(203,166,247,0.4); }
 
   /* --- ETİKETLER / BADGELER --- */
   .pill, .badge, .status-chip {
@@ -282,7 +279,7 @@
 
   /* --- MODAL (POPUP) DÜZENİ --- */
   .modal-overlay {
-    position: fixed; inset: 0; z-index: 100; background: rgba(17, 17, 27, 0.85);
+    position: fixed; inset: 0; z-index: 100; background: rgba(15, 23, 42, 0.38);
     display: none; align-items: center; justify-content: center;
     padding: 24px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
     animation: fadeIn 0.2s ease-out;
@@ -310,7 +307,7 @@
   .modal-head h3 { margin: 0; font-size: 1.35rem; font-weight: 900; color: #fff; }
   .modal-body { padding: 28px; overflow-y: auto; }
   .modal-body::-webkit-scrollbar { width: 8px; }
-  .modal-body::-webkit-scrollbar-thumb { background: #45475a; border-radius: 99px; }
+  .modal-body::-webkit-scrollbar-thumb { background: #dde6fb; border-radius: 99px; }
   .modal-foot {
     padding: 20px 28px; border-top: 1px solid var(--panel-border);
     display: flex; justify-content: flex-end; gap: 14px; flex-wrap: wrap; background: rgba(255,255,255,0.02);
@@ -324,7 +321,7 @@
   }
   table { width: 100%; border-collapse: collapse; min-width: 760px; }
   th, td { padding: 18px 20px; border-bottom: 1px solid var(--panel-border); text-align: left; vertical-align: middle; font-size: 1rem; }
-  th { color: var(--text-muted); font-size: 0.9rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; background: #181825; position: sticky; top: 0; z-index: 10; }
+  th { color: var(--text-muted); font-size: 0.9rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; background: #f8fafc; position: sticky; top: 0; z-index: 10; }
   tr:hover td { background: rgba(255,255,255,0.03); }
   tr:last-child td { border-bottom: none; }
 
@@ -342,7 +339,7 @@
     padding: 18px; cursor: pointer; display: flex; justify-content: space-between; gap: 14px; align-items: center;
     transition: var(--trans-smooth);
   }
-  .search-item:hover { transform: translateX(6px); border-color: var(--primary); background: #3b3c54; }
+  .search-item:hover { transform: translateX(6px); border-color: var(--primary); background: #e9efff; }
   .search-item .name { font-weight: 900; font-size: 1.15rem; color: #fff; }
   .search-item .sub { font-size: 0.9rem; color: var(--text-muted); font-weight: 600; }
 
@@ -354,7 +351,7 @@
   @media (max-width: 680px) { .profile-card { grid-template-columns: 1fr; text-align: center; justify-items: center; } }
   .avatar {
     width: 110px; height: 110px; border-radius: 28px; overflow: hidden;
-    border: 4px solid var(--panel-border); background: #313244;
+    border: 4px solid var(--panel-border); background: #f3f6ff;
     display: grid; place-items: center; font-weight: 900; font-size: 2.5rem; color: var(--primary);
     box-shadow: var(--shadow-glow);
   }
@@ -399,7 +396,7 @@
   .range-row { display: grid; gap: 10px; margin-bottom: 14px; }
   .range-row label { font-size: 0.95rem; color: var(--text-muted); font-weight: 800; }
   .range-row input[type="range"] { width: 100%; cursor: pointer; }
-  .photo-thumb { width: 72px; height: 72px; border-radius: 18px; object-fit: cover; border: 2px solid var(--panel-border); background: #313244; }
+  .photo-thumb { width: 72px; height: 72px; border-radius: 18px; object-fit: cover; border: 2px solid var(--panel-border); background: #f3f6ff; }
 
   /* --- BİLDİRİM TOAST YAPISI --- */
   .toast {
@@ -414,6 +411,24 @@
 
   .mono { font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 0.5px; }
   .footer-space { height: 24px; }
+
+  .stat { min-width: 0; display:flex; flex-direction:column; justify-content:center; min-height: 112px; }
+  .stat .k { line-height: 1.2; white-space: normal; word-break: break-word; min-height: 2.3em; display:flex; align-items:center; justify-content:center; }
+  .summary-row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .modal.modal-xl { width: min(1320px, 98vw); }
+  .modal.modal-wide { width: min(1100px, 98vw); }
+  .da-table-wrap table { min-width: 1500px; }
+  .da-table-wrap th, .da-table-wrap td { white-space: nowrap; font-size: 0.92rem; padding: 14px 12px; }
+  @media (max-width: 700px) {
+    .container { padding: 14px 12px 84px; }
+    .card { padding: 18px; border-radius: 20px; }
+    .topbar { padding: 10px 12px; gap: 10px; }
+    .brand img { width: 44px; height: 44px; border-radius: 12px; }
+    .brand h1 { font-size: 1rem; }
+    .btn { min-height: 48px; padding: 12px 14px; font-size: .94rem; }
+    .chip { padding: 6px 10px; font-size: .75rem; }
+    .modal-body, .modal-head, .modal-foot { padding-left: 14px; padding-right: 14px; }
+  }
   .hero { display: grid; gap: 24px; grid-template-columns: 1.2fr 0.8fr; align-items: stretch; }
   @media (max-width: 900px) { .hero { grid-template-columns: 1fr; } }
 </style>
@@ -443,7 +458,7 @@
           <div class="card">
             <h2>Giriş Seçimi</h2>
             <p class="muted tiny">
-              Öğretmenler <b>Ogretmenler</b> sekmesindeki <b>ID</b> ile giriş yapar. Admin girişi ayrı şifre ile yapılır.
+
             </p>
             <div class="divider"></div>
 
@@ -480,7 +495,7 @@
             </div>
             <div class="divider"></div>
             <div class="helper">
-              <b>Not:</b> Google Sheet erişimi için tablo “bağlantıya sahip olanlar görüntüleyebilir” olmalı. Bu sürüm <b>Ogretmenler</b> ve <b>Ogrenciler</b> sekmelerini otomatik okur.
+
             </div>
           </div>
         </div>
@@ -490,12 +505,12 @@
       <section id="view-teacher-login" class="view">
         <div class="card" style="max-width:620px; margin:0 auto;">
           <h2>Öğretmen Girişi</h2>
-          <p class="muted tiny">Giriş için <b>Ogretmenler</b> sekmesindeki <b>ID</b> numaranızı yazın.</p>
+
 
           <div class="form-grid" style="grid-template-columns:1fr;">
             <div class="field">
               <label for="teacherIdInput">Öğretmen ID (Şifre)</label>
-              <input id="teacherIdInput" class="input mono" inputmode="numeric" placeholder="Örn: 101" />
+              <input id="teacherIdInput" class="input mono" inputmode="numeric" placeholder="" />
             </div>
           </div>
 
@@ -515,7 +530,7 @@
       <section id="view-admin-login" class="view">
         <div class="card" style="max-width:620px; margin:0 auto;">
           <h2>Admin Girişi</h2>
-          <p class="muted tiny">Admin şifresi sabittir (bu sürümde isteminize göre istemci tarafında tutulur).</p>
+
 
           <div class="form-grid" style="grid-template-columns:1fr;">
             <div class="field">
@@ -632,7 +647,7 @@
             <div class="teacher-header">
               <div>
                 <h2>Admin Paneli</h2>
-                <div class="muted tiny">Yönetim işlemleri • Modallar üzerinden detay ekranları açılır</div>
+
               </div>
               <div class="toolbar-right">
                 <button id="btnAdminRefreshAll" class="btn primary small">Tüm Verileri Yenile</button>
@@ -952,8 +967,10 @@
       state.ui.activeView = name;
     }
 
-    function openModal(title, html, { footerHtml="", onRender=null } = {}){
+    function openModal(title, html, { footerHtml="", onRender=null, modalClass="" } = {}){
       els.modalTitle.textContent = title;
+      const modalEl = els.modalOverlay.querySelector(".modal");
+      if (modalEl) modalEl.className = `modal ${modalClass}`.trim();
       els.modalBody.innerHTML = html;
       if (footerHtml) {
         els.modalFooter.style.display = "flex";
@@ -969,6 +986,8 @@
     }
 
     function closeModal(){
+      const modalEl = els.modalOverlay.querySelector(".modal");
+      if (modalEl) modalEl.className = "modal";
       els.modalOverlay.classList.remove("show");
       els.modalOverlay.setAttribute("aria-hidden", "true");
       els.modalBody.innerHTML = "";
@@ -1332,8 +1351,14 @@
         showToast("Bu oturum kaydedildi. Yeni ders için formu temizleyin.");
         return;
       }
+      const date = (els.lessonDateInput.value || "").trim();
+      const slotId = (els.lessonSlotSelect.value || "").trim();
       const group = (els.groupSelect.value || "").trim();
+      if (!date) return showToast("Önce tarih seçin.");
+      if (!slotId) return showToast("Önce ders saati seçin.");
       if (!group) return showToast("Önce grup seçin.");
+      state.teacherDraft.date = date;
+      state.teacherDraft.slotId = slotId;
       const list = mergedStudents().filter(s => String(s.grup).trim() === group);
       state.teacherDraft.group = group;
       state.teacherDraft.loadedStudents = list;
@@ -1493,9 +1518,7 @@
         state.teacherDraft.locked = true;
         updateTeacherDraftState();
         showToast("Ders kaydı başarıyla tamamlandı ✅", 2600);
-
-        // formu yeni ders için hazırlamak istersen otomatik temizleme yapabilirsin:
-        // setTimeout(() => resetTeacherDraft({keepDate:true}), 800);
+        setTimeout(() => resetTeacherDraft({keepDate:true}), 350);
       } catch (e) {
         console.error(e);
         showToast("Kayıt sırasında hata oluştu.");
@@ -1505,6 +1528,71 @@
     /**********************
      * ADMIN MODALS       *
      **********************/
+    async function buildStudentReportHtml(no){
+      const s = mergedStudents().find(x => String(x.no) === String(no));
+      if (!s) return `<div class="empty">Öğrenci bulunamadı.</div>`;
+      const sessionsByDate = await ensureSessionsLoaded();
+      const timeline = [];
+      for (const [date, sessions] of Object.entries(sessionsByDate || {})) {
+        for (const [sid, session] of Object.entries(sessions || {})) {
+          const stInfo = session?.students?.[no];
+          if (!stInfo) continue;
+          timeline.push({ date, sessionId: sid, slotLabel: session.slotLabel || session.slotId || "-", teacherName: session.teacherName || "-", teacherId: session.teacherId || "-", brans: session.brans || "-", group: session.group || "-", topic: session.topic || "-", status: stInfo.status || "-", clientSavedAt: session.clientSavedAt || null });
+        }
+      }
+      timeline.sort((a,b)=>`${a.date} ${a.slotLabel}`.localeCompare(`${b.date} ${b.slotLabel}`, "tr"));
+      const counts = { GELDI:0, GELMEDI:0, GEC:0 };
+      for (const t of timeline) if (t.status in counts) counts[t.status]++;
+      const photoHtml = s.photoBase64 ? `<img src="${s.photoBase64}" alt="Öğrenci Fotoğrafı" />` : `${htmlEscape(initials(s.adsoyad || ""))}`;
+      return `
+          <div class="profile-card">
+            <div class="avatar">${photoHtml}</div>
+            <div class="profile-meta">
+              <h4>${htmlEscape(s.adsoyad || "-")}</h4>
+              <p><b>No:</b> ${htmlEscape(s.no || "-")} • <b>Sınıf:</b> ${htmlEscape(s.sinif || "-")} • <b>Grup:</b> ${htmlEscape(s.grup || "-")}</p>
+              <p><b>Cinsiyet:</b> ${htmlEscape(s.cinsiyet || "-")}</p>
+              <div class="summary-row" style="margin-top:8px;">
+                <span class="badge neutral">Toplam Birebir: ${timeline.length}</span>
+                <span class="badge success">Geldi: ${counts.GELDI}</span>
+                <span class="badge danger">Gelmedi: ${counts.GELMEDI}</span>
+                <span class="badge late">Geç: ${counts.GEC}</span>
+              </div>
+            </div>
+          <div class="divider"></div>
+          <div class="timeline">
+            ${timeline.length ? timeline.map(t => `
+              <div class="timeline-item">
+                <div class="head">
+                  <div>
+                    <div class="t">${htmlEscape(formatDateTR(t.date))} • ${htmlEscape(t.slotLabel)}</div>
+                    <div class="s">${htmlEscape(t.teacherName)} (${htmlEscape(t.brans)}) • Grup: ${htmlEscape(t.group)}</div>
+                  </div>
+                  <span class="status-chip ${t.status==="GELDI" ? "present" : t.status==="GELMEDI" ? "absent" : "late"}">${t.status==="GELDI" ? "Geldi" : t.status==="GELMEDI" ? "Gelmedi" : t.status==="GEC" ? "Geç Geldi" : htmlEscape(t.status)}</span>
+                </div>
+                <div><b>İşlenen Konu:</b> ${htmlEscape(t.topic || "-")}</div>
+                <div class="tiny muted" style="margin-top:6px;">Kayıt zamanı: ${htmlEscape(formatDateTimeTR(t.clientSavedAt))}</div>
+              </div>`).join("") : `<div class="empty">Bu öğrenci için henüz birebir kaydı yok.</div>`}
+          </div>`;
+    }
+
+    async function openStudentReportFullModal(no){
+      openModal("Öğrenci Karnesi", `<div class="empty">Kayıtlar okunuyor...</div>`, { modalClass: "modal-wide" });
+      const html = await buildStudentReportHtml(no);
+      els.modalBody.innerHTML = `
+        <div class="toolbar" style="margin-bottom:14px;">
+          <div class="toolbar-left">
+            <button id="sdBackBtnModal" class="btn small">← Öğrenci Detayı / Karne ekranına dön</button>
+          </div>
+          <div class="toolbar-right">
+            <button id="sdCloseFullBtn" class="btn small">Kapat</button>
+          </div>
+        </div>
+        ${html}
+      `;
+      $("#sdBackBtnModal", els.modalBody)?.addEventListener("click", () => openStudentDetailModal());
+      $("#sdCloseFullBtn", els.modalBody)?.addEventListener("click", closeModal);
+    }
+
     async function openStudentDetailModal(){
       const html = `
         <div class="grid">
@@ -1524,7 +1612,7 @@
           </div>
         </div>
       `;
-      openModal("Öğrenci Detayı / Karne", html, { onRender: bindStudentDetailModal });
+      openModal("Öğrenci Detayı / Karne", html, { onRender: bindStudentDetailModal, modalClass: "modal-wide" });
     }
 
     function bindStudentDetailModal(){
@@ -1564,91 +1652,8 @@
       }
 
       async function renderStudentDetail(no){
-        const s = mergedStudents().find(x => String(x.no) === String(no));
-        if (!s) {
-          detail.innerHTML = `<div class="empty">Öğrenci bulunamadı.</div>`;
-          return;
-        }
-
         detail.innerHTML = `<div class="empty">Kayıtlar okunuyor...</div>`;
-        const sessionsByDate = await ensureSessionsLoaded();
-
-        const timeline = [];
-        for (const [date, sessions] of Object.entries(sessionsByDate || {})) {
-          for (const [sid, session] of Object.entries(sessions || {})) {
-            const stInfo = session?.students?.[no];
-            if (!stInfo) continue;
-            timeline.push({
-              date,
-              sessionId: sid,
-              slotLabel: session.slotLabel || session.slotId || "-",
-              teacherName: session.teacherName || "-",
-              teacherId: session.teacherId || "-",
-              brans: session.brans || "-",
-              group: session.group || "-",
-              topic: session.topic || "-",
-              status: stInfo.status || "-",
-              clientSavedAt: session.clientSavedAt || null
-            });
-          }
-        }
-
-        timeline.sort((a,b)=>{
-          const aKey = `${a.date} ${a.slotLabel}`;
-          const bKey = `${b.date} ${b.slotLabel}`;
-          return aKey.localeCompare(bKey, "tr");
-        });
-
-        const counts = { GELDI:0, GELMEDI:0, GEC:0 };
-        for (const t of timeline) if (t.status in counts) counts[t.status]++;
-
-        const photoHtml = s.photoBase64
-          ? `<img src="${s.photoBase64}" alt="Öğrenci Fotoğrafı" />`
-          : `${htmlEscape(initials(s.adsoyad || ""))}`;
-
-        detail.innerHTML = `
-          <div class="profile-card">
-            <div class="avatar">${photoHtml}</div>
-            <div class="profile-meta">
-              <h4>${htmlEscape(s.adsoyad || "-")}</h4>
-              <p><b>No:</b> ${htmlEscape(s.no || "-")} • <b>Sınıf:</b> ${htmlEscape(s.sinif || "-")} • <b>Grup:</b> ${htmlEscape(s.grup || "-")}</p>
-              <p><b>Cinsiyet:</b> ${htmlEscape(s.cinsiyet || "-")}</p>
-              <div class="summary-row" style="margin-top:8px;">
-                <span class="badge neutral">Toplam Birebir: ${timeline.length}</span>
-                <span class="badge success">Geldi: ${counts.GELDI}</span>
-                <span class="badge danger">Gelmedi: ${counts.GELMEDI}</span>
-                <span class="badge late">Geç: ${counts.GEC}</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="divider"></div>
-          <h3 style="margin-top:0;">Birebir Geçmişi</h3>
-
-          <div class="timeline">
-            ${
-              timeline.length
-                ? timeline.map(t => `
-                  <div class="timeline-item">
-                    <div class="head">
-                      <div>
-                        <div class="t">${htmlEscape(formatDateTR(t.date))} • ${htmlEscape(t.slotLabel)}</div>
-                        <div class="s">${htmlEscape(t.teacherName)} (${htmlEscape(t.brans)}) • Grup: ${htmlEscape(t.group)}</div>
-                      </div>
-                      <span class="status-chip ${
-                        t.status==="GELDI" ? "present" : t.status==="GELMEDI" ? "absent" : "late"
-                      }">${
-                        t.status==="GELDI" ? "Geldi" : t.status==="GELMEDI" ? "Gelmedi" : t.status==="GEC" ? "Geç Geldi" : htmlEscape(t.status)
-                      }</span>
-                    </div>
-                    <div><b>İşlenen Konu:</b> ${htmlEscape(t.topic || "-")}</div>
-                    <div class="tiny muted" style="margin-top:6px;">Kayıt zamanı: ${htmlEscape(formatDateTimeTR(t.clientSavedAt))}</div>
-                  </div>
-                `).join("")
-                : `<div class="empty">Bu öğrenci için henüz birebir kaydı yok.</div>`
-            }
-          </div>
-        `;
+        detail.innerHTML = await buildStudentReportHtml(no);
       }
 
       btn.addEventListener("click", search);
@@ -1663,7 +1668,7 @@
         const item = e.target.closest(".search-item");
         if (!item) return;
         const no = item.dataset.no;
-        renderStudentDetail(no);
+        openStudentReportFullModal(no);
       });
     }
 
@@ -1699,7 +1704,7 @@
           <div id="daTableArea" class="empty">Tarih seçip “Listele” butonuna basın.</div>
         </div>
       `;
-      openModal("Birebir Yoklaması (Günlük)", html, { onRender: bindDailyAttendanceModal });
+      openModal("Birebir Yoklaması (Günlük)", html, { onRender: bindDailyAttendanceModal, modalClass: "modal-xl" });
     }
 
     function bindDailyAttendanceModal(){
@@ -1763,7 +1768,7 @@
         }
 
         tableArea.innerHTML = `
-          <div class="table-wrap">
+          <div class="table-wrap da-table-wrap">
             <table>
               <thead>
                 <tr>
@@ -1968,10 +1973,6 @@
 
           <div class="card">
             <h3>Öğrenci Bilgisi Güncelleme (Firebase Override)</h3>
-            <div class="helper">
-              Bu ekran Google Sheet verisini <b>değiştirmez</b>; sadece Firebase üzerinde override oluşturur. Öğretmen/Admin ekranlarında birleşik veri gösterilir.
-            </div>
-            <div class="divider"></div>
 
             <div id="suEditorArea" class="empty">Önce bir öğrenci seçin.</div>
           </div>
@@ -2050,12 +2051,7 @@
           <div class="divider"></div>
 
           <h3 style="margin-top:0;">Öğrenci Fotoğrafı</h3>
-          <div class="helper warn">
-            Bu sürümde fotoğraf, <b>kırpılıp küçültülmüş Base64</b> olarak Realtime Database'e kaydedilir (GitHub Pages için pratik).
-            Çok sayıda fotoğraf için daha iyi yöntem: <b>Firebase Storage + RTDB/Firestore URL kaydı</b>.
-          </div>
 
-          <div class="divider"></div>
 
           <div class="crop-grid">
             <div>
@@ -2311,7 +2307,14 @@
       results.addEventListener("click", e => {
         const item = e.target.closest(".search-item");
         if (!item) return;
-        renderEditor(item.dataset.no);
+        const selectedNo = String(item.dataset.no || "");
+        if (currentStudentNo && currentStudentNo === selectedNo) {
+          currentStudentNo = null;
+          cropCtx = null;
+          editor.innerHTML = `<div class="empty">Öğrenci seçimi kapatıldı. Başka bir öğrenci seçebilirsiniz.</div>`;
+          return;
+        }
+        renderEditor(selectedNo);
       });
     }
 
