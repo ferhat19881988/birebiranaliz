@@ -198,7 +198,7 @@
   .da-table-wrap td:nth-child(1), .da-table-wrap td:nth-child(9) { white-space: normal; min-width: 180px; }
   .profile-card.student-report { align-items: center; }
   .profile-card.student-report .avatar { width: 135px; height: 135px; border-radius: 22px; font-size: 2.35rem; transition: transform .2s ease, box-shadow .2s ease; cursor: zoom-in; }
-  .profile-card.student-report .avatar:hover { transform: scale(1.25); box-shadow: var(--shadow-lg); position: relative; z-index: 2; }
+  .profile-card.student-report .avatar:hover { box-shadow: var(--shadow-lg); position: relative; z-index: 2; }
   .profile-card.student-report .avatar img { transition: transform .2s ease; }
   @media (max-width: 720px) {
     .student-row { padding: 14px; gap: 12px; }
@@ -1409,7 +1409,7 @@
       const photoHtml = s.photoBase64 ? `<img src="${s.photoBase64}" alt="Öğrenci Fotoğrafı" />` : `${htmlEscape(initials(s.adsoyad || ""))}`;
       return `
           <div class="profile-card student-report">
-            <div class="avatar">${photoHtml}</div>
+            <div class="avatar" data-photo-preview="1" data-student-no="${htmlEscape(s.no || "")}" role="button" tabindex="0" title="Fotoğrafı büyüt">${photoHtml}</div>
             <div class="profile-meta">
               <h4>${htmlEscape(s.adsoyad || "-")}</h4>
               <p><b>No:</b> ${htmlEscape(s.no || "-")} • <b>Sınıf:</b> ${htmlEscape(s.sinif || "-")} • <b>Grup:</b> ${htmlEscape(s.grup || "-")}</p>
@@ -1457,6 +1457,14 @@
       `;
       $("#sdBackBtnModal", els.modalBody)?.addEventListener("click", () => openStudentDetailModal());
       $("#sdPrintBtn", els.modalBody)?.addEventListener("click", () => printStudentReport(no));
+      const reportAvatar = $(".profile-card.student-report .avatar[data-photo-preview]", els.modalBody);
+      reportAvatar?.addEventListener("click", () => openStudentImagePreview(no));
+      reportAvatar?.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openStudentImagePreview(no);
+        }
+      });
     }
 
 
@@ -1491,8 +1499,10 @@
       body{font-family:Inter,Arial,sans-serif;color:#0f172a;margin:0;background:#eef2f7;}
       .page{width:100%;max-width:190mm;margin:0 auto;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:14px;box-sizing:border-box;}
       .head{display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:2px solid #e2e8f0;padding-bottom:10px;margin-bottom:12px;}
+      .head-left{display:flex;align-items:center;gap:10px;min-width:0;}
+      .logo{width:48px;height:48px;border-radius:10px;object-fit:cover;border:1px solid #dbe2ea;background:#fff;flex:0 0 48px;}
       .brand{font-weight:800;font-size:18px;color:#1e293b;} .sub{font-size:11px;color:#64748b;margin-top:3px;}
-      .chip{display:inline-block;padding:4px 8px;border-radius:999px;background:#f1f5f9;border:1px solid #e2e8f0;font-size:11px;margin-right:6px;margin-top:6px;}
+      .head-right{font-size:11px;color:#475569;text-align:right;}
       .profile{display:grid;grid-template-columns:120px 1fr;gap:14px;align-items:center;border:1px solid #e2e8f0;border-radius:12px;padding:12px;background:#fbfdff;}
       .title{font-size:16px;font-weight:800;margin:0 0 6px;} .meta{font-size:12px;color:#334155;line-height:1.45;}
       .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px;}
@@ -1502,13 +1512,25 @@
       @media print { body{background:#fff;} .page{border:none;border-radius:0;padding:0;max-width:none;} }
       </style></head><body>
       <div class="page">
-        <div class="head"><div><div class="brand">Birebir Analiz Sistemi • Öğrenci Karnesi</div><div class="sub">Veli bilgilendirme raporu • ${htmlEscape(new Date().toLocaleString('tr-TR'))}</div></div><div class="sub">Kurumsal Öğrenci Bilgi Sistemi</div></div>
+        <div class="head">
+          <div class="head-left">
+            <img class="logo" src="https://i.ibb.co/8L8bR92g/1.png" alt="Fenomen Eğitim Kurumları Logo" />
+            <div>
+              <div class="brand">Fenomen Eğitim Kurumları</div>
+              <div class="sub">Öğrenci Karnesi • Birebir Analiz Sistemi</div>
+            </div>
+          </div>
+          <div class="head-right">
+            <div><b>Rapor Tarihi:</b> ${htmlEscape(new Date().toLocaleDateString('tr-TR'))}</div>
+            <div><b>Saat:</b> ${htmlEscape(new Date().toLocaleTimeString('tr-TR'))}</div>
+          </div>
+        </div>
         <div class="profile"><div>${photoCell}</div><div><p class="title">${htmlEscape(s.adsoyad||'-')}</p><div class="meta"><b>Öğrenci No:</b> ${htmlEscape(s.no||'-')} &nbsp; • &nbsp; <b>Sınıf:</b> ${htmlEscape(s.sinif||'-')} &nbsp; • &nbsp; <b>Grup:</b> ${htmlEscape(s.grup||'-')}<br><b>Cinsiyet:</b> ${htmlEscape(s.cinsiyet||'-')}</div>
           <div class="stats"><div class="stat"><div class="k">Toplam Birebir</div><div class="v">${total}</div></div><div class="stat"><div class="k">Geldi</div><div class="v">${counts.GELDI}</div></div><div class="stat"><div class="k">Gelmedi</div><div class="v">${counts.GELMEDI}</div></div><div class="stat"><div class="k">Geç</div><div class="v">${counts.GEC}</div></div></div>
         </div></div>
         <h3>Ders / Yoklama Geçmişi</h3>
         <table><thead><tr><th style="width:22px;">#</th><th style="width:64px;">Tarih</th><th style="width:68px;">Saat</th><th style="width:78px;">Öğretmen</th><th style="width:55px;">Branş</th><th style="width:42px;">Grup</th><th style="width:52px;">Durum</th><th>İşlenen Konu</th><th>Özel Not</th></tr></thead><tbody>${rows || `<tr><td colspan="9">Kayıt bulunamadı.</td></tr>`}</tbody></table>
-        <div class="footer"><span>Bu rapor yalnızca seçili öğrencinin verilerini içerir.</span><span>Sayfa: 1</span></div>
+        <div class="footer"><span>Fenomen Eğitim Kurumları • Öğrenci Bilgilendirme</span><span>Sayfa 1</span></div>
       </div></body></html>`);
       win.document.close();
       win.focus();
@@ -1585,6 +1607,23 @@
         detail.innerHTML = `<div class="empty">Öğrenci seçilmedi.</div>`;
       });
       input.addEventListener("keydown", e => { if (e.key === "Enter") search(); });
+
+
+      detail.addEventListener("click", e => {
+        const photoBtn = e.target.closest(".profile-card.student-report .avatar[data-photo-preview]");
+        if (!photoBtn) return;
+        const no = photoBtn.dataset.studentNo;
+        if (no) openStudentImagePreview(no);
+      });
+      detail.addEventListener("keydown", e => {
+        const photoBtn = e.target.closest(".profile-card.student-report .avatar[data-photo-preview]");
+        if (!photoBtn) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          const no = photoBtn.dataset.studentNo;
+          if (no) openStudentImagePreview(no);
+        }
+      });
 
       results.addEventListener("click", e => {
         const item = e.target.closest(".search-item");
