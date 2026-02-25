@@ -351,6 +351,12 @@
   .today-student-chip .student-mini-avatar { margin:0 auto 6px; width:38px; height:38px; border-radius:10px; cursor:default; }
   .today-student-chip .n { font-weight:700; color:var(--text); word-break:break-word; }
   .today-student-chip .no { color:var(--text-muted); font-size:.68rem; margin-top:2px; }
+  .today-student-chip.clickable { cursor:pointer; transition: var(--trans); }
+  .today-student-chip.clickable:hover { border-color: var(--primary); box-shadow: var(--shadow-sm); transform: translateY(-1px); }
+  .today-student-chip.has-note { background: linear-gradient(180deg,#ffffff,#f8faff); border-color:#c7d2fe; }
+  .today-student-note-panel { margin-top:12px; border:1px solid var(--panel-border); background:#fff; border-radius:14px; padding:12px; }
+  .today-student-note-panel .head { display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:8px; }
+  .today-student-note-panel .note-box { border:1px solid var(--panel-border); background:var(--bg); border-radius:12px; padding:10px 12px; white-space:pre-wrap; line-height:1.5; }
   @media (max-width: 900px){ .today-session-grid{ grid-template-columns:1fr; } }
 
 </style>
@@ -2356,16 +2362,28 @@
           GELMEDI: students.filter(x => x?.status === "GELMEDI")
         };
 
-        const renderStudentGrid = (arr, emptyText) => {
+        const renderStudentGrid = (arr, emptyText, sessionMeta) => {
           if (!arr.length) return `<div class="tiny muted">${htmlEscape(emptyText)}</div>`;
           return `<div class="today-student-grid">` + arr.map(st => {
             const full = mergedMap.get(String(st.no)) || st || {};
+            const note = String(st?.teacherNote || "").trim();
+            const statusText = st?.status === "GELDI" ? "Geldi" : (st?.status === "GEC" ? "Geç Geldi" : (st?.status === "GELMEDI" ? "Gelmedi" : "Belirsiz"));
             return `
-              <div class="today-student-chip" title="${htmlEscape(full.adsoyad || st.adsoyad || "")}">
+              <button type="button" class="today-student-chip clickable ${note ? 'has-note' : ''}"
+                data-today-student-note-open="1"
+                data-student-no="${htmlEscape(st.no || "")}"
+                data-student-name="${htmlEscape(full.adsoyad || st.adsoyad || "-")}"
+                data-student-status="${htmlEscape(statusText)}"
+                data-student-group="${htmlEscape(sessionMeta?.group || "-")}"
+                data-student-slot="${htmlEscape(sessionMeta?.slotLabel || sessionMeta?.slotId || "-")}"
+                data-student-topic="${htmlEscape(sessionMeta?.topic || "-")}"
+                data-student-note="${htmlEscape(note)}"
+                title="${htmlEscape((full.adsoyad || st.adsoyad || "") + (note ? ' • Not var' : ' • Not yok'))}">
                 ${renderStudentAvatarHtml(full, "student-mini-avatar")}
                 <div class="n">${htmlEscape(full.adsoyad || st.adsoyad || "-")}</div>
                 <div class="no">No: ${htmlEscape(st.no || "-")}</div>
-              </div>
+                ${note ? `<div class="no">📝 Özel not var</div>` : ``}
+              </button>
             `;
           }).join("") + `</div>`;
         };
@@ -2394,15 +2412,15 @@
             <div class="today-session-grid">
               <div class="today-student-panel">
                 <h4>✅ Katılanlar (Geldi)</h4>
-                ${renderStudentGrid(groups.GELDI, "Katılan öğrenci yok.")}
+                ${renderStudentGrid(groups.GELDI, "Katılan öğrenci yok.", session)}
               </div>
               <div class="today-student-panel">
                 <h4>🟣 Geç Gelenler</h4>
-                ${renderStudentGrid(groups.GEC, "Geç gelen öğrenci yok.")}
+                ${renderStudentGrid(groups.GEC, "Geç gelen öğrenci yok.", session)}
               </div>
               <div class="today-student-panel">
                 <h4>❌ Katılmayanlar</h4>
-                ${renderStudentGrid(groups.GELMEDI, "Katılmayan öğrenci yok.")}
+                ${renderStudentGrid(groups.GELMEDI, "Katılmayan öğrenci yok.", session)}
               </div>
             </div>
           </div>
@@ -2425,6 +2443,7 @@
                 <span class="badge late">Geç: ${teacher.counts.gec}</span>
               </div>
             </div>
+            <div id="todayStudentNotePanel" class="today-student-note-panel" style="display:none;"></div>
           </div>
 
           ${teacher.sessions.length ? sessionCards : `<div class="empty">Bu öğretmen için ders detayı bulunamadı.</div>`}
@@ -2436,6 +2455,41 @@
         footerHtml: `<button id="btnBackTodayTeacherList" class="btn">← Önceki Listeye Dön</button>`,
         onRender: () => {
           $("#btnBackTodayTeacherList", els.modalFooter)?.addEventListener("click", () => openTodayTeachersModal(data.date));
+
+          const notePanel = $("#todayStudentNotePanel", els.modalBody);
+          els.modalBody?.addEventListener("click", (e) => {
+            const chip = e.target.closest("[data-today-student-note-open]");
+            if (!chip || !notePanel) return;
+            const studentName = chip.dataset.studentName || "-";
+            const studentNo = chip.dataset.studentNo || "-";
+            const studentStatus = chip.dataset.studentStatus || "-";
+            const slot = chip.dataset.studentSlot || "-";
+            const group = chip.dataset.studentGroup || "-";
+            const topic = chip.dataset.studentTopic || "-";
+            const note = (chip.dataset.studentNote || "").trim();
+
+            notePanel.style.display = "block";
+            notePanel.innerHTML = `
+              <div class="head">
+                <div>
+                  <div style="font-weight:800;">📝 Öğrenci Özel Not Detayı</div>
+                  <div class="muted tiny">${htmlEscape(studentName)} • No: ${htmlEscape(studentNo)} • ${htmlEscape(studentStatus)}</div>
+                </div>
+                <button type="button" id="btnHideTodayStudentNotePanel" class="btn small">Kapat</button>
+              </div>
+              <div class="summary-row" style="margin-bottom:8px;">
+                <span class="badge neutral">Grup: ${htmlEscape(group)}</span>
+                <span class="badge neutral">Ders: ${htmlEscape(slot)}</span>
+              </div>
+              <div class="helper" style="margin-bottom:8px;"><b>Konu:</b> ${htmlEscape(topic || "-")}</div>
+              <div class="note-box">${note ? htmlEscape(note) : '<span class="muted">Bu öğrenci için özel not girilmemiş.</span>'}</div>
+            `;
+            notePanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+            $("#btnHideTodayStudentNotePanel", notePanel)?.addEventListener("click", () => {
+              notePanel.style.display = "none";
+              notePanel.innerHTML = "";
+            });
+          });
         }
       });
     }
