@@ -934,8 +934,23 @@
       return { tone: 'warning', title: 'Bilgi', icon: 'ℹ️' };
     }
 
+    function showFloatingToast(msg, ms=1800){
+      const el = els.toast;
+      if (!el) return;
+      const text = String(msg || 'Bilgi');
+      el.textContent = text;
+      el.classList.remove('show');
+      if (showFloatingToast._timer) clearTimeout(showFloatingToast._timer);
+      // reflow to restart animation
+      void el.offsetWidth;
+      el.classList.add('show');
+      showFloatingToast._timer = setTimeout(() => {
+        el.classList.remove('show');
+      }, Math.max(900, Number(ms) || 1800));
+    }
+
     function showToast(msg, ms=2200){
-      // Tüm geri bildirimler modern dialog olarak gösterilir.
+      // Varsayılan geri bildirimler modern dialog olarak gösterilir.
       // Bilgi/uyarı/başarı bildirimlerinde tek tuş: Tamam
       const text = String(msg || 'Bilgi');
       const ui = detectInfoDialogTone(text);
@@ -1469,7 +1484,7 @@
       state.teacherDraft.studentNotes = {};
       renderTeacherStudentList();
       updateTeacherDraftSummary();
-      showToast(`${group} grubu yüklendi (${list.length} öğrenci).`);
+      showFloatingToast(`${group} grubu yüklendi (${list.length} öğrenci).`, 1700);
     }
 
     function renderTeacherStudentList(){
