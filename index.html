@@ -2193,8 +2193,8 @@
                 <input id="suOffsetY" type="range" min="-160" max="160" step="1" value="0" />
               </div>
               <div class="range-row">
-                <label>Kalite (Sıkıştırma)</label>
-                <input id="suQuality" type="range" min="0.5" max="0.95" step="0.01" value="0.78" />
+                <label>Kalite</label>
+                <input id="suQuality" type="range" min="0.5" max="0.95" step="0.01" value="0.60" />
               </div>
 
               <div class="divider"></div>
@@ -2295,7 +2295,7 @@
 
         cropCtx.draw = draw;
         cropCtx.exportBase64 = () => {
-          let quality = Number($("#suQuality", els.modalBody)?.value || 0.78);
+          let quality = Number($("#suQuality", els.modalBody)?.value || 0.60);
           quality = Math.min(0.95, Math.max(STUDENT_PHOTO_MIN_QUALITY, quality));
           let out = canvas.toDataURL("image/jpeg", quality);
           let outBytes = base64DataUrlSizeBytes(out);
