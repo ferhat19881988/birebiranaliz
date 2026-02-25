@@ -305,6 +305,34 @@
     #btnFinalizeLesson, #btnTeacherLogout { width:100%; }
   }
 
+
+  /* ===== Admin panel mobil sığma iyileştirmeleri ===== */
+  #view-admin .grid.grid-2 { gap: 16px; }
+  #view-admin .grid.grid-2 > .big-button { min-width: 0; width: 100%; }
+  #view-admin .grid.grid-2 > .big-button .t { word-break: break-word; }
+  #view-admin .grid.grid-2 > .big-button .s { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+  @media (max-width: 900px){
+    #view-admin .teacher-header { gap: 12px; }
+    #view-admin .teacher-header > .toolbar-right { width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    #view-admin .teacher-header > .toolbar-right .btn { width: 100%; min-width: 0; }
+    #view-admin .grid.grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    #view-admin .grid.grid-2 > .big-button { padding: 16px 14px; border-radius: 14px; align-items: stretch; }
+    #view-admin .grid.grid-2 > .big-button .t { font-size: .98rem; line-height: 1.25; margin-bottom: 6px; }
+    #view-admin .grid.grid-2 > .big-button .s { font-size: .8rem; line-height: 1.35; }
+    #view-admin .stats { gap: 10px; }
+    #view-admin .stat { padding: 16px 10px; }
+    #view-admin .stat .v { font-size: 1.25rem; }
+  }
+
+  @media (max-width: 560px){
+    #view-admin .grid.grid-2 { grid-template-columns: 1fr; gap: 10px; }
+    #view-admin .teacher-header > .toolbar-right { grid-template-columns: 1fr; }
+    #view-admin .grid.grid-2 > .big-button { padding: 14px 12px; border-radius: 12px; }
+    #view-admin .grid.grid-2 > .big-button .t { font-size: .94rem; }
+    #view-admin .grid.grid-2 > .big-button .s { font-size: .78rem; -webkit-line-clamp: 4; }
+  }
+
 </style>
 </head>
 <body>
@@ -895,11 +923,79 @@
       });
     }
 
+    function isMobileViewport(){
+      return window.matchMedia?.("(max-width: 900px)")?.matches || window.innerWidth <= 900;
+    }
+
     function showToast(msg, ms=2200){
+      // Kullanıcı isteği: mobilde tüm uyarılar modern dialog olsun.
+      // Bilgi amaçlı bildirimlerde tek tuş: Tamam
+      if (isMobileViewport()) {
+        infoDialog(String(msg || "Bilgi"), { title: "Bilgi", tone: "warning", icon: "ℹ️" });
+        return;
+      }
       els.toast.textContent = msg;
       els.toast.classList.add("show");
       clearTimeout(showToast._t);
       showToast._t = setTimeout(() => els.toast.classList.remove("show"), ms);
+    }
+
+    function infoDialog(message, opts={}){
+      const {
+        title = "Bilgi",
+        okText = "Tamam",
+        tone = "warning",
+        icon = null
+      } = opts || {};
+      return new Promise(resolve => {
+        const overlay = els.appDialogOverlay;
+        const box = els.appDialog;
+        if (!overlay || !box) {
+          window.alert(String(message || "Bilgi"));
+          return resolve(true);
+        }
+
+        const toneClass = tone === "danger" ? "danger" : (tone === "success" ? "success" : "warning");
+        box.className = `app-dialog ${toneClass}`;
+        els.appDialogTitle.textContent = title;
+        els.appDialogMessage.textContent = String(message || "Bilgi");
+        els.appDialogOk.textContent = okText;
+        els.appDialogOk.className = `btn ${tone === "danger" ? "danger" : (tone === "success" ? "success" : "warning")}`;
+        els.appDialogIcon.textContent = icon || (tone === "danger" ? "⛔" : (tone === "success" ? "✅" : "ℹ️"));
+
+        // Bilgi dialoglarında tek tuş göster
+        els.appDialogCancel.style.display = "none";
+
+        overlay.classList.add("show");
+        overlay.setAttribute("aria-hidden", "false");
+        document.body.style.overflow = "hidden";
+
+        let done = false;
+        const finish = () => {
+          if (done) return; done = true;
+          overlay.classList.remove("show");
+          overlay.setAttribute("aria-hidden", "true");
+          document.body.style.overflow = "";
+          els.appDialogCancel.style.display = "";
+          cleanup();
+          resolve(true);
+        };
+        const onOverlayClick = (e) => { if (e.target === overlay) finish(); };
+        const onKey = (e) => {
+          if (e.key === "Escape" || e.key === "Enter") finish();
+        };
+        const onOk = () => finish();
+        const cleanup = () => {
+          overlay.removeEventListener("click", onOverlayClick);
+          els.appDialogOk.removeEventListener("click", onOk);
+          document.removeEventListener("keydown", onKey);
+        };
+
+        overlay.addEventListener("click", onOverlayClick);
+        els.appDialogOk.addEventListener("click", onOk);
+        document.addEventListener("keydown", onKey);
+        setTimeout(() => els.appDialogOk?.focus(), 0);
+      });
     }
 
     function confirmDialog(message, opts={}){
@@ -917,6 +1013,7 @@
         els.appDialogCancel.textContent = cancelText;
         els.appDialogOk.className = `btn ${tone === "danger" ? "danger" : (tone === "success" ? "success" : "warning")}`;
         els.appDialogIcon.textContent = icon || (tone === "danger" ? "🗑️" : (tone === "success" ? "✅" : "⚠️"));
+        els.appDialogCancel.style.display = "";
 
         overlay.classList.add("show");
         overlay.setAttribute("aria-hidden", "false");
