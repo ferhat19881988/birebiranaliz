@@ -1335,40 +1335,50 @@
     /**********************
      * GOOGLE SHEETS READ *
      **********************/
-    async function fetchGoogleTabRows(tabName){
-      const spreadsheetId = extractSpreadsheetId(GOOGLE_SHEET_URL);
-      if (!spreadsheetId) throw new Error("Google Sheet ID çözümlenemedi.");
-      const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(tabName)}`;
+    function parseCsvText(csvText=""){
+      const txt = String(csvText || "").replace(/^﻿/, "");
+      const rows = [];
+      let row = [];
+      let cell = "";
+      let i = 0;
+      let inQuotes = false;
+      while (i < txt.length) {
+        const ch = txt[i];
+        if (inQuotes) {
+          if (ch === '"') {
+            if (txt[i+1] === '"') { cell += '"'; i += 2; continue; }
+            inQuotes = false; i++; continue;
+          }
+          cell += ch; i++; continue;
+        }
+        if (ch === '"') { inQuotes = true; i++; continue; }
+        if (ch === ',') { row.push(cell); cell = ""; i++; continue; }
+        if (ch === '
+') { row.push(cell); rows.push(row); row = []; cell = ""; i++; continue; }
+        if (ch === '
+') {
+          row.push(cell); rows.push(row); row = []; cell = "";
+          if (txt[i+1] === '
+') i += 2; else i++;
+          continue;
+        }
+        cell += ch; i++;
+      }
+      row.push(cell);
+      if (row.length > 1 || String(row[0] || "").trim() !== "") rows.push(row);
+      return rows;
+    }
 
-      const res = await fetch(url, { cache: "no-store" });
-      if (!res.ok) throw new Error(`${tabName} sekmesi okunamadı (HTTP ${res.status})`);
-      const txt = await res.text();
+    function normalizeSheetRowsPayload(headers, rows){
+      headers = Array.isArray(headers) ? headers.map(h => String(h || "").trim()) : [];
+      rows = Array.isArray(rows) ? rows.map(r => Array.isArray(r) ? r.map(v => String(v ?? "")) : []) : [];
 
-      const m = txt.match(/google\.visualization\.Query\.setResponse\(([\s\S]+)\);/);
-      if (!m) throw new Error(`${tabName} yanıtı parse edilemedi.`);
-      const json = JSON.parse(m[1]);
-
-      const table = json.table || {};
-      let headers = (table.cols || []).map(c => String(c?.label || c?.id || "").trim());
-
-      const rows = (table.rows || []).map(r => {
-        const cells = (r.c || []).map(cell => {
-          if (!cell) return "";
-          if (typeof cell.f !== "undefined" && cell.f !== null && cell.f !== "") return String(cell.f);
-          if (typeof cell.v === "undefined" || cell.v === null) return "";
-          return String(cell.v);
-        });
-        return cells;
-      });
-
-      // GViz bazen ilk satırı başlık olarak algılamaz ve sütun adlarını A/B/C... döndürür.
-      // Bu durumda ilk dolu satırı başlık kabul edip veri satırlarından çıkarıyoruz.
+      // Başlıklar generic/A-B-C gibi geldiyse ilk dolu satırı başlık kabul et.
       const normalizedHeaders = headers.map(normalizeText);
       const headerLooksGeneric = normalizedHeaders.length > 0 && normalizedHeaders.every(h => /^[a-z]+$/.test(h));
       const hasKnownHeaderInCols = normalizedHeaders.some(h =>
         ["id","ogretmenadi","adsoyad","ogrenci","no","numara","grup","grubu","sinif"].includes(h)
       );
-
       if ((!headers.length || !hasKnownHeaderInCols || headerLooksGeneric) && rows.length){
         const firstNonEmptyRowIndex = rows.findIndex(r => (r || []).some(v => String(v).trim() !== ""));
         if (firstNonEmptyRowIndex >= 0){
@@ -1383,9 +1393,71 @@
           }
         }
       }
-
-      console.log(`[${tabName}] Başlıklar:`, headers);
       return { headers, rows };
+    }
+
+    async function fetchGoogleTabRows(tabName){
+      const spreadsheetId = extractSpreadsheetId(GOOGLE_SHEET_URL);
+      if (!spreadsheetId) throw new Error("Google Sheet ID çözümlenemedi.");
+
+      const gvizUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(tabName)}`;
+      const csvUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&sheet=${encodeURIComponent(tabName)}`;
+
+      const attempts = [];
+
+      // 1) CSV export (çoğu durumda filtre/scroll kaynaklı eksik görünüm riskine karşı daha güvenilir)
+      try {
+        const csvRes = await fetch(csvUrl, { cache: "no-store" });
+        if (csvRes.ok) {
+          const csvText = await csvRes.text();
+          const parsed = parseCsvText(csvText);
+          if (parsed.length) {
+            const headers = parsed[0] || [];
+            const rows = parsed.slice(1);
+            attempts.push({ source: "csv", ...normalizeSheetRowsPayload(headers, rows) });
+          }
+        } else {
+          console.warn(`[${tabName}] CSV export okunamadı: HTTP ${csvRes.status}`);
+        }
+      } catch (e) {
+        console.warn(`[${tabName}] CSV export hatası:`, e);
+      }
+
+      // 2) GViz fallback
+      try {
+        const res = await fetch(gvizUrl, { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const txt = await res.text();
+        const m = txt.match(/google\.visualization\.Query\.setResponse\(([\s\S]+)\);/);
+        if (!m) throw new Error("yanıt parse edilemedi");
+        const json = JSON.parse(m[1]);
+        const table = json.table || {};
+        const headers = (table.cols || []).map(c => String(c?.label || c?.id || "").trim());
+        const rows = (table.rows || []).map(r => {
+          const cells = (r.c || []).map(cell => {
+            if (!cell) return "";
+            if (typeof cell.f !== "undefined" && cell.f !== null && cell.f !== "") return String(cell.f);
+            if (typeof cell.v === "undefined" || cell.v === null) return "";
+            return String(cell.v);
+          });
+          return cells;
+        });
+        attempts.push({ source: "gviz", ...normalizeSheetRowsPayload(headers, rows) });
+      } catch (e) {
+        console.warn(`[${tabName}] GViz okuma hatası:`, e);
+      }
+
+      // Kullanılabilir payload seçimi: geçerli başlık + en fazla satır
+      const valid = attempts.filter(x => (x.headers || []).length || (x.rows || []).length);
+      if (!valid.length) throw new Error(`${tabName} sekmesi okunamadı.`);
+      valid.sort((a,b) => (b.rows?.length || 0) - (a.rows?.length || 0));
+      const best = valid[0];
+
+      if (valid.length > 1) {
+        console.info(`[${tabName}] kaynak karşılaştırma`, valid.map(v => ({source:v.source, rows:(v.rows||[]).length, headers:(v.headers||[]).length})));
+      }
+      console.log(`[${tabName}] (${best.source}) Başlıklar:`, best.headers, "Satır:", (best.rows||[]).length);
+      return { headers: best.headers || [], rows: best.rows || [] };
     }
 
     function mapTeacherRows(headers, rows){
