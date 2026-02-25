@@ -531,23 +531,28 @@
               <div class="s">Numara veya isimle öğrenci ara. Karne ve geçmiş ders kayıtlarını gör.</div>
             </button>
 
+            <button id="btnOpenStudentDenemeReport" class="big-button" type="button">
+              <div class="t">2) Öğrenci Deneme Rapor</div>
+              <div class="s">e-Desis öğrenci rapor ekranına giriş bilgisi ve yönlendirme adımlarını gösterir.</div>
+            </button>
+
             <button id="btnOpenDailyAttendance" class="big-button" type="button">
-              <div class="t">2) Birebir Yoklaması (Günlük)</div>
+              <div class="t">3) Birebir Yoklaması (Günlük)</div>
               <div class="s">Seçilen gün için yoklama özetini gör. Kim gelmedi, kim geç geldi bak.</div>
             </button>
 
             <button id="btnOpenSlotSettings" class="big-button" type="button">
-              <div class="t">3) Birebir Saati Ayarlama</div>
+              <div class="t">4) Birebir Saati Ayarlama</div>
               <div class="s">Ders saatlerini düzenle. Ekleyip çıkar ve kaydet.</div>
             </button>
 
             <button id="btnOpenStudentUpdate" class="big-button" type="button">
-              <div class="t">4) Öğrenci Bilgileri Güncelleme</div>
+              <div class="t">5) Öğrenci Bilgileri Güncelleme</div>
               <div class="s">Öğrenci bilgisi ve fotoğrafını güncelle, kaydet.</div>
             </button>
 
             <button id="btnOpenDataManager" class="big-button" type="button" style="grid-column:1/-1">
-              <div class="t">5) Kayıtlı Veri Yönetimi</div>
+              <div class="t">6) Kayıtlı Veri Yönetimi</div>
               <div class="s">Kayıt silme işlemlerini buradan yap. Dikkatli kullan.</div>
             </button>
           </div>
@@ -2701,7 +2706,90 @@
     /**********************
      * EVENT BINDINGS     *
      **********************/
-    function bindEvents(){
+    
+    async function copyTextToClipboard(textToCopy){
+      const value = String(textToCopy ?? "");
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(value);
+        } else {
+          const ta = document.createElement("textarea");
+          ta.value = value;
+          ta.setAttribute("readonly", "");
+          ta.style.position = "fixed";
+          ta.style.opacity = "0";
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          ta.remove();
+        }
+        showToast("Kopyalandı ✅");
+        return true;
+      } catch (err) {
+        console.error(err);
+        showToast("Kopyalama başarısız");
+        return false;
+      }
+    }
+
+    function openStudentDenemeReportModal(){
+      const loginUrl = "https://fenomencocukkulubu.edesis.com/account/login";
+      openModal("Öğrenci Deneme Raporu", `
+        <div class="helper" style="margin-bottom:14px;">
+          <b>İzlenecek yol:</b><br>
+          1) Aşağıdaki bilgilerle giriş yapın.<br>
+          2) Girişten sonra <b>sol köşeden Öğrenci Raporları</b> menüsüne girin.<br>
+          3) Öğrenciyi aratıp raporlarına ulaşın.
+        </div>
+
+        <div class="grid" style="gap:14px;">
+          <div class="card" style="padding:14px; border-radius:14px; box-shadow:none;">
+            <div class="field" style="gap:6px;">
+              <label>Login</label>
+              <div class="toolbar" style="gap:10px; align-items:center;">
+                <div class="toolbar-left" style="flex:1; min-width:0;">
+                  <input class="input mono" value="deniz" readonly />
+                </div>
+                <div class="toolbar-right" style="flex:0 0 auto;">
+                  <button class="btn small" type="button" data-copy-text="deniz">Login Kopyala</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="padding:14px; border-radius:14px; box-shadow:none;">
+            <div class="field" style="gap:6px;">
+              <label>Şifre</label>
+              <div class="toolbar" style="gap:10px; align-items:center;">
+                <div class="toolbar-left" style="flex:1; min-width:0;">
+                  <input class="input mono" value="S68TY6" readonly />
+                </div>
+                <div class="toolbar-right" style="flex:0 0 auto;">
+                  <button class="btn small" type="button" data-copy-text="S68TY6">Şifre Kopyala</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="padding:14px; border-radius:14px; box-shadow:none;">
+            <div class="field" style="gap:8px;">
+              <label>Giriş Adresi</label>
+              <div class="toolbar" style="gap:10px; align-items:center;">
+                <div class="toolbar-left" style="flex:1; min-width:0;">
+                  <input class="input mono" value="${loginUrl}" readonly />
+                </div>
+                <div class="toolbar-right" style="flex:0 0 auto; display:flex; gap:8px; flex-wrap:wrap;">
+                  <button class="btn small" type="button" data-copy-text="${loginUrl}">Link Kopyala</button>
+                  <a class="btn primary small" href="${loginUrl}" target="_blank" rel="noopener noreferrer">Siteye Git</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `, { modalClass: "modal-wide" });
+    }
+
+function bindEvents(){
       // top
       $("#btnTopHome").addEventListener("click", () => setView("home"));
       $("#btnReloadSheets").addEventListener("click", async () => {
@@ -2822,6 +2910,14 @@
         }
       });
 
+      els.modalBody.addEventListener("click", async (e) => {
+        const copyBtn = e.target.closest("[data-copy-text]");
+        if (copyBtn) {
+          e.preventDefault();
+          await copyTextToClipboard(copyBtn.getAttribute("data-copy-text") || "");
+        }
+      });
+
       // admin buttons
       $("#btnAdminLogout").addEventListener("click", () => {
         state.auth.role = null;
@@ -2833,6 +2929,7 @@
         showToast("Tüm veriler yenilendi.");
       });
       $("#btnOpenStudentDetail").addEventListener("click", openStudentDetailModal);
+      $("#btnOpenStudentDenemeReport").addEventListener("click", openStudentDenemeReportModal);
       $("#btnOpenDailyAttendance").addEventListener("click", openDailyAttendanceModal);
       $("#btnOpenSlotSettings").addEventListener("click", openSlotSettingsModal);
       $("#btnOpenStudentUpdate").addEventListener("click", openStudentUpdateModal);
