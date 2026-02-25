@@ -225,6 +225,86 @@
 
   .toast { position: fixed; left: 50%; bottom: 40px; transform: translateX(-50%) translateY(20px); opacity: 0; pointer-events: none; background: #1e293b; color: #f8fafc; padding: 12px 24px; border-radius: 999px; font-weight: 600; font-size: 0.95rem; box-shadow: var(--shadow-md); transition: var(--trans); z-index: 1000; }
   .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+
+  /* ===== Mobile-first düzen iyileştirmeleri ===== */
+  .hero { display:grid; gap:24px; }
+  .home-refresh-wrap { width:100%; }
+  .teacher-actions-inline { display:flex; gap:8px; flex-wrap:wrap; }
+  .teacher-step-title { display:flex; align-items:center; gap:8px; margin:0 0 8px; }
+  .teacher-step-title .step-no { width:24px; height:24px; border-radius:999px; display:grid; place-items:center; background:var(--primary); color:#fff; font-weight:800; font-size:.8rem; }
+  .teacher-panel-grid { display:grid; gap:24px; }
+  .teacher-topic-card .toolbar { margin-top: 8px; }
+
+  @media (max-width: 900px){
+    .container { padding: 16px 12px 88px; }
+    .topbar { padding: 12px; align-items:flex-start; }
+    .brand img { width:40px; height:40px; border-radius:10px; }
+    .brand h1 { font-size: 1rem; line-height:1.2; }
+    .top-actions { width:100%; justify-content:flex-start; gap:8px; }
+    .top-actions .chip { font-size:.78rem; padding:6px 10px; }
+    .top-actions .btn { margin-left:auto; }
+
+    .card { padding: 16px; border-radius: 16px; }
+    .card h2 { font-size: 1.2rem; }
+    .card h3 { font-size: 1.05rem; }
+    .divider { margin: 16px 0; }
+
+    .toolbar { flex-direction: column; align-items: stretch; gap: 10px; }
+    .toolbar-left, .toolbar-right { width:100%; justify-content:flex-start; }
+    .toolbar-left .btn, .toolbar-right .btn { min-height: 42px; }
+    .summary-row { gap:6px; }
+    .summary-row .badge { text-align:center; }
+
+    .btn { width:100%; min-height: 44px; padding: 12px 14px; }
+    .btn.small { min-height: 40px; }
+    .btn.ghost { border-color: var(--panel-border); }
+    .teacher-actions-inline { display:grid; grid-template-columns:1fr 1fr; width:100%; }
+    .teacher-actions-inline .btn { width:100%; }
+
+    .teacher-header { align-items:stretch; }
+    .teacher-meta { width:100%; }
+    .teacher-meta .pill { flex:1 1 calc(50% - 8px); text-align:center; }
+
+    .student-list { max-height: unset; overflow: visible; padding-right:0; }
+    .student-row { display:grid; grid-template-columns:1fr; gap:10px; padding:12px; }
+    .student-left { min-width:0; align-items:flex-start; }
+    .student-main { min-width:0; }
+    .student-name { font-size:1rem; line-height:1.25; }
+    .student-sub { gap:6px 10px; font-size:.78rem; }
+    .status-buttons { display:grid; grid-template-columns:repeat(3,1fr); width:100%; gap:8px; }
+    .status-btn { width:100%; min-height:42px; padding:8px 6px; font-size:.8rem; }
+    .student-note-box { margin-top:0; }
+    .student-note-input { min-height:40px; }
+
+    #view-home .toolbar { align-items:center; }
+    #view-home .toolbar-left, #view-home .toolbar-right { justify-content:center; }
+    #btnReloadSheets { width:auto; min-width: 190px; margin-inline:auto; display:inline-flex; }
+
+    #view-teacher-login .toolbar-left, #view-teacher-login .toolbar-right,
+    #view-admin-login .toolbar-left, #view-admin-login .toolbar-right,
+    #view-teacher .toolbar-left, #view-teacher .toolbar-right,
+    #view-admin .toolbar-left, #view-admin .toolbar-right { width:100%; }
+  }
+
+  @media (max-width: 560px){
+    .container { padding-inline: 10px; }
+    .login-buttons { gap:12px; }
+    .big-button { padding:18px 14px; border-radius:14px; }
+    .big-button .t { font-size:1rem; }
+    .big-button .s { font-size:.82rem; }
+
+    .form-grid { gap:12px; }
+    .input, .select, .textarea { padding: 11px 12px; font-size: .94rem; }
+    .teacher-actions-inline { grid-template-columns:1fr; }
+    .teacher-meta .pill { flex:1 1 100%; }
+    .summary-row { display:grid; grid-template-columns:1fr 1fr; width:100%; }
+    .summary-row .badge { width:100%; }
+    .status-buttons { grid-template-columns:1fr; }
+    .status-btn { min-height:40px; }
+    #btnFinalizeLesson, #btnTeacherLogout { width:100%; }
+  }
+
 </style>
 </head>
 <body>
@@ -267,7 +347,7 @@
 
             <div class="divider"></div>
             <div class="toolbar">
-              <div class="toolbar-left">
+              <div class="toolbar-left home-refresh-wrap">
                 <button id="btnReloadSheets" class="btn primary">Verileri Yenile</button>
               </div>
               <div class="toolbar-right"></div>
@@ -380,15 +460,9 @@
 
             <div class="divider"></div>
 
-            <div class="field">
-              <label for="lessonTopicInput">İşlenen Konu / İçerik</label>
-              <textarea id="lessonTopicInput" class="textarea" placeholder="Örn: Sıfatlar, paragraf soruları, yeni nesil soru çözümü..."></textarea>
-            </div>
-
-            <div class="divider"></div>
-
+            <div class="teacher-step-title"><span class="step-no">1</span><h3 style="margin:0; font-size:1rem;">Yoklama Hazırlığı</h3></div>
             <div class="toolbar">
-              <div class="toolbar-left">
+              <div class="toolbar-left teacher-actions-inline">
                 <button id="btnAllPresent" class="btn success small">Tümünü Geldi</button>
                 <button id="btnClearStatuses" class="btn small">Seçimleri Temizle</button>
               </div>
@@ -403,7 +477,7 @@
           </div>
 
           <div class="card">
-            <h3>Öğrenci Listesi / Yoklama</h3>
+            <div class="teacher-step-title"><span class="step-no">1</span><h3 style="margin:0;">Öğrenci Listesi / Yoklama</h3></div>
             <p class="muted tiny">
               Grup yüklendikten sonra öğrenciler listelenir. Her öğrenci için <b>Geldi / Gelmedi / Geç Geldi</b> seçin.
               Ders bitmeden önce düzenleme yapılabilir. <b>Ders Bitti</b> sonrası kayıt kilitlenir.
@@ -412,6 +486,14 @@
             <div class="divider"></div>
             <div id="teacherStudentList" class="student-list">
               <div class="empty">Henüz grup yüklenmedi.</div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="teacher-step-title"><span class="step-no">2</span><h3 style="margin:0; font-size:1rem;">İşlenen Konu / İçerik</h3></div>
+            <div class="field">
+              <label for="lessonTopicInput">Yoklama sonrası konu yazısı</label>
+              <textarea id="lessonTopicInput" class="textarea" placeholder="Örn: Sıfatlar, paragraf soruları, yeni nesil soru çözümü..."></textarea>
             </div>
 
             <div class="divider"></div>
@@ -1352,6 +1434,13 @@
       els.sumAbsent.textContent = `Gelmedi: ${sum.absent}`;
       els.sumLate.textContent = `Geç: ${sum.late}`;
       els.sumUnknown.textContent = `Belirsiz: ${sum.unknown}`;
+      const topicLocked = !sum.total || sum.unknown > 0 || state.teacherDraft.locked;
+      if (els.lessonTopicInput) {
+        els.lessonTopicInput.disabled = topicLocked;
+        els.lessonTopicInput.placeholder = topicLocked
+          ? (sum.total ? 'Önce tüm öğrencilerin yoklamasını işaretleyin.' : 'Önce grup yükleyip yoklama alın.')
+          : 'Örn: Sıfatlar, paragraf soruları, yeni nesil soru çözümü...';
+      }
     }
 
     function teacherBulkAllPresent(){
