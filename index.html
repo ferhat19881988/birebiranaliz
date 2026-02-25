@@ -1210,42 +1210,80 @@
     }
 
     function normalizeGroupLabel(value=""){
-      return String(value ?? "")
-        .replace(/[​-‍﻿ ]/g, " ")
-        .replace(/[–—]/g, "-")
-        .replace(/\s*-\s*/g, "-")
-        .replace(/\s+/g, " ")
-        .trim();
+      const raw = String(value ?? "").trim();
+      if (!raw) return "";
+      // G1 7A / G1–7A / g1-7a gibi varyasyonları tek forma yaklaştır
+      const compact = raw.replace(/\s+/g, " ").trim();
+      const m = compact.match(/^\s*g\s*(\d+)\s*[-–—]?\s*([0-9]+\s*[a-zçğıöşü]+)\s*$/i);
+      if (m) {
+        const gNo = String(Number(m[1]));
+        const cls = String(m[2]).replace(/\s+/g, "").toLocaleUpperCase("tr-TR");
+        return `G${gNo}-${cls}`;
+      }
+      return compact.toLocaleUpperCase("tr-TR");
+    }
+
+    function getStudentsForGroup(group){
+      const selected = normalizeGroupLabel(group);
+      if (!selected) return [];
+
+      const merged = mergedStudents();
+      const mergedByNo = new Map(merged.map(s => [normalizeStudentNo(s?.no), s]));
+      const selectedNos = new Set();
+
+      // 1) Birleşik kayıtlardaki aktif grup eşleşmeleri
+      for (const s of merged) {
+        const no = normalizeStudentNo(s?.no);
+        if (!no) continue;
+        if (normalizeGroupLabel(s?.grup) === selected) {
+          selectedNos.add(no);
+          continue;
+        }
+        // Geçmiş grup bilgisi tutuluyorsa fallback (boş liste riskini azaltır)
+        const history = Array.isArray(s?._grupHistory) ? s._grupHistory : [];
+        if (history.some(g => normalizeGroupLabel(g) === selected)) {
+          selectedNos.add(no);
+        }
+      }
+
+      // 2) Ham sheet satırlarından da grup tara (no bazlı sistemi bozmaz)
+      for (const r of (state.data.students || [])) {
+        const no = normalizeStudentNo(r?.no);
+        if (!no) continue;
+        if (normalizeGroupLabel(r?.grup) === selected) selectedNos.add(no);
+      }
+      for (const [noKey, ov] of Object.entries(state.data.studentOverrides || {})) {
+        const no = normalizeStudentNo(ov?.no || noKey);
+        if (!no) continue;
+        if (normalizeGroupLabel(ov?.grup) === selected) selectedNos.add(no);
+      }
+
+      const out = [...selectedNos]
+        .map(no => mergedByNo.get(no) || null)
+        .filter(Boolean)
+        .sort((a,b)=> String(a.adsoyad||"").localeCompare(String(b.adsoyad||""), 'tr', {sensitivity:'base'}));
+      return out;
     }
 
     function getAllGroups(){
-      // Öğretmen panelindeki grup listesi mümkün olduğunca eksiksiz olmalı.
-      // Sadece mergedStudents() içindeki "aktif" grup değerlerine bakmak bazı durumlarda
-      // (öğrenci no birleşmesi / override / grup adında görünmez karakter farkları) grup kaçırabiliyor.
-      const groupsByNorm = new Map(); // normKey -> displayLabel
-
-      const addGroup = (raw) => {
-        const g = normalizeGroupLabel(raw);
-        if (!g) return;
-        const key = normalizeText(g);
+      const canonicalToLabel = new Map();
+      const tryAdd = (v) => {
+        const raw = String(v ?? "").trim();
+        if (!raw) return;
+        const key = normalizeGroupLabel(raw);
         if (!key) return;
-        if (!groupsByNorm.has(key)) groupsByNorm.set(key, g);
+        // Mümkünse kanonik etiketi göster; değilse ilk görülen değeri koru
+        if (!canonicalToLabel.has(key)) canonicalToLabel.set(key, key || raw);
       };
 
-      // 1) Birleşmiş aktif öğrenciler (ana kaynak)
-      for (const st of mergedStudents()) {
-        addGroup(st?.grup);
-        // No bazlı birleşme sonrası eski grup geçmişleri de korunuyorsa seçeneklerde göster.
-        for (const hg of (st?._grupHistory || [])) addGroup(hg);
+      for (const s of mergedStudents()) {
+        tryAdd(s?.grup);
+        for (const g of (Array.isArray(s?._grupHistory) ? s._grupHistory : [])) tryAdd(g);
       }
+      for (const s of (state.data.students || [])) tryAdd(s?.grup);
+      for (const ov of Object.values(state.data.studentOverrides || {})) tryAdd(ov?.grup);
 
-      // 2) Ham sheet verisi (bazı edge-case birleşme sorunlarında kaçan grupları yakalar)
-      for (const st of (state.data.students || [])) addGroup(st?.grup);
-
-      // 3) Firebase override kayıtları
-      for (const ov of Object.values(state.data.studentOverrides || {})) addGroup(ov?.grup);
-
-      return sortGroupsByClassThenGroup([...groupsByNorm.values()]);
+      return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
     }
 
     function mergedStudents(){
@@ -1619,7 +1657,7 @@
       if (!group) return showToast("Önce grup seçin.");
       state.teacherDraft.date = date;
       state.teacherDraft.slotId = slotId;
-      const list = mergedStudents().filter(s => String(s.grup).trim() === group);
+      const list = getStudentsForGroup(group);
       state.teacherDraft.group = group;
       state.teacherDraft.loadedStudents = list;
       // Var olan seçimleri grup değişince resetleyelim
