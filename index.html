@@ -927,17 +927,22 @@
       return window.matchMedia?.("(max-width: 900px)")?.matches || window.innerWidth <= 900;
     }
 
+    function detectInfoDialogTone(messageText){
+      const t = String(messageText || '').toLowerCase('tr');
+      if (/✅|başarı|tamamlandı|kaydedildi|kopyalandı|hazır|yenilendi/.test(t)) return { tone: 'success', title: 'Başarılı', icon: '✅' };
+      if (/hata|başarısız|geçersiz|bulunamadı|engellendi|okunamadı|boş olamaz|iptal edildi/.test(t)) return { tone: 'danger', title: 'Uyarı', icon: '⛔' };
+      return { tone: 'warning', title: 'Bilgi', icon: 'ℹ️' };
+    }
+
     function showToast(msg, ms=2200){
-      // Kullanıcı isteği: mobilde tüm uyarılar modern dialog olsun.
-      // Bilgi amaçlı bildirimlerde tek tuş: Tamam
-      if (isMobileViewport()) {
-        infoDialog(String(msg || "Bilgi"), { title: "Bilgi", tone: "warning", icon: "ℹ️" });
-        return;
-      }
-      els.toast.textContent = msg;
-      els.toast.classList.add("show");
-      clearTimeout(showToast._t);
-      showToast._t = setTimeout(() => els.toast.classList.remove("show"), ms);
+      // Tüm geri bildirimler modern dialog olarak gösterilir.
+      // Bilgi/uyarı/başarı bildirimlerinde tek tuş: Tamam
+      const text = String(msg || 'Bilgi');
+      const ui = detectInfoDialogTone(text);
+      showToast._queue = (showToast._queue || Promise.resolve())
+        .then(() => infoDialog(text, { title: ui.title, tone: ui.tone, icon: ui.icon, okText: 'Tamam' }))
+        .catch(() => {});
+      return showToast._queue;
     }
 
     function infoDialog(message, opts={}){
