@@ -333,6 +333,26 @@
     #view-admin .grid.grid-2 > .big-button .s { font-size: .78rem; -webkit-line-clamp: 4; }
   }
 
+
+  /* ===== Admin Today Dashboard ===== */
+  .today-teacher-list { display:grid; gap:12px; }
+  .today-teacher-item { border:1px solid var(--panel-border); background:var(--bg); border-radius:14px; padding:14px; display:flex; justify-content:space-between; gap:12px; align-items:center; cursor:pointer; transition:var(--trans); }
+  .today-teacher-item:hover { border-color: var(--primary); background:#fff; box-shadow: var(--shadow-sm); }
+  .today-teacher-item .l .name { font-weight:800; color:var(--text); }
+  .today-teacher-item .l .sub { color:var(--text-muted); font-size:.86rem; margin-top:4px; }
+  .today-teacher-item .r { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+  .today-session-card { border:1px solid var(--panel-border); background:var(--panel); border-radius:16px; padding:14px; }
+  .today-session-head { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:flex-start; }
+  .today-session-grid { display:grid; gap:12px; grid-template-columns: repeat(3, minmax(0,1fr)); margin-top:12px; }
+  .today-student-panel { border:1px solid var(--panel-border); background:var(--bg); border-radius:12px; padding:10px; }
+  .today-student-panel h4 { margin:0 0 8px; font-size:.9rem; }
+  .today-student-grid { display:grid; grid-template-columns: repeat(auto-fill,minmax(74px,1fr)); gap:8px; }
+  .today-student-chip { border:1px solid var(--panel-border); background:#fff; border-radius:12px; padding:8px 6px; text-align:center; font-size:.74rem; line-height:1.25; }
+  .today-student-chip .student-mini-avatar { margin:0 auto 6px; width:38px; height:38px; border-radius:10px; cursor:default; }
+  .today-student-chip .n { font-weight:700; color:var(--text); word-break:break-word; }
+  .today-student-chip .no { color:var(--text-muted); font-size:.68rem; margin-top:2px; }
+  @media (max-width: 900px){ .today-session-grid{ grid-template-columns:1fr; } }
+
 </style>
 </head>
 <body>
@@ -585,6 +605,11 @@
             </button>
           </div>
 
+
+            <button id="btnOpenTodayDashboard" class="big-button" type="button">
+              <div class="t">7) Bugün</div>
+              <div class="s">Bugün veri girişi yapan öğretmenleri listele. Öğretmene tıklayınca detaylı günlük dashboard aç.</div>
+            </button>
           <div class="card">
             <h3>Hızlı Sistem Özeti</h3>
             <div class="stats">
@@ -1912,7 +1937,27 @@
       table{width:100%;border-collapse:collapse;margin-top:12px;table-layout:fixed;} th,td{border:1px solid #e2e8f0;padding:6px;font-size:10.5px;vertical-align:top;word-wrap:break-word;} th{background:#f8fafc;text-align:left;font-weight:700;} h3{font-size:13px;margin:12px 0 6px;}
       .footer{margin-top:10px;font-size:10px;color:#64748b;display:flex;justify-content:space-between;gap:8px;}
       @media print { body{background:#fff;} .page{border:none;border-radius:0;padding:0;max-width:none;} }
-      </style></head><body>
+      
+  /* ===== Admin Today Dashboard ===== */
+  .today-teacher-list { display:grid; gap:12px; }
+  .today-teacher-item { border:1px solid var(--panel-border); background:var(--bg); border-radius:14px; padding:14px; display:flex; justify-content:space-between; gap:12px; align-items:center; cursor:pointer; transition:var(--trans); }
+  .today-teacher-item:hover { border-color: var(--primary); background:#fff; box-shadow: var(--shadow-sm); }
+  .today-teacher-item .l .name { font-weight:800; color:var(--text); }
+  .today-teacher-item .l .sub { color:var(--text-muted); font-size:.86rem; margin-top:4px; }
+  .today-teacher-item .r { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+  .today-session-card { border:1px solid var(--panel-border); background:var(--panel); border-radius:16px; padding:14px; }
+  .today-session-head { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:flex-start; }
+  .today-session-grid { display:grid; gap:12px; grid-template-columns: repeat(3, minmax(0,1fr)); margin-top:12px; }
+  .today-student-panel { border:1px solid var(--panel-border); background:var(--bg); border-radius:12px; padding:10px; }
+  .today-student-panel h4 { margin:0 0 8px; font-size:.9rem; }
+  .today-student-grid { display:grid; grid-template-columns: repeat(auto-fill,minmax(74px,1fr)); gap:8px; }
+  .today-student-chip { border:1px solid var(--panel-border); background:#fff; border-radius:12px; padding:8px 6px; text-align:center; font-size:.74rem; line-height:1.25; }
+  .today-student-chip .student-mini-avatar { margin:0 auto 6px; width:38px; height:38px; border-radius:10px; cursor:default; }
+  .today-student-chip .n { font-weight:700; color:var(--text); word-break:break-word; }
+  .today-student-chip .no { color:var(--text-muted); font-size:.68rem; margin-top:2px; }
+  @media (max-width: 900px){ .today-session-grid{ grid-template-columns:1fr; } }
+
+</style></head><body>
       <div class="page">
         <div class="head">
           <div class="head-left">
@@ -2177,6 +2222,222 @@
 
       // ilk açılışta bugün
       load({force:false});
+    }
+
+
+    async function getTodayTeacherDashboardData(date = todayISO()){
+      const sessionsByDate = await ensureSessionsLoaded();
+      const daySessions = Object.values(sessionsByDate?.[date] || {}).filter(s => s && typeof s === "object");
+      const teacherMap = new Map();
+
+      for (const session of daySessions) {
+        const teacherId = String(session.teacherId || "");
+        const teacherName = session.teacherName || "Öğretmen";
+        const key = teacherId || safeKey(teacherName);
+        if (!teacherMap.has(key)) {
+          teacherMap.set(key, {
+            key, teacherId, teacherName,
+            brans: session.brans || "-",
+            sessions: [],
+            counts: { geldi:0, gelmedi:0, gec:0, totalStudents:0 }
+          });
+        }
+        const rec = teacherMap.get(key);
+        rec.sessions.push(session);
+        rec.counts.geldi += Number(session?.counts?.geldi || 0);
+        rec.counts.gelmedi += Number(session?.counts?.gelmedi || 0);
+        rec.counts.gec += Number(session?.counts?.gec || 0);
+        rec.counts.totalStudents += Number(session?.totalStudents || 0);
+      }
+
+      for (const rec of teacherMap.values()) {
+        rec.sessions.sort((a,b)=> String(a.slotLabel||a.slotId||"").localeCompare(String(b.slotLabel||b.slotId||""),"tr"));
+      }
+
+      const teachers = [...teacherMap.values()].sort((a,b)=>{
+        const n = String(a.teacherName).localeCompare(String(b.teacherName),"tr");
+        if (n !== 0) return n;
+        return String(a.teacherId).localeCompare(String(b.teacherId),"tr");
+      });
+
+      return { date, teachers, sessionCount: daySessions.length };
+    }
+
+    async function openTodayTeachersModal(date = todayISO()){
+      const html = `
+        <div class="card">
+          <h3>Bugün Veri Girişi Yapan Öğretmenler</h3>
+          <div class="form-grid" style="grid-template-columns:repeat(3,minmax(0,1fr));">
+            <div class="field">
+              <label>Tarih</label>
+              <input id="todayDashDate" class="input" type="date" value="${date}" />
+            </div>
+            <div class="field">
+              <label>&nbsp;</label>
+              <button id="todayDashLoadBtn" class="btn primary">Listele</button>
+            </div>
+            <div class="field">
+              <label>&nbsp;</label>
+              <button id="todayDashRefreshBtn" class="btn">Veriyi Yeniden Oku</button>
+            </div>
+          </div>
+          <div class="divider"></div>
+          <div id="todayDashSummary" class="summary-row"></div>
+          <div class="divider"></div>
+          <div id="todayTeacherListWrap" class="today-teacher-list"></div>
+        </div>
+      `;
+      openModal("Bugün", html, { modalClass: "modal-xl", onRender: bindTodayTeachersModal });
+    }
+
+    function bindTodayTeachersModal(){
+      const dateInput = $("#todayDashDate", els.modalBody);
+      const loadBtn = $("#todayDashLoadBtn", els.modalBody);
+      const refreshBtn = $("#todayDashRefreshBtn", els.modalBody);
+      const summary = $("#todayDashSummary", els.modalBody);
+      const listWrap = $("#todayTeacherListWrap", els.modalBody);
+
+      async function renderList(force=false){
+        const date = dateInput.value || todayISO();
+        if (force) invalidateSessionsCache();
+        const data = await getTodayTeacherDashboardData(date);
+
+        summary.innerHTML = `
+          <span class="badge neutral">Tarih: ${htmlEscape(formatDateTR(data.date))}</span>
+          <span class="badge neutral">Öğretmen: ${data.teachers.length}</span>
+          <span class="badge neutral">Ders Kaydı: ${data.sessionCount}</span>
+        `;
+
+        if (!data.teachers.length) {
+          listWrap.innerHTML = `<div class="empty">Bu tarihte veri girişi yapan öğretmen bulunamadı.</div>`;
+          return;
+        }
+
+        listWrap.innerHTML = data.teachers.map(t => `
+          <button type="button" class="today-teacher-item" data-today-teacher-key="${htmlEscape(t.key)}" data-today-date="${htmlEscape(data.date)}">
+            <div class="l">
+              <div class="name">${htmlEscape(t.teacherName)} ${t.teacherId ? `<span class="muted tiny">(ID: ${htmlEscape(t.teacherId)})</span>` : ""}</div>
+              <div class="sub">${htmlEscape(t.brans || "-")} • ${t.sessions.length} ders kaydı</div>
+            </div>
+            <div class="r">
+              <span class="badge success">Geldi: ${t.counts.geldi}</span>
+              <span class="badge danger">Gelmedi: ${t.counts.gelmedi}</span>
+              <span class="badge late">Geç: ${t.counts.gec}</span>
+            </div>
+          </button>
+        `).join("");
+      }
+
+      listWrap.addEventListener("click", (e) => {
+        const btn = e.target.closest("[data-today-teacher-key]");
+        if (!btn) return;
+        openTodayTeacherDetailModal(btn.dataset.todayTeacherKey, btn.dataset.todayDate || (dateInput.value || todayISO()));
+      });
+      loadBtn.addEventListener("click", ()=>renderList(false));
+      refreshBtn.addEventListener("click", ()=>renderList(true));
+
+      renderList(false);
+    }
+
+    async function openTodayTeacherDetailModal(teacherKey, date = todayISO()){
+      const data = await getTodayTeacherDashboardData(date);
+      const teacher = data.teachers.find(t => String(t.key) === String(teacherKey));
+      if (!teacher) {
+        showToast("Öğretmen detayı bulunamadı.");
+        return;
+      }
+
+      const mergedMap = new Map(mergedStudents().map(s => [String(s.no), s]));
+      const sessionCards = teacher.sessions.map((session, idx) => {
+        const students = Object.values(session.students || {});
+        const groups = {
+          GELDI: students.filter(x => x?.status === "GELDI"),
+          GEC: students.filter(x => x?.status === "GEC"),
+          GELMEDI: students.filter(x => x?.status === "GELMEDI")
+        };
+
+        const renderStudentGrid = (arr, emptyText) => {
+          if (!arr.length) return `<div class="tiny muted">${htmlEscape(emptyText)}</div>`;
+          return `<div class="today-student-grid">` + arr.map(st => {
+            const full = mergedMap.get(String(st.no)) || st || {};
+            return `
+              <div class="today-student-chip" title="${htmlEscape(full.adsoyad || st.adsoyad || "")}">
+                ${renderStudentAvatarHtml(full, "student-mini-avatar")}
+                <div class="n">${htmlEscape(full.adsoyad || st.adsoyad || "-")}</div>
+                <div class="no">No: ${htmlEscape(st.no || "-")}</div>
+              </div>
+            `;
+          }).join("") + `</div>`;
+        };
+
+        return `
+          <div class="today-session-card">
+            <div class="today-session-head">
+              <div>
+                <h3 style="margin:0 0 6px;">${idx+1}. Ders • ${htmlEscape(session.slotLabel || session.slotId || "-")}</h3>
+                <div class="summary-row">
+                  <span class="badge neutral">Grup: ${htmlEscape(session.group || "-")}</span>
+                  <span class="badge neutral">Kayıt: ${htmlEscape(formatDateTimeTR(session.clientSavedAt || session.serverSavedAt || ""))}</span>
+                </div>
+              </div>
+              <div class="summary-row">
+                <span class="badge success">Geldi: ${Number(session?.counts?.geldi || 0)}</span>
+                <span class="badge danger">Gelmedi: ${Number(session?.counts?.gelmedi || 0)}</span>
+                <span class="badge late">Geç: ${Number(session?.counts?.gec || 0)}</span>
+              </div>
+            </div>
+
+            <div class="helper" style="margin-top:12px;">
+              <b>İşlenen Konu:</b> ${htmlEscape(session.topic || "-")}
+            </div>
+
+            <div class="today-session-grid">
+              <div class="today-student-panel">
+                <h4>✅ Katılanlar (Geldi)</h4>
+                ${renderStudentGrid(groups.GELDI, "Katılan öğrenci yok.")}
+              </div>
+              <div class="today-student-panel">
+                <h4>🟣 Geç Gelenler</h4>
+                ${renderStudentGrid(groups.GEC, "Geç gelen öğrenci yok.")}
+              </div>
+              <div class="today-student-panel">
+                <h4>❌ Katılmayanlar</h4>
+                ${renderStudentGrid(groups.GELMEDI, "Katılmayan öğrenci yok.")}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      const html = `
+        <div class="grid">
+          <div class="card">
+            <div class="teacher-header">
+              <div>
+                <h2 style="margin-bottom:6px;">${htmlEscape(teacher.teacherName)}</h2>
+                <div class="muted tiny">Tarih: ${htmlEscape(formatDateTR(data.date))} • Branş: ${htmlEscape(teacher.brans || "-")} ${teacher.teacherId ? `• ID: ${htmlEscape(teacher.teacherId)}` : ""}</div>
+              </div>
+              <div class="summary-row">
+                <span class="badge neutral">Ders: ${teacher.sessions.length}</span>
+                <span class="badge neutral">Toplam Öğrenci: ${teacher.counts.totalStudents}</span>
+                <span class="badge success">Geldi: ${teacher.counts.geldi}</span>
+                <span class="badge danger">Gelmedi: ${teacher.counts.gelmedi}</span>
+                <span class="badge late">Geç: ${teacher.counts.gec}</span>
+              </div>
+            </div>
+          </div>
+
+          ${teacher.sessions.length ? sessionCards : `<div class="empty">Bu öğretmen için ders detayı bulunamadı.</div>`}
+        </div>
+      `;
+
+      openModal(`Bugün • ${teacher.teacherName} Detayı`, html, {
+        modalClass: "modal-xl",
+        footerHtml: `<button id="btnBackTodayTeacherList" class="btn">← Önceki Listeye Dön</button>`,
+        onRender: () => {
+          $("#btnBackTodayTeacherList", els.modalFooter)?.addEventListener("click", () => openTodayTeachersModal(data.date));
+        }
+      });
     }
 
     async function openSlotSettingsModal(){
@@ -3091,6 +3352,7 @@ function bindEvents(){
       $("#btnOpenSlotSettings").addEventListener("click", openSlotSettingsModal);
       $("#btnOpenStudentUpdate").addEventListener("click", openStudentUpdateModal);
       $("#btnOpenDataManager").addEventListener("click", openDataManagerModal);
+      $("#btnOpenTodayDashboard")?.addEventListener("click", openTodayTeachersModal);
 
       // modal close
       els.modalCloseBtn.addEventListener("click", closeModal);
