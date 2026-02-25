@@ -892,6 +892,68 @@
       return String(value).replace(/[.#$[\]/]/g, "_");
     }
 
+    function normalizeStudentNo(value=""){
+      return String(value ?? "").trim();
+    }
+
+    function pickNonEmpty(...vals){
+      for (const v of vals) {
+        if (v == null) continue;
+        const t = String(v).trim();
+        if (t !== "") return t;
+      }
+      return "";
+    }
+
+    function mergeStudentByNo(prev={}, next={}){
+      const no = normalizeStudentNo(next.no || prev.no || "");
+      const merged = {
+        ...prev,
+        ...next,
+        no,
+        adsoyad: pickNonEmpty(next.adsoyad, prev.adsoyad),
+        sinif: pickNonEmpty(next.sinif, prev.sinif),
+        grup: pickNonEmpty(next.grup, prev.grup),
+        cinsiyet: pickNonEmpty(next.cinsiyet, prev.cinsiyet)
+      };
+
+      const classHistory = new Set([...(prev._sinifHistory || []), ...(next._sinifHistory || [])].filter(Boolean));
+      const groupHistory = new Set([...(prev._grupHistory || []), ...(next._grupHistory || [])].filter(Boolean));
+      if (prev.sinif) classHistory.add(String(prev.sinif).trim());
+      if (next.sinif) classHistory.add(String(next.sinif).trim());
+      if (prev.grup) groupHistory.add(String(prev.grup).trim());
+      if (next.grup) groupHistory.add(String(next.grup).trim());
+      merged._sinifHistory = [...classHistory].filter(Boolean);
+      merged._grupHistory = [...groupHistory].filter(Boolean);
+      return merged;
+    }
+
+    function getSessionStudentRecordByNo(session, studentNo, studentName=""){
+      const no = normalizeStudentNo(studentNo);
+      if (!session || typeof session !== "object") return null;
+      const bag = session.students;
+      if (!bag) return null;
+
+      if (Array.isArray(bag)) {
+        return bag.find(x => normalizeStudentNo(x?.no) === no)
+          || bag.find(x => normalizeText(x?.adsoyad || "") === normalizeText(studentName || ""))
+          || null;
+      }
+
+      if (typeof bag === "object") {
+        if (bag[no]) return bag[no];
+        const safe = safeKey(no);
+        if (bag[safe]) return bag[safe];
+        for (const [k, v] of Object.entries(bag)) {
+          if (!v || typeof v !== "object") continue;
+          if (normalizeStudentNo(v.no) === no) return v;
+          if (studentName && normalizeText(v.adsoyad || "") === normalizeText(studentName || "")) return v;
+          if (normalizeStudentNo(k) === no) return v;
+        }
+      }
+      return null;
+    }
+
     function htmlEscape(str=""){
       return String(str)
         .replace(/&/g,"&amp;")
@@ -1158,14 +1220,17 @@
     function mergedStudents(){
       const baseMap = new Map();
       for (const s of state.data.students) {
-        baseMap.set(String(s.no), { ...s });
+        const no = normalizeStudentNo(s?.no);
+        if (!no) continue;
+        const prev = baseMap.get(no) || { no };
+        baseMap.set(no, mergeStudentByNo(prev, { ...s, no }));
       }
-      for (const [no, ov] of Object.entries(state.data.studentOverrides || {})) {
-        const prev = baseMap.get(String(no)) || { no: String(no) };
-        baseMap.set(String(no), {
-          ...prev,
-          ...ov,
-          no: String(no),
+      for (const [noKey, ov] of Object.entries(state.data.studentOverrides || {})) {
+        const no = normalizeStudentNo(ov?.no || noKey);
+        if (!no) continue;
+        const prev = baseMap.get(no) || { no };
+        baseMap.set(no, {
+          ...mergeStudentByNo(prev, { ...ov, no }),
           _isOverride: true
         });
       }
@@ -1288,7 +1353,7 @@
 
       const out = [];
       for (const row of rows) {
-        const no = String(row[idxNo] ?? "").trim();
+        const no = normalizeStudentNo(row[idxNo] ?? "");
         const adsoyad = String(row[idxAd] ?? "").trim();
         const sinif = String(row[idxSinif] ?? "").trim();
         const grup = String(row[idxGrup] ?? "").trim();
@@ -1309,6 +1374,7 @@
 
         state.data.teachers = mapTeacherRows(ogretmenTab.headers, ogretmenTab.rows);
         state.data.students = mapStudentRows(ogrenciTab.headers, ogrenciTab.rows);
+        validateStudentNoKeying();
 
         setChip(els.sheetStatusChip, "Sheet: bağlı ✓", true);
         refreshGlobalStatsUI();
@@ -1426,6 +1492,25 @@
         <div style="margin-top:6px;"><b>Firebase kök yolu:</b> <span class="mono">${ROOT_PATH}</span></div>
         <div style="margin-top:6px;"><b>Öğrenci override / foto:</b> <span class="mono">${ROOT_PATH}/studentOverrides</span></div>
       `;
+    }
+
+    function validateStudentNoKeying(){
+      const list = mergedStudents();
+      const missingNo = list.filter(s => !normalizeStudentNo(s?.no)).length;
+      const duplicateSheetNos = (() => {
+        const counts = new Map();
+        for (const s of state.data.students || []) {
+          const no = normalizeStudentNo(s?.no);
+          if (!no) continue;
+          counts.set(no, (counts.get(no) || 0) + 1);
+        }
+        return [...counts.entries()].filter(([,c]) => c > 1).map(([no,c]) => ({ no, c }));
+      })();
+      if (missingNo) console.warn("Öğrenci no eksik kayıt sayısı:", missingNo);
+      if (duplicateSheetNos.length) {
+        console.info("Aynı öğrenci no birden fazla satırda bulundu (sınıf/grup değişimi olabilir). Sistem no bazlı birleştirir:", duplicateSheetNos.slice(0,20));
+      }
+      return { missingNo, duplicateSheetNosCount: duplicateSheetNos.length };
     }
 
     function renderTeacherSelectors(){
@@ -1715,8 +1800,10 @@
 
       const studentsPayload = {};
       for (const s of state.teacherDraft.loadedStudents) {
-        studentsPayload[s.no] = {
-          no: String(s.no),
+        const studentNoKey = normalizeStudentNo(s.no);
+        if (!studentNoKey) continue;
+        studentsPayload[studentNoKey] = {
+          no: studentNoKey,
           adsoyad: s.adsoyad || "",
           sinif: s.sinif || "",
           grup: s.grup || "",
@@ -1746,7 +1833,8 @@
         clientSavedAt: new Date().toISOString(),
         serverSavedAt: serverTimestamp(),
         finalized: true,
-        version: 1
+        studentKeyStrategy: "no",
+        version: 2
       };
 
       const ok = await confirmDialog(
@@ -1810,7 +1898,7 @@
       const timeline = [];
       for (const [date, sessions] of Object.entries(sessionsByDate || {})) {
         for (const [sid, session] of Object.entries(sessions || {})) {
-          const stInfo = session?.students?.[no];
+          const stInfo = getSessionStudentRecordByNo(session, no, s?.adsoyad || "");
           if (!stInfo) continue;
           timeline.push({
             date, sessionId: sid,
@@ -1843,6 +1931,7 @@
               <h4>${htmlEscape(s.adsoyad || "-")}</h4>
               <p><b>No:</b> ${htmlEscape(s.no || "-")} • <b>Sınıf:</b> ${htmlEscape(s.sinif || "-")} • <b>Grup:</b> ${htmlEscape(s.grup || "-")}</p>
               <p><b>Cinsiyet:</b> ${htmlEscape(s.cinsiyet || "-")}</p>
+              ${((s._sinifHistory||[]).length>1 || (s._grupHistory||[]).length>1) ? `<p class="tiny"><b>Geçmiş sınıf/grup:</b> ${htmlEscape((s._sinifHistory||[]).join(", ") || "-")} • ${(s._grupHistory||[]).length ? `<b>Gruplar:</b> ${htmlEscape((s._grupHistory||[]).join(", "))}` : ""}</p>` : ""}
               <div class="summary-row" style="margin-top:8px;">
                 <span class="badge neutral">Toplam Birebir: ${timeline.length}</span>
                 <span class="badge success">Geldi: ${counts.GELDI}</span>
