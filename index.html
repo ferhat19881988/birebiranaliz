@@ -351,12 +351,8 @@
   .today-student-chip .student-mini-avatar { margin:0 auto 6px; width:38px; height:38px; border-radius:10px; cursor:default; }
   .today-student-chip .n { font-weight:700; color:var(--text); word-break:break-word; }
   .today-student-chip .no { color:var(--text-muted); font-size:.68rem; margin-top:2px; }
-  .today-student-chip.clickable { cursor:pointer; transition: var(--trans); }
-  .today-student-chip.clickable:hover { border-color: var(--primary); box-shadow: var(--shadow-sm); transform: translateY(-1px); }
-  .today-student-chip.has-note { background: linear-gradient(180deg,#ffffff,#f8faff); border-color:#c7d2fe; }
-  .today-student-note-panel { margin-top:12px; border:1px solid var(--panel-border); background:#fff; border-radius:14px; padding:12px; }
-  .today-student-note-panel .head { display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:8px; }
-  .today-student-note-panel .note-box { border:1px solid var(--panel-border); background:var(--bg); border-radius:12px; padding:10px 12px; white-space:pre-wrap; line-height:1.5; }
+.today-student-chip.has-note { cursor:pointer; border-color:#c7d2fe; box-shadow:0 0 0 1px rgba(79,70,229,.06) inset; }
+  .today-student-chip.has-note:hover { border-color: var(--primary); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
   @media (max-width: 900px){ .today-session-grid{ grid-template-columns:1fr; } }
 
 </style>
@@ -1961,6 +1957,8 @@
   .today-student-chip .student-mini-avatar { margin:0 auto 6px; width:38px; height:38px; border-radius:10px; cursor:default; }
   .today-student-chip .n { font-weight:700; color:var(--text); word-break:break-word; }
   .today-student-chip .no { color:var(--text-muted); font-size:.68rem; margin-top:2px; }
+.today-student-chip.has-note { cursor:pointer; border-color:#c7d2fe; box-shadow:0 0 0 1px rgba(79,70,229,.06) inset; }
+  .today-student-chip.has-note:hover { border-color: var(--primary); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
   @media (max-width: 900px){ .today-session-grid{ grid-template-columns:1fr; } }
 
 </style></head><body>
@@ -2362,28 +2360,20 @@
           GELMEDI: students.filter(x => x?.status === "GELMEDI")
         };
 
-        const renderStudentGrid = (arr, emptyText, sessionMeta) => {
+        const renderStudentGrid = (arr, emptyText, session) => {
           if (!arr.length) return `<div class="tiny muted">${htmlEscape(emptyText)}</div>`;
           return `<div class="today-student-grid">` + arr.map(st => {
             const full = mergedMap.get(String(st.no)) || st || {};
-            const note = String(st?.teacherNote || "").trim();
-            const statusText = st?.status === "GELDI" ? "Geldi" : (st?.status === "GEC" ? "Geç Geldi" : (st?.status === "GELMEDI" ? "Gelmedi" : "Belirsiz"));
+            const rawNote = String(st?.teacherNote || "").trim();
+            const hasNote = !!rawNote;
             return `
-              <button type="button" class="today-student-chip clickable ${note ? 'has-note' : ''}"
-                data-today-student-note-open="1"
-                data-student-no="${htmlEscape(st.no || "")}"
-                data-student-name="${htmlEscape(full.adsoyad || st.adsoyad || "-")}"
-                data-student-status="${htmlEscape(statusText)}"
-                data-student-group="${htmlEscape(sessionMeta?.group || "-")}"
-                data-student-slot="${htmlEscape(sessionMeta?.slotLabel || sessionMeta?.slotId || "-")}"
-                data-student-topic="${htmlEscape(sessionMeta?.topic || "-")}"
-                data-student-note="${htmlEscape(note)}"
-                title="${htmlEscape((full.adsoyad || st.adsoyad || "") + (note ? ' • Not var' : ' • Not yok'))}">
+              <div class="today-student-chip ${hasNote ? 'has-note' : ''}" 
+                   title="${htmlEscape((full.adsoyad || st.adsoyad || "") + (hasNote ? ' • Özel not var' : ''))}"
+                   ${hasNote ? `data-note-open="1" data-note="${htmlEscape(rawNote)}" data-student-name="${htmlEscape(full.adsoyad || st.adsoyad || '-') }" data-student-no="${htmlEscape(st.no || '-') }" data-student-status="${htmlEscape(st.status || '-') }" data-session-group="${htmlEscape(session?.group || '-') }" data-session-slot="${htmlEscape(session?.slotLabel || session?.slotId || '-') }" data-session-topic="${htmlEscape(session?.topic || '-') }"` : ''}>
                 ${renderStudentAvatarHtml(full, "student-mini-avatar")}
-                <div class="n">${htmlEscape(full.adsoyad || st.adsoyad || "-")}</div>
+                <div class="n">${htmlEscape(full.adsoyad || st.adsoyad || "-")}${hasNote ? ' 📝' : ''}</div>
                 <div class="no">No: ${htmlEscape(st.no || "-")}</div>
-                ${note ? `<div class="no">📝 Özel not var</div>` : ``}
-              </button>
+              </div>
             `;
           }).join("") + `</div>`;
         };
@@ -2443,7 +2433,6 @@
                 <span class="badge late">Geç: ${teacher.counts.gec}</span>
               </div>
             </div>
-            <div id="todayStudentNotePanel" class="today-student-note-panel" style="display:none;"></div>
           </div>
 
           ${teacher.sessions.length ? sessionCards : `<div class="empty">Bu öğretmen için ders detayı bulunamadı.</div>`}
@@ -2455,41 +2444,57 @@
         footerHtml: `<button id="btnBackTodayTeacherList" class="btn">← Önceki Listeye Dön</button>`,
         onRender: () => {
           $("#btnBackTodayTeacherList", els.modalFooter)?.addEventListener("click", () => openTodayTeachersModal(data.date));
-
-          const notePanel = $("#todayStudentNotePanel", els.modalBody);
           els.modalBody?.addEventListener("click", (e) => {
-            const chip = e.target.closest("[data-today-student-note-open]");
-            if (!chip || !notePanel) return;
-            const studentName = chip.dataset.studentName || "-";
-            const studentNo = chip.dataset.studentNo || "-";
-            const studentStatus = chip.dataset.studentStatus || "-";
-            const slot = chip.dataset.studentSlot || "-";
-            const group = chip.dataset.studentGroup || "-";
-            const topic = chip.dataset.studentTopic || "-";
-            const note = (chip.dataset.studentNote || "").trim();
-
-            notePanel.style.display = "block";
-            notePanel.innerHTML = `
-              <div class="head">
-                <div>
-                  <div style="font-weight:800;">📝 Öğrenci Özel Not Detayı</div>
-                  <div class="muted tiny">${htmlEscape(studentName)} • No: ${htmlEscape(studentNo)} • ${htmlEscape(studentStatus)}</div>
-                </div>
-                <button type="button" id="btnHideTodayStudentNotePanel" class="btn small">Kapat</button>
-              </div>
-              <div class="summary-row" style="margin-bottom:8px;">
-                <span class="badge neutral">Grup: ${htmlEscape(group)}</span>
-                <span class="badge neutral">Ders: ${htmlEscape(slot)}</span>
-              </div>
-              <div class="helper" style="margin-bottom:8px;"><b>Konu:</b> ${htmlEscape(topic || "-")}</div>
-              <div class="note-box">${note ? htmlEscape(note) : '<span class="muted">Bu öğrenci için özel not girilmemiş.</span>'}</div>
-            `;
-            notePanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
-            $("#btnHideTodayStudentNotePanel", notePanel)?.addEventListener("click", () => {
-              notePanel.style.display = "none";
-              notePanel.innerHTML = "";
+            const chip = e.target.closest("[data-note-open='1']");
+            if (!chip) return;
+            openTodayStudentNoteModal({
+              teacherKey,
+              date: data.date,
+              studentName: chip.dataset.studentName || '-',
+              studentNo: chip.dataset.studentNo || '-',
+              status: chip.dataset.studentStatus || '-',
+              group: chip.dataset.sessionGroup || '-',
+              slot: chip.dataset.sessionSlot || '-',
+              topic: chip.dataset.sessionTopic || '-',
+              note: chip.dataset.note || ''
             });
           });
+        }
+      });
+    }
+
+    function openTodayStudentNoteModal({ teacherKey, date, studentName, studentNo, status, group, slot, topic, note } = {}){
+      const statusMap = { GELDI: 'Geldi', GEC: 'Geç Geldi', GELMEDI: 'Gelmedi' };
+      const niceStatus = statusMap[String(status || '').toUpperCase()] || (status || '-');
+      const cleanNote = String(note || '').trim();
+      if (!cleanNote) return; // sadece notu olana modal açılır
+
+      const html = `
+        <div class="grid">
+          <div class="card">
+            <h3 style="margin-bottom:10px;">📝 Öğrenci Özel Notu</h3>
+            <div class="summary-row" style="margin-bottom:12px;">
+              <span class="badge neutral">Öğrenci: ${htmlEscape(studentName || '-')}</span>
+              <span class="badge neutral">No: ${htmlEscape(studentNo || '-')}</span>
+              <span class="badge neutral">Durum: ${htmlEscape(niceStatus)}</span>
+              <span class="badge neutral">Grup: ${htmlEscape(group || '-')}</span>
+              <span class="badge neutral">Saat: ${htmlEscape(slot || '-')}</span>
+            </div>
+            <div class="helper" style="margin-bottom:12px;">
+              <b>İşlenen Konu:</b> ${htmlEscape(topic || '-')}
+            </div>
+            <div class="today-session-card" style="background:var(--bg);">
+              <div class="muted tiny" style="margin-bottom:8px;">Öğretmenin yazdığı özel not</div>
+              <div style="white-space:pre-wrap; line-height:1.6; font-weight:600;">${htmlEscape(cleanNote)}</div>
+            </div>
+          </div>
+        </div>
+      `;
+      openModal(`Özel Not • ${studentName || 'Öğrenci'}`, html, {
+        modalClass: "modal-wide",
+        footerHtml: `<button id="btnBackToTodayTeacherDetail" class="btn">← Geri</button>`,
+        onRender: () => {
+          $("#btnBackToTodayTeacherDetail", els.modalFooter)?.addEventListener("click", () => openTodayTeacherDetailModal(teacherKey, date));
         }
       });
     }
