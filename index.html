@@ -1599,7 +1599,16 @@
         <option value="">Grup seçin</option>
         ${groups.map(g => `<option value="${htmlEscape(g)}">${htmlEscape(g)}</option>`).join("")}
       `;
-      if (groups.includes(prevGroup)) els.groupSelect.value = prevGroup;
+      if (groups.includes(prevGroup)) {
+        els.groupSelect.value = prevGroup;
+      } else {
+        // Seçim yoksa placeholder'ı aktif tut ve açılır listenin en üstten başlamasını zorla
+        els.groupSelect.value = "";
+        if (typeof els.groupSelect.selectedIndex === "number") els.groupSelect.selectedIndex = 0;
+        requestAnimationFrame(() => {
+          try { els.groupSelect.scrollTop = 0; } catch(_){}
+        });
+      }
     }
 
     /**********************
@@ -3484,6 +3493,21 @@ function bindEvents(){
       els.groupSelect.addEventListener("change", () => {
         if (state.teacherDraft.locked) return;
         state.teacherDraft.group = els.groupSelect.value;
+      });
+      const resetGroupDropdownScrollTop = () => {
+        if (!els.groupSelect) return;
+        // Placeholder seçiliyken tarayıcı bazen önceki scroll konumunu koruyor.
+        if (!String(els.groupSelect.value || "").trim()) {
+          requestAnimationFrame(() => {
+            try { els.groupSelect.scrollTop = 0; } catch(_){}
+          });
+        }
+      };
+      els.groupSelect.addEventListener("focus", resetGroupDropdownScrollTop);
+      els.groupSelect.addEventListener("mousedown", resetGroupDropdownScrollTop);
+      els.groupSelect.addEventListener("click", resetGroupDropdownScrollTop);
+      els.groupSelect.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") resetGroupDropdownScrollTop();
       });
       els.lessonTopicInput.addEventListener("input", () => {
         if (state.teacherDraft.locked) return;
