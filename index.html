@@ -551,7 +551,7 @@
               <div class="s">Öğrenci bilgisi ve fotoğrafını güncelle, kaydet.</div>
             </button>
 
-            <button id="btnOpenDataManager" class="big-button" type="button" style="grid-column:1/-1">
+            <button id="btnOpenDataManager" class="big-button" type="button">
               <div class="t">6) Kayıtlı Veri Yönetimi</div>
               <div class="s">Kayıt silme işlemlerini buradan yap. Dikkatli kullan.</div>
             </button>
@@ -1465,6 +1465,16 @@
       updateTeacherDraftSummary();
     }
 
+    async function showFinalizeWarningDialog(title, message, icon = "⚠️"){
+      await confirmDialog(message, {
+        title,
+        okText: "Tamam",
+        cancelText: "Kapat",
+        tone: "warning",
+        icon
+      });
+    }
+
     async function finalizeTeacherLesson(){
       const teacher = state.auth.teacher;
       if (!teacher) return showToast("Öğretmen oturumu yok.");
@@ -1483,12 +1493,42 @@
       if (!date) return showToast("Tarih seçin.");
       if (!slotId) return showToast("Ders saati seçin.");
       if (!group) return showToast("Grup seçin.");
-      if (!state.teacherDraft.loadedStudents.length) return showToast("Önce 'Grubu Yükle' butonuna basın.");
-      if (!topic) return showToast("İşlenen konu alanını doldurun.");
+      if (!state.teacherDraft.loadedStudents.length) {
+        await showFinalizeWarningDialog(
+          "Önce Yoklama Hazırlığı",
+          "Kaydı tamamlamadan önce Grubu Yükle ile öğrenci listesini açın ve yoklama alın.",
+          "👥"
+        );
+        return;
+      }
 
       const sum = summarizeTeacherDraft();
-      if (sum.total === 0) return showToast("Öğrenci listesi boş.");
-      if (sum.unknown > 0) return showToast("Tüm öğrenciler için yoklama durumu seçilmeli.");
+      if (sum.total === 0) {
+        await showFinalizeWarningDialog(
+          "Öğrenci Listesi Boş",
+          "Seçilen grupta öğrenci görünmüyor. Önce grubu tekrar yükleyip kontrol edin.",
+          "📋"
+        );
+        return;
+      }
+      if (sum.unknown > 0) {
+        await showFinalizeWarningDialog(
+          "Yoklama Eksik",
+          `Önce yoklama tamamlanmalı.\n\nBelirsiz öğrenci sayısı: ${sum.unknown}\nTüm öğrenciler için Geldi / Gelmedi / Geç Geldi seçimi yapın.`,
+          "📝"
+        );
+        return;
+      }
+
+      if (!topic) {
+        await showFinalizeWarningDialog(
+          "Konu Bilgisi Eksik",
+          "Yoklama tamamlandı. Şimdi İşlenen Konu / İçerik alanını doldurup tekrar Kaydı Tamamla butonuna basın.",
+          "📚"
+        );
+        els.lessonTopicInput?.focus();
+        return;
+      }
 
       const slot = getSlotById(slotId);
       const sessionKey = safeKey(`${teacher.id}_${date}_${slotId}_${group}`);
@@ -2762,10 +2802,10 @@
               <label>Şifre</label>
               <div class="toolbar" style="gap:10px; align-items:center;">
                 <div class="toolbar-left" style="flex:1; min-width:0;">
-                  <input class="input mono" value="S68TY6" readonly />
+                  <input class="input mono" value="123456" readonly />
                 </div>
                 <div class="toolbar-right" style="flex:0 0 auto;">
-                  <button class="btn small" type="button" data-copy-text="S68TY6">Şifre Kopyala</button>
+                  <button class="btn small" type="button" data-copy-text="123456">Şifre Kopyala</button>
                 </div>
               </div>
             </div>
