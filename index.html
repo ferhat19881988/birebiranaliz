@@ -1209,12 +1209,43 @@
       return slots.filter(s => s && s.active !== false);
     }
 
+    function normalizeGroupLabel(value=""){
+      return String(value ?? "")
+        .replace(/[​-‍﻿ ]/g, " ")
+        .replace(/[–—]/g, "-")
+        .replace(/\s*-\s*/g, "-")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
     function getAllGroups(){
-      const set = new Set();
-      for (const s of mergedStudents()) {
-        if (s.grup) set.add(String(s.grup).trim());
+      // Öğretmen panelindeki grup listesi mümkün olduğunca eksiksiz olmalı.
+      // Sadece mergedStudents() içindeki "aktif" grup değerlerine bakmak bazı durumlarda
+      // (öğrenci no birleşmesi / override / grup adında görünmez karakter farkları) grup kaçırabiliyor.
+      const groupsByNorm = new Map(); // normKey -> displayLabel
+
+      const addGroup = (raw) => {
+        const g = normalizeGroupLabel(raw);
+        if (!g) return;
+        const key = normalizeText(g);
+        if (!key) return;
+        if (!groupsByNorm.has(key)) groupsByNorm.set(key, g);
+      };
+
+      // 1) Birleşmiş aktif öğrenciler (ana kaynak)
+      for (const st of mergedStudents()) {
+        addGroup(st?.grup);
+        // No bazlı birleşme sonrası eski grup geçmişleri de korunuyorsa seçeneklerde göster.
+        for (const hg of (st?._grupHistory || [])) addGroup(hg);
       }
-      return sortGroupsByClassThenGroup([...set]);
+
+      // 2) Ham sheet verisi (bazı edge-case birleşme sorunlarında kaçan grupları yakalar)
+      for (const st of (state.data.students || [])) addGroup(st?.grup);
+
+      // 3) Firebase override kayıtları
+      for (const ov of Object.values(state.data.studentOverrides || {})) addGroup(ov?.grup);
+
+      return sortGroupsByClassThenGroup([...groupsByNorm.values()]);
     }
 
     function mergedStudents(){
