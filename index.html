@@ -1398,7 +1398,7 @@
 
       // Başlıklar generic/A-B-C gibi geldiyse ilk dolu satırı başlık kabul et.
       const normalizedHeaders = headers.map(normalizeText);
-      const headerLooksGeneric = normalizedHeaders.length > 0 && normalizedHeaders.every(h => /^[a-z]+$/.test(h));
+      const headerLooksGeneric = normalizedHeaders.length > 0 && normalizedHeaders.every(h => /^[a-z]{1,2}$/.test(h));
       const hasKnownHeaderInCols = normalizedHeaders.some(h =>
         ["id","ogretmenadi","adsoyad","ogrenci","no","numara","grup","grubu","sinif"].includes(h)
       );
@@ -1423,7 +1423,7 @@
       const spreadsheetId = extractSpreadsheetId(GOOGLE_SHEET_URL);
       if (!spreadsheetId) throw new Error("Google Sheet ID çözümlenemedi.");
 
-      const gvizUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(tabName)}`;
+      const gvizUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:json&headers=1&sheet=${encodeURIComponent(tabName)}`;
       const csvUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/export?format=csv&sheet=${encodeURIComponent(tabName)}`;
 
       const attempts = [];
@@ -1470,14 +1470,25 @@
         console.warn(`[${tabName}] GViz okuma hatası:`, e);
       }
 
-      // Kullanılabilir payload seçimi: geçerli başlık + en fazla satır
+      // Kullanılabilir payload seçimi:
+      // index(1).html akışına uyum için önce GViz (headers=1) tercih edilir.
+      // CSV yalnızca GViz başarısızsa/fazla bozuksa fallback olarak kullanılır.
       const valid = attempts.filter(x => (x.headers || []).length || (x.rows || []).length);
       if (!valid.length) throw new Error(`${tabName} sekmesi okunamadı.`);
-      valid.sort((a,b) => (b.rows?.length || 0) - (a.rows?.length || 0));
-      const best = valid[0];
+
+      const gvizCandidate = valid.find(v => v.source === "gviz" && (v.headers || []).length && (v.rows || []).length);
+      const csvCandidate = valid.find(v => v.source === "csv" && (v.headers || []).length && (v.rows || []).length);
+      let best = gvizCandidate || csvCandidate || valid[0];
+
+      // Eğer seçilen kaynakta başlıklar generic (A/B/C...) ise ve diğer kaynak daha iyi başlık veriyorsa onu al.
+      const isGenericHeaderSet = (arr=[]) => arr.length > 0 && arr.every(h => /^[a-z]{1,2}$/i.test(String(h || "").trim()));
+      if (isGenericHeaderSet(best.headers || [])) {
+        const better = valid.find(v => !isGenericHeaderSet(v.headers || []) && (v.headers || []).length);
+        if (better) best = better;
+      }
 
       if (valid.length > 1) {
-        console.info(`[${tabName}] kaynak karşılaştırma`, valid.map(v => ({source:v.source, rows:(v.rows||[]).length, headers:(v.headers||[]).length})));
+        console.info(`[${tabName}] kaynak karşılaştırma`, valid.map(v => ({source:v.source, rows:(v.rows||[]).length, headers:(v.headers||[]).length})), '=> seçilen:', best.source);
       }
       console.log(`[${tabName}] (${best.source}) Başlıklar:`, best.headers, "Satır:", (best.rows||[]).length);
       return { headers: best.headers || [], rows: best.rows || [] };
