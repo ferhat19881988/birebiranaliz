@@ -148,6 +148,49 @@
   .modal-body::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
   .modal-foot { padding: 16px 24px; border-top: 1px solid var(--panel-border); display: flex; justify-content: flex-end; gap: 12px; background: var(--bg); }
 
+
+  /* ===== Serbest Grup Modal (Mobil optimize) ===== */
+  .fg-modal { display:flex; flex-direction:column; gap:14px; }
+  .fg-title { margin:0; font-size:1.15rem; font-weight:800; color:var(--text); }
+  .fg-sub { margin:0 0 10px; }
+  .fg-time-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap:12px; }
+  .fg-ref { border:1px solid var(--panel-border); border-radius:14px; padding:10px 12px; background: var(--bg); }
+  .fg-ref > summary { cursor:pointer; font-weight:700; color:var(--text); list-style:none; }
+  .fg-ref > summary::-webkit-details-marker { display:none; }
+  .fg-ref[open] > summary { margin-bottom:8px; }
+  .fg-search { margin:0; gap:10px; }
+  .fg-search .input { flex:1; min-width: 0; }
+  .fg-count { white-space:nowrap; }
+  .fg-list { max-height: 55dvh; overflow:auto; padding-right:6px; }
+  .fg-list .search-item { padding:14px; gap:10px; }
+  .fg-list .search-item .name { font-size: 1rem; }
+  .fg-list .search-item .sub { font-size: .82rem; }
+
+  .modal.modal-free-group { width: min(980px, 100%); }
+
+  @media (max-width: 560px){
+    .modal-overlay { padding: 0; align-items: stretch; }
+    .modal.modal-free-group { width: 100%; height: 100dvh; max-height: 100dvh; border-radius: 0; }
+    .modal.modal-free-group .modal-head { position: sticky; top: 0; z-index: 2; padding: 14px 14px; }
+    .modal.modal-free-group .modal-body { padding: 14px; }
+    .modal.modal-free-group .modal-foot {
+      position: sticky; bottom: 0; z-index: 2;
+      padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
+      flex-direction: column-reverse;
+      background: linear-gradient(180deg, rgba(248,250,252,0.6), var(--bg));
+      backdrop-filter: blur(10px);
+    }
+    .modal.modal-free-group .modal-foot .btn { width: 100%; }
+    .fg-time-grid { grid-template-columns: 1fr; }
+    .fg-ref { padding: 10px 10px; }
+    .fg-search { flex-direction: column; align-items: stretch; }
+    .fg-count { width: 100%; text-align: center; }
+    .fg-list { max-height: calc(100dvh - 330px); } /* yaklaşık: head+inputs+footer */
+    .fg-list .search-item { padding: 12px; }
+    .fg-list .fg-check { width: 26px !important; height: 26px !important; }
+  }
+
+
   .table-wrap { width: 100%; overflow-x: auto; border-radius: var(--radius-md); border: 1px solid var(--panel-border); background: var(--panel); }
   table { width: 100%; border-collapse: collapse; min-width: 760px; }
   th, td { padding: 16px 20px; border-bottom: 1px solid var(--panel-border); text-align: left; font-size: 0.95rem; }
@@ -1711,7 +1754,17 @@
         <option value="">Ders saati seçin</option>
         ${slots.map(s => `<option value="${htmlEscape(s.id)}">${htmlEscape(s.id)} • ${htmlEscape(makeSlotLabel(s))}</option>`).join("")}
       `;
-      if (slots.some(s => s.id===prevSlot)) els.lessonSlotSelect.value = prevSlot;
+      if (slots.some(s => s.id===prevSlot)) {
+        els.lessonSlotSelect.value = prevSlot;
+      } else if (String(prevSlot||"").startsWith("FG_")) {
+        const meta = state.teacherDraft.freeGroupMeta || {};
+        const label = meta?.start && meta?.end ? `${meta.start} - ${meta.end}` : prevSlot;
+        const opt = document.createElement("option");
+        opt.value = prevSlot;
+        opt.textContent = `Serbest • ${label}`;
+        els.lessonSlotSelect.appendChild(opt);
+        els.lessonSlotSelect.value = prevSlot;
+      }
 
       // Groups
       const groups = getAllGroups();
@@ -1818,14 +1871,14 @@ function openFreeGroupModal(){
   const selected = new Set();
 
   const modalHtml = `
-    <div class="grid">
-      <div class="card" style="padding:18px;">
-        <h3 style="margin:0 0 8px;">Serbest Grup • Öğrenci Seçimi</h3>
-        <p class="muted tiny" style="margin:0 0 14px;">
-          Tarih ve saat aralığını <b>aktif ders saatlerinden biriyle aynı</b> olacak şekilde girin. Sonra öğrencileri arayıp çoklu seçin.
+    <div class="fg-modal">
+      <div class="fg-sticky-top">
+        <h3 class="fg-title">Serbest Grup • Öğrenci Seçimi</h3>
+        <p class="muted tiny fg-sub">
+          Tarih ve saat aralığını girin. Sonra öğrencileri arayıp çoklu seçin.
         </p>
 
-        <div class="form-grid" style="grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px;">
+        <div class="form-grid fg-time-grid">
           <div class="field">
             <label for="fgDate">Tarih</label>
             <input id="fgDate" class="input" type="date" value="${htmlEscape(defaultDate)}" />
@@ -1840,19 +1893,20 @@ function openFreeGroupModal(){
           </div>
         </div>
 
-        <div class="divider" style="margin:14px 0;"></div>
+        <details class="fg-ref">
+          <summary>Aktif ders saatleri (referans)</summary>
+          <div class="helper" style="margin-top:10px;">
+            ${activeSlots.map(s => `${htmlEscape(s.start)}-${htmlEscape(s.end)} (${htmlEscape(s.id)})`).join(" • ") || "-"}
+          </div>
+        </details>
 
-        <div class="helper" style="margin-bottom:12px;">
-          <b>Aktif saatler:</b> ${activeSlots.map(s => `${htmlEscape(s.start)}-${htmlEscape(s.end)} (${htmlEscape(s.id)})`).join(" • ") || "-"}
+        <div class="search-box fg-search">
+          <input id="fgSearch" class="input" placeholder="Öğrenci ara (No / İsim)" inputmode="search" autocomplete="off" />
+          <span id="fgSelectedCount" class="badge neutral fg-count">Seçili: 0</span>
         </div>
-
-        <div class="search-box" style="margin-bottom:12px;">
-          <input id="fgSearch" class="input" placeholder="Öğrenci ara (No / İsim)" style="flex:1; min-width:220px;" />
-          <span id="fgSelectedCount" class="badge neutral" style="white-space:nowrap;">Seçili: 0</span>
-        </div>
-
-        <div id="fgList" class="search-results" style="max-height:44dvh;"></div>
       </div>
+
+      <div id="fgList" class="search-results fg-list"></div>
     </div>
   `;
 
@@ -1871,21 +1925,12 @@ function openFreeGroupModal(){
       return no.includes(n) || name.includes(n);
     });
   };
-
-  const findMatchingSlot = (start, end) => {
-    const st = String(start || "").trim();
-    const en = String(end || "").trim();
-    if (!st || !en) return null;
-    return activeSlots.find(s => String(s.start||"").trim()===st && String(s.end||"").trim()===en) || null;
-  };
-
   const refreshAddState = () => {
     const dateVal = $("#fgDate", els.modalBody)?.value || "";
     const startVal = $("#fgStart", els.modalBody)?.value || "";
     const endVal = $("#fgEnd", els.modalBody)?.value || "";
     const hasStudents = selected.size > 0;
-    const slot = findMatchingSlot(startVal, endVal);
-    const ok = Boolean(dateVal && startVal && endVal && hasStudents && slot);
+    const ok = Boolean(dateVal && startVal && endVal && hasStudents);
     const btn = $("#fgAdd", els.modalFooter);
     if (btn) btn.disabled = !ok;
   };
@@ -1916,7 +1961,7 @@ function openFreeGroupModal(){
               <div class="sub">No: ${no} • Sınıf: ${htmlEscape(cls)}</div>
             </div>
           </div>
-          <input type="checkbox" class="fg-check" data-no="${no}" ${checked} style="width:22px;height:22px;" />
+          <input type="checkbox" class="fg-check" data-no="${no}" ${checked} />
         </label>
       `;
     }).join("");
@@ -1926,7 +1971,7 @@ function openFreeGroupModal(){
   };
 
   openModal("Serbest Grup", modalHtml, {
-    modalClass: "modal-wide",
+    modalClass: "modal-wide modal-free-group",
     footerHtml,
     onRender: () => {
       // mobilde 3 kolon dar gelirse tek kolona düşür
@@ -1935,7 +1980,19 @@ function openFreeGroupModal(){
         if (fgGrid) fgGrid.style.gridTemplateColumns = "1fr";
       }
 
-      const searchEl = $("#fgSearch", els.modalBody);
+      
+      const ensureManualSlotOption = (id, label) => {
+        if (!id) return;
+        const sel = els.lessonSlotSelect;
+        if (!sel) return;
+        if ([...sel.options].some(o => o.value === id)) return;
+        const opt = document.createElement("option");
+        opt.value = id;
+        opt.textContent = `Serbest • ${label}`;
+        sel.appendChild(opt);
+      };
+
+const searchEl = $("#fgSearch", els.modalBody);
       const listWrap = $("#fgList", els.modalBody);
 
       const updateCount = () => {
@@ -1972,16 +2029,16 @@ function openFreeGroupModal(){
         if (!dateVal) return showToast("Tarih boş olamaz.");
         if (!startVal || !endVal) return showToast("Başlangıç ve bitiş saati zorunludur.");
         if (!selected.size) return showToast("En az 1 öğrenci seçin.");
-
-        const slot = findMatchingSlot(startVal, endVal);
-        if (!slot) return showToast("Girilen saat aralığı, aktif ders saatleriyle aynı olmalı.");
+        // Serbest grup: saat aralığı aktif ders saatleriyle aynı olmak zorunda değildir.
+        const manualSlotId = `FG_${startVal.replace(":", "")}_${endVal.replace(":", "")}`;
+        const manualSlotLabel = `${startVal} - ${endVal}`;
 
         // Apply to teacher draft
         const picked = all.filter(s => selected.has(String(s.no))).map(s => ({ ...s }));
         picked.sort((a,b)=>String(a.no||"").localeCompare(String(b.no||""),"tr",{numeric:true,sensitivity:"base"}));
 
         state.teacherDraft.date = dateVal;
-        state.teacherDraft.slotId = slot.id;
+        state.teacherDraft.slotId = manualSlotId;
         state.teacherDraft.group = FREE_GROUP_LABEL;
         state.teacherDraft.loadedStudents = picked;
         state.teacherDraft.statuses = {};
@@ -1990,7 +2047,8 @@ function openFreeGroupModal(){
 
         // sync UI
         els.lessonDateInput.value = dateVal;
-        els.lessonSlotSelect.value = slot.id;
+        ensureManualSlotOption(manualSlotId, manualSlotLabel);
+        els.lessonSlotSelect.value = manualSlotId;
         // groupSelect içinde Serbest Grup opsiyonu renderTeacherSelectors ile garanti
         renderTeacherSelectors();
         els.groupSelect.value = FREE_GROUP_LABEL;
@@ -2227,7 +2285,9 @@ function openFreeGroupModal(){
         sessionId: sessionKey,
         date,
         slotId,
-        slotLabel: slot ? makeSlotLabel(slot) : slotId,
+        slotLabel: (group===FREE_GROUP_LABEL && state.teacherDraft.freeGroupMeta?.enabled)
+          ? `${state.teacherDraft.freeGroupMeta.start} - ${state.teacherDraft.freeGroupMeta.end}`
+          : (slot ? makeSlotLabel(slot) : slotId),
         teacherId: String(teacher.id),
         teacherName: teacher.name || "",
         brans: teacher.brans || "",
@@ -2249,7 +2309,7 @@ function openFreeGroupModal(){
 
       const ok = await confirmDialog(
         `Ders kaydı tamamlanacak ve geri alınamayacak.\n\n` +
-        `Tarih: ${date}\nSaat: ${slot ? makeSlotLabel(slot) : slotId}\nGrup: ${group}\n` +
+        `Tarih: ${date}\nSaat: ${(group===FREE_GROUP_LABEL && state.teacherDraft.freeGroupMeta?.enabled) ? `${state.teacherDraft.freeGroupMeta.start} - ${state.teacherDraft.freeGroupMeta.end}` : (slot ? makeSlotLabel(slot) : slotId)}\nGrup: ${group}\n` +
         `Konu: ${topic}\n\nDevam edilsin mi?`
       );
       if (!ok) return;
@@ -2990,7 +3050,7 @@ function openFreeGroupModal(){
         </div>
       `;
       openModal(`Özel Not • ${studentName || 'Öğrenci'}`, html, {
-        modalClass: "modal-wide",
+        modalClass: "modal-wide modal-free-group",
         footerHtml: `<button id="btnBackToTodayTeacherDetail" class="btn">← Geri</button>`,
         onRender: () => {
           $("#btnBackToTodayTeacherDetail", els.modalFooter)?.addEventListener("click", () => openTodayTeacherDetailModal(teacherKey, date));
