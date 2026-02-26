@@ -1768,8 +1768,10 @@
 
       // Groups
       const groups = getAllGroups();
-      if (!groups.includes(FREE_GROUP_LABEL)) groups.unshift(FREE_GROUP_LABEL);
       const prevGroup = state.teacherDraft.group;
+      // "Serbest Grup" seçeneğini sadece gerçekten serbest grup aktifken göster.
+      // Böylece kayıt tamamlanıp form temizlenince açılır listede "Serbest Grup" kalmaz.
+      if (prevGroup === FREE_GROUP_LABEL && !groups.includes(FREE_GROUP_LABEL)) groups.unshift(FREE_GROUP_LABEL);
       els.groupSelect.innerHTML = `
         <option value="">Grup seçin</option>
         ${groups.map(g => `<option value="${htmlEscape(g)}">${htmlEscape(g)}</option>`).join("")}
