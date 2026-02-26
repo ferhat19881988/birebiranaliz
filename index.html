@@ -503,6 +503,7 @@
                 <label>&nbsp;</label>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;">
                   <button id="btnLoadGroup" class="btn">Grubu Yükle</button>
+                  <button id="btnFreeGroup" class="btn warning">Serbest Grup</button>
                   <button id="btnTeacherResetDraft" class="btn ghost">Formu Temizle</button>
                 </div>
               </div>
@@ -676,6 +677,10 @@
       { id: "S4", start: "18:20", end: "18:55", active: true } // Not: Kullanıcı metninde 19:55 yazılmış; muhtemelen 18:55. İstersen 19:55 yapabilirsin.
     ];
 
+    // Serbest grup (manuel öğrenci seçimi) etiketi
+    const FREE_GROUP_LABEL = "Serbest Grup";
+
+
     // Öğrenci fotoğraf upload sınırları / optimizasyon
     const STUDENT_PHOTO_UPLOAD_MAX_BYTES = 8 * 1024 * 1024; // 8 MB üstü dosyalar kesinlikle alınmaz
     const STUDENT_PHOTO_EXPORT_TARGET_BYTES = 180 * 1024; // hedef ~180 KB
@@ -742,7 +747,8 @@
         loadedStudents: [],
         statuses: {}, // no -> GELDI|GELMEDI|GEC
         studentNotes: {}, // no -> öğretmene özel/öğrenciye özgü not
-        locked: false
+        locked: false,
+        freeGroupMeta: { enabled:false, start:"", end:"" }
       }
     };
 
@@ -1700,6 +1706,7 @@
 
       // Groups
       const groups = getAllGroups();
+      if (!groups.includes(FREE_GROUP_LABEL)) groups.unshift(FREE_GROUP_LABEL);
       const prevGroup = state.teacherDraft.group;
       els.groupSelect.innerHTML = `
         <option value="">Grup seçin</option>
@@ -1730,7 +1737,8 @@
         loadedStudents: [],
         statuses: {},
         studentNotes: {},
-        locked: false
+        locked: false,
+        freeGroupMeta: { enabled:false, start:\"\", end:\"\" }
       };
       els.lessonDateInput.value = dateVal;
       els.lessonSlotSelect.value = "";
@@ -1774,6 +1782,7 @@
       state.teacherDraft.slotId = slotId;
       const list = getStudentsForGroup(group);
       state.teacherDraft.group = group;
+      state.teacherDraft.freeGroupMeta = { enabled:false, start:"", end:"" };
       state.teacherDraft.loadedStudents = list;
       // Var olan seçimleri grup değişince resetleyelim
       state.teacherDraft.statuses = {};
@@ -1782,6 +1791,214 @@
       updateTeacherDraftSummary();
       showFloatingToast(`${group} grubu yüklendi (${list.length} öğrenci).`, 1700);
     }
+
+function openFreeGroupModal(){
+  if (state.teacherDraft.locked) {
+    showToast("Bu oturum kaydedildi. Yeni ders için formu temizleyin.");
+    return;
+  }
+
+  const activeSlots = getActiveSlots();
+  const defaultDate = (els.lessonDateInput.value || state.teacherDraft.date || todayISO()).trim() || todayISO();
+  const preSlot = getSlotById((els.lessonSlotSelect.value || state.teacherDraft.slotId || "").trim());
+  const preStart = preSlot?.start || "";
+  const preEnd = preSlot?.end || "";
+
+  const all = mergedStudents();
+  let filter = "";
+  const selected = new Set();
+
+  const modalHtml = `
+    <div class="grid">
+      <div class="card" style="padding:18px;">
+        <h3 style="margin:0 0 8px;">Serbest Grup • Öğrenci Seçimi</h3>
+        <p class="muted tiny" style="margin:0 0 14px;">
+          Tarih ve saat aralığını <b>aktif ders saatlerinden biriyle aynı</b> olacak şekilde girin. Sonra öğrencileri arayıp çoklu seçin.
+        </p>
+
+        <div class="form-grid" style="grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px;">
+          <div class="field">
+            <label for="fgDate">Tarih</label>
+            <input id="fgDate" class="input" type="date" value="${htmlEscape(defaultDate)}" />
+          </div>
+          <div class="field">
+            <label for="fgStart">Başlangıç</label>
+            <input id="fgStart" class="input" type="time" value="${htmlEscape(preStart)}" />
+          </div>
+          <div class="field">
+            <label for="fgEnd">Bitiş</label>
+            <input id="fgEnd" class="input" type="time" value="${htmlEscape(preEnd)}" />
+          </div>
+        </div>
+
+        <div class="divider" style="margin:14px 0;"></div>
+
+        <div class="helper" style="margin-bottom:12px;">
+          <b>Aktif saatler:</b> ${activeSlots.map(s => `${htmlEscape(s.start)}-${htmlEscape(s.end)} (${htmlEscape(s.id)})`).join(" • ") || "-"}
+        </div>
+
+        <div class="search-box" style="margin-bottom:12px;">
+          <input id="fgSearch" class="input" placeholder="Öğrenci ara (No / İsim)" style="flex:1; min-width:220px;" />
+          <span id="fgSelectedCount" class="badge neutral" style="white-space:nowrap;">Seçili: 0</span>
+        </div>
+
+        <div id="fgList" class="search-results" style="max-height:44dvh;"></div>
+      </div>
+    </div>
+  `;
+
+  const footerHtml = `
+    <button id="fgCancel" class="btn">İptal</button>
+    <button id="fgAdd" class="btn primary" disabled>Öğrencileri Ekle</button>
+  `;
+
+  const normalizeNeedle = (t) => normalizeText(String(t || ""));
+  const filterStudents = () => {
+    const n = normalizeNeedle(filter);
+    if (!n) return all;
+    return all.filter(s => {
+      const no = normalizeNeedle(s.no || "");
+      const name = normalizeNeedle(s.adsoyad || "");
+      return no.includes(n) || name.includes(n);
+    });
+  };
+
+  const findMatchingSlot = (start, end) => {
+    const st = String(start || "").trim();
+    const en = String(end || "").trim();
+    if (!st || !en) return null;
+    return activeSlots.find(s => String(s.start||"").trim()===st && String(s.end||"").trim()===en) || null;
+  };
+
+  const refreshAddState = () => {
+    const dateVal = $("#fgDate", els.modalBody)?.value || "";
+    const startVal = $("#fgStart", els.modalBody)?.value || "";
+    const endVal = $("#fgEnd", els.modalBody)?.value || "";
+    const hasStudents = selected.size > 0;
+    const slot = findMatchingSlot(startVal, endVal);
+    const ok = Boolean(dateVal && startVal && endVal && hasStudents && slot);
+    const btn = $("#fgAdd", els.modalFooter);
+    if (btn) btn.disabled = !ok;
+  };
+
+  const renderList = () => {
+    const list = filterStudents();
+    const wrap = $("#fgList", els.modalBody);
+    if (!wrap) return;
+
+    if (!list.length) {
+      wrap.innerHTML = `<div class="empty" style="padding:18px;">Sonuç bulunamadı.</div>`;
+      refreshAddState();
+      return;
+    }
+
+    wrap.innerHTML = list.map(s => {
+      const no = htmlEscape(s.no || "");
+      const name = htmlEscape(s.adsoyad || "-");
+      const cls = htmlEscape(s.sinif || "-");
+      const checked = selected.has(String(s.no)) ? "checked" : "";
+      const avatar = renderStudentAvatarHtml(s, "student-mini-avatar");
+      return `
+        <label class="search-item" style="gap:12px; align-items:center;">
+          <div style="display:flex; gap:12px; align-items:center; min-width:0;">
+            ${avatar}
+            <div class="l" style="min-width:0;">
+              <div class="name">${name}</div>
+              <div class="sub">No: ${no} • Sınıf: ${htmlEscape(cls)}</div>
+            </div>
+          </div>
+          <input type="checkbox" class="fg-check" data-no="${no}" ${checked} style="width:22px;height:22px;" />
+        </label>
+      `;
+    }).join("");
+
+    $("#fgSelectedCount", els.modalBody).textContent = `Seçili: ${selected.size}`;
+    refreshAddState();
+  };
+
+  openModal("Serbest Grup", modalHtml, {
+    modalClass: "modal-wide",
+    footerHtml,
+    onRender: () => {
+      // mobilde 3 kolon dar gelirse tek kolona düşür
+      if (window.matchMedia?.("(max-width: 560px)")?.matches) {
+        const fgGrid = $(".form-grid", els.modalBody);
+        if (fgGrid) fgGrid.style.gridTemplateColumns = "1fr";
+      }
+
+      const searchEl = $("#fgSearch", els.modalBody);
+      const listWrap = $("#fgList", els.modalBody);
+
+      const updateCount = () => {
+        const c = $("#fgSelectedCount", els.modalBody);
+        if (c) c.textContent = `Seçili: ${selected.size}`;
+      };
+
+      searchEl?.addEventListener("input", () => {
+        filter = searchEl.value || "";
+        renderList();
+      });
+
+      listWrap?.addEventListener("change", (e) => {
+        const cb = e.target?.closest?.(".fg-check");
+        if (!cb) return;
+        const no = String(cb.dataset.no || "").trim();
+        if (!no) return;
+        if (cb.checked) selected.add(no); else selected.delete(no);
+        updateCount();
+        refreshAddState();
+      });
+
+      $("#fgDate", els.modalBody)?.addEventListener("input", refreshAddState);
+      $("#fgStart", els.modalBody)?.addEventListener("input", refreshAddState);
+      $("#fgEnd", els.modalBody)?.addEventListener("input", refreshAddState);
+
+      $("#fgCancel", els.modalFooter)?.addEventListener("click", closeModal);
+
+      $("#fgAdd", els.modalFooter)?.addEventListener("click", () => {
+        const dateVal = ($("#fgDate", els.modalBody)?.value || "").trim();
+        const startVal = ($("#fgStart", els.modalBody)?.value || "").trim();
+        const endVal = ($("#fgEnd", els.modalBody)?.value || "").trim();
+
+        if (!dateVal) return showToast("Tarih boş olamaz.");
+        if (!startVal || !endVal) return showToast("Başlangıç ve bitiş saati zorunludur.");
+        if (!selected.size) return showToast("En az 1 öğrenci seçin.");
+
+        const slot = findMatchingSlot(startVal, endVal);
+        if (!slot) return showToast("Girilen saat aralığı, aktif ders saatleriyle aynı olmalı.");
+
+        // Apply to teacher draft
+        const picked = all.filter(s => selected.has(String(s.no))).map(s => ({ ...s }));
+        picked.sort((a,b)=>String(a.no||"").localeCompare(String(b.no||""),"tr",{numeric:true,sensitivity:"base"}));
+
+        state.teacherDraft.date = dateVal;
+        state.teacherDraft.slotId = slot.id;
+        state.teacherDraft.group = FREE_GROUP_LABEL;
+        state.teacherDraft.loadedStudents = picked;
+        state.teacherDraft.statuses = {};
+        state.teacherDraft.studentNotes = {};
+        state.teacherDraft.freeGroupMeta = { enabled:true, start:startVal, end:endVal };
+
+        // sync UI
+        els.lessonDateInput.value = dateVal;
+        els.lessonSlotSelect.value = slot.id;
+        // groupSelect içinde Serbest Grup opsiyonu renderTeacherSelectors ile garanti
+        renderTeacherSelectors();
+        els.groupSelect.value = FREE_GROUP_LABEL;
+
+        renderTeacherStudentList();
+        updateTeacherDraftSummary();
+        showFloatingToast(`Serbest grup oluşturuldu (${picked.length} öğrenci).`, 1700);
+        closeModal();
+      });
+
+      renderList();
+      setTimeout(() => searchEl?.focus(), 0);
+    }
+  });
+}
+
+
 
     function renderTeacherStudentList(){
       const list = state.teacherDraft.loadedStudents || [];
@@ -3599,6 +3816,9 @@ function bindEvents(){
       els.groupSelect.addEventListener("change", () => {
         if (state.teacherDraft.locked) return;
         state.teacherDraft.group = els.groupSelect.value;
+        if (String(state.teacherDraft.group || "").trim() !== FREE_GROUP_LABEL) {
+          state.teacherDraft.freeGroupMeta = { enabled:false, start:"", end:"" };
+        }
       });
       const resetGroupDropdownScrollTop = () => {
         if (!els.groupSelect) return;
@@ -3621,6 +3841,7 @@ function bindEvents(){
       });
 
       $("#btnLoadGroup").addEventListener("click", loadTeacherGroupStudents);
+      $("#btnFreeGroup").addEventListener("click", openFreeGroupModal);
       $("#btnAllPresent").addEventListener("click", teacherBulkAllPresent);
       $("#btnClearStatuses").addEventListener("click", teacherClearStatuses);
       $("#btnTeacherResetDraft").addEventListener("click", async () => {
