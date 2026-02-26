@@ -680,6 +680,15 @@
     // Serbest grup (manuel öğrenci seçimi) etiketi
     const FREE_GROUP_LABEL = "Serbest Grup";
 
+    // structuredClone bazı telefon tarayıcılarında yok. Güvenli klonlayıcı:
+    const deepClone = (v) => {
+      try {
+        if (typeof structuredClone === "function") return structuredClone(v);
+      } catch(_) {}
+      return JSON.parse(JSON.stringify(v));
+    };
+
+
 
     // Öğrenci fotoğraf upload sınırları / optimizasyon
     const STUDENT_PHOTO_UPLOAD_MAX_BYTES = 8 * 1024 * 1024; // 8 MB üstü dosyalar kesinlikle alınmaz
@@ -730,7 +739,7 @@
         teachers: [],
         students: [],
         settings: {
-          lessonSlots: structuredClone(DEFAULT_LESSON_SLOTS)
+          lessonSlots: deepClone(DEFAULT_LESSON_SLOTS)
         },
         studentOverrides: {},
         sessionsByDate: null, // admin ihtiyaç duyduğunda yüklenir
@@ -1603,7 +1612,7 @@
             active: s.active !== false
           }));
         } else {
-          state.data.settings.lessonSlots = structuredClone(DEFAULT_LESSON_SLOTS);
+          state.data.settings.lessonSlots = deepClone(DEFAULT_LESSON_SLOTS);
           await dbSet(`${ROOT_PATH}/settings/lessonSlots`, state.data.settings.lessonSlots);
         }
 
@@ -3017,12 +3026,12 @@ function openFreeGroupModal(){
         </div>
       `;
       openModal("Birebir Saati Ayarlama", html, {
-        onRender: () => bindSlotSettingsModal(structuredClone(slots))
+        onRender: () => bindSlotSettingsModal(deepClone(slots))
       });
     }
 
     function bindSlotSettingsModal(initialSlots){
-      let slotList = (initialSlots?.length ? initialSlots : structuredClone(DEFAULT_LESSON_SLOTS)).map((s,i)=>({
+      let slotList = (initialSlots?.length ? initialSlots : deepClone(DEFAULT_LESSON_SLOTS)).map((s,i)=>({
         id: s.id || `S${i+1}`,
         start: s.start || "16:00",
         end: s.end || "16:40",
@@ -3100,7 +3109,7 @@ function openFreeGroupModal(){
 
       $("#slotResetDefaultBtn", els.modalBody).addEventListener("click", async () => {
         if (!await confirmDialog("Varsayılan ders saatleri yüklensin mi?", { title:"Saatleri Sıfırla", tone:"warning" })) return;
-        slotList = structuredClone(DEFAULT_LESSON_SLOTS);
+        slotList = deepClone(DEFAULT_LESSON_SLOTS);
         renderRows();
       });
 
@@ -3655,7 +3664,7 @@ function openFreeGroupModal(){
           await dbRemove(`${ROOT_PATH}`);
           invalidateSessionsCache();
           state.data.studentOverrides = {};
-          state.data.settings.lessonSlots = structuredClone(DEFAULT_LESSON_SLOTS);
+          state.data.settings.lessonSlots = deepClone(DEFAULT_LESSON_SLOTS);
           await loadSettingsFromDb(); // ayarları tekrar oluşturur
           await refreshDbMeta();
           renderTeacherSelectors();
