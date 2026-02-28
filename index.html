@@ -2240,7 +2240,8 @@ const searchEl = $("#fgSearch", els.modalBody);
       }
 
       // Aynı gün + aynı ders saati + aynı grup için başka öğretmen kaydı kontrolü
-      if (daySessions && typeof daySessions === 'object') {
+      // Not: Serbest Grup seçiliyken bu kural uygulanmaz.
+      if (group !== FREE_GROUP_LABEL && daySessions && typeof daySessions === 'object') {
         const conflictingSession = Object.values(daySessions).find(sess => {
           if (!sess || typeof sess !== 'object') return false;
           const sameDate = String(sess.date || date) === String(date);
