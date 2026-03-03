@@ -473,9 +473,7 @@
               <input id="teacherIdInput" class="input mono" inputmode="numeric" placeholder="" />
             </div>
           </div>
-          <div class="helper" style="margin-top:12px;">Not: <b>Ad/Sınıf/Grup/Cinsiyet</b> bilgileri e-Tablodan gelir ve listelerde daima güncel olan gösterilir. Buradaki Firebase override yalnızca <b>fotoğraf</b> gibi ek alanlar içindir.</div>
-
-          <div class="divider"></div>
+<div class="divider"></div>
           <div class="toolbar">
             <div class="toolbar-left">
               <button id="btnTeacherLogin" class="btn primary">Giriş Yap</button>
@@ -1045,7 +1043,13 @@
 
 
     function studentPhotoSrc(student){
-      return student?.photoBase64 || null;
+      // Fotoğraf override: öğrenci no anahtarına göre Firebase studentOverrides içinden okunur.
+      // Not: Öğrenci nesnesine merge edilmemiş olsa bile fotoğraf görünmelidir.
+      const direct = student?.photoBase64 || null;
+      if (direct) return direct;
+      const noKey = safeKey(student?.no);
+      const ov = (noKey && state?.data?.studentOverrides) ? state.data.studentOverrides[noKey] : null;
+      return ov?.photoBase64 || null;
     }
 
     function renderStudentAvatarHtml(student, cls="student-mini-avatar"){
@@ -1298,11 +1302,6 @@
           selectedNos.add(no);
           continue;
         }
-        // Geçmiş grup bilgisi tutuluyorsa fallback (boş liste riskini azaltır)
-        const history = Array.isArray(s?._grupHistory) ? s._grupHistory : [];
-        if (history.some(g => normalizeGroupLabel(g) === selected)) {
-          selectedNos.add(no);
-        }
       }
 
       // 2) Ham sheet satırlarından da grup tara (no bazlı sistemi bozmaz)
@@ -1310,11 +1309,6 @@
         const no = normalizeStudentNo(r?.no);
         if (!no) continue;
         if (normalizeGroupLabel(r?.grup) === selected) selectedNos.add(no);
-      }
-      for (const [noKey, ov] of Object.entries(state.data.studentOverrides || {})) {
-        const no = normalizeStudentNo(ov?.no || noKey);
-        if (!no) continue;
-        if (normalizeGroupLabel(ov?.grup) === selected) selectedNos.add(no);
       }
 
       const out = [...selectedNos]
@@ -1335,14 +1329,8 @@
         if (!canonicalToLabel.has(key)) canonicalToLabel.set(key, key || raw);
       };
 
-      for (const s of mergedStudents()) {
-        tryAdd(s?.grup);
-        for (const g of (Array.isArray(s?._grupHistory) ? s._grupHistory : [])) tryAdd(g);
-      }
       for (const s of (state.data.students || [])) tryAdd(s?.grup);
-      for (const ov of Object.values(state.data.studentOverrides || {})) tryAdd(ov?.grup);
-
-      return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
+return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
     }
 
     function mergedStudents(){
@@ -1352,25 +1340,6 @@
         if (!no) continue;
         const prev = baseMap.get(no) || { no };
         baseMap.set(no, mergeStudentByNo(prev, { ...s, no }));
-      }
-      for (const [noKey, ov] of Object.entries(state.data.studentOverrides || {})) {
-        const no = normalizeStudentNo(ov?.no || noKey);
-        if (!no) continue;
-        const prev = baseMap.get(no) || { no };
-
-        // OVERRIDE KURALI:
-        // - Kaynak doğruluk: sınıf/grup/adsoyad/cinsiyet her zaman e-tablodan (Sheet) gelsin.
-        // - Firebase override sadece fotoğraf vb. ekstra alanları taşısın.
-        const ovEffective = { ...(ov || {}), no };
-        delete ovEffective.adsoyad;
-        delete ovEffective.sinif;
-        delete ovEffective.grup;
-        delete ovEffective.cinsiyet;
-
-        baseMap.set(no, {
-          ...mergeStudentByNo(prev, ovEffective),
-          _isOverride: true
-        });
       }
       return [...baseMap.values()].sort((a,b)=>{
         const na = Number(a.no), nb = Number(b.no);
@@ -2408,7 +2377,7 @@ const searchEl = $("#fgSearch", els.modalBody);
     async function buildStudentReportHtml(no){
       const { student: s, timeline, counts } = await getStudentReportData(no);
       if (!s) return `<div class="empty">Öğrenci bulunamadı.</div>`;
-      const photoHtml = s.photoBase64 ? `<img src="${s.photoBase64}" alt="Öğrenci Fotoğrafı" />` : `${htmlEscape(initials(s.adsoyad || ""))}`;
+      const photoHtml = studentPhotoSrc(s) ? `<img src="${studentPhotoSrc(s)}" alt="Öğrenci Fotoğrafı" />` : `${htmlEscape(initials(s.adsoyad || ""))}`;
       return `
           <div class="profile-card student-report">
             <div class="avatar" data-photo-preview="1" data-student-no="${htmlEscape(s.no || "")}" role="button" tabindex="0" title="Fotoğrafı büyüt">${photoHtml}</div>
@@ -2481,8 +2450,8 @@ const searchEl = $("#fgSearch", els.modalBody);
       const { student: s, timeline, counts } = await getStudentReportData(no);
       if (!s) { try { win.close(); } catch(e){} return showToast("Öğrenci bulunamadı."); }
       const total = timeline.length;
-      const photoCell = s.photoBase64
-        ? `<img src="${s.photoBase64}" alt="Foto" style="width:110px;height:110px;object-fit:cover;border-radius:14px;border:1px solid #dbe2ea;" />`
+      const photoCell = studentPhotoSrc(s)
+        ? `<img src="${studentPhotoSrc(s)}" alt="Foto" style="width:110px;height:110px;object-fit:cover;border-radius:14px;border:1px solid #dbe2ea;" />`
         : `<div style="width:110px;height:110px;border-radius:14px;border:1px solid #dbe2ea;display:grid;place-items:center;font-weight:800;font-size:30px;color:#334155;background:#f8fafc;">${htmlEscape(initials(s.adsoyad||''))}</div>`;
       const rows = timeline.map((t, i) => `
         <tr>
@@ -3263,7 +3232,7 @@ const searchEl = $("#fgSearch", els.modalBody);
               <div class="name">${htmlEscape(s.adsoyad || "-")}</div>
               <div class="sub">No: ${htmlEscape(s.no)} • Sınıf: ${htmlEscape(s.sinif || "-")} • Grup: ${htmlEscape(s.grup || "-")}</div>
             </div>
-            ${s.photoBase64 ? `<img src="${s.photoBase64}" class="photo-thumb" alt="">` : `<div class="photo-thumb" style="display:grid;place-items:center;font-weight:800;">${htmlEscape(initials(s.adsoyad))}</div>`}
+            ${studentPhotoSrc(s) ? `<img src="${studentPhotoSrc(s)}" class="photo-thumb" alt="">` : `<div class="photo-thumb" style="display:grid;place-items:center;font-weight:800;">${htmlEscape(initials(s.adsoyad))}</div>`}
           </div>
         `).join("") : `<div class="empty">Sonuç bulunamadı.</div>`;
       }
@@ -3352,7 +3321,7 @@ const searchEl = $("#fgSearch", els.modalBody);
           </div>
         `;
 
-        initStudentPhotoCropper(s.photoBase64 || null);
+        initStudentPhotoCropper(studentPhotoSrc(s) || null);
         bindStudentUpdateEditorEvents();
       }
 
