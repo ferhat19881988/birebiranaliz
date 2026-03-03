@@ -1289,15 +1289,12 @@
       const mergedByNo = new Map(merged.map(s => [normalizeStudentNo(s?.no), s]));
       const selectedNos = new Set();
 
-      // 1) Birleşik kayıtlardaki AKTİF grup eşleşmeleri
-      // Not: Öğrencinin geçmiş grup bilgileri (_grupHistory) sadece profil/karnede gösterilir.
-      // Grup listesinde ise sadece öğrencinin güncel 'grup' alanı dikkate alınır.
+      // 1) Birleşik kayıtlardaki aktif grup eşleşmeleri
       for (const s of merged) {
         const no = normalizeStudentNo(s?.no);
         if (!no) continue;
         if (normalizeGroupLabel(s?.grup) === selected) {
           selectedNos.add(no);
-          continue;
         }
       }
 
@@ -1331,8 +1328,9 @@
         if (!canonicalToLabel.has(key)) canonicalToLabel.set(key, key || raw);
       };
 
-      // Not: Geçmiş gruplar burada listelenmez. Sadece aktif (güncel) grup alanları baz alınır.
-      for (const s of mergedStudents()) tryAdd(s?.grup);
+      for (const s of mergedStudents()) {
+        tryAdd(s?.grup);
+      }
       for (const s of (state.data.students || [])) tryAdd(s?.grup);
       for (const ov of Object.values(state.data.studentOverrides || {})) tryAdd(ov?.grup);
 
@@ -1579,7 +1577,11 @@
         throw new Error("Ogrenciler sekmesinde 'NO', 'ADSOYAD', 'Grubu' sütunları bulunamadı.");
       }
 
-      const out = [];
+      // Aynı öğrenci NO birden fazla satırda varsa:
+      // - İlk görünen satırı "güncel" kabul eder (çoğu okul listesinde güncel kayıt üstte olur).
+      // - Sonraki satırlar mevcut kaydı EZMEZ; sadece geçmiş (_sinifHistory/_grupHistory) için birleştirilir.
+      const map = new Map();
+
       for (const row of rows) {
         const no = normalizeStudentNo(row[idxNo] ?? "");
         const adsoyad = String(row[idxAd] ?? "").trim();
@@ -1587,9 +1589,25 @@
         const grup = String(row[idxGrup] ?? "").trim();
         const cinsiyet = String(row[idxCins] ?? "").trim();
         if (!no || !adsoyad) continue;
-        out.push({ no, adsoyad, sinif, grup, cinsiyet });
+
+        const next = { no, adsoyad, sinif, grup, cinsiyet };
+        if (!map.has(no)) {
+          map.set(no, next);
+        } else {
+          const prev = map.get(no) || { no };
+          const merged = mergeStudentByNo(prev, next);
+
+          // "Güncel" alanları ilk kayıttan koru (boşsa yeniyle tamamlanır)
+          merged.adsoyad = pickNonEmpty(prev.adsoyad, merged.adsoyad);
+          merged.sinif = pickNonEmpty(prev.sinif, merged.sinif);
+          merged.grup = pickNonEmpty(prev.grup, merged.grup);
+          merged.cinsiyet = pickNonEmpty(prev.cinsiyet, merged.cinsiyet);
+
+          map.set(no, merged);
+        }
       }
-      return out;
+
+      return [...map.values()];
     }
 
     async function loadGoogleSheetsData(){
@@ -2400,13 +2418,20 @@ const searchEl = $("#fgSearch", els.modalBody);
               <h4>${htmlEscape(s.adsoyad || "-")}</h4>
               <p><b>No:</b> ${htmlEscape(s.no || "-")} • <b>Sınıf:</b> ${htmlEscape(s.sinif || "-")} • <b>Grup:</b> ${htmlEscape(s.grup || "-")}</p>
               <p><b>Cinsiyet:</b> ${htmlEscape(s.cinsiyet || "-")}</p>
-              ${((s._sinifHistory||[]).length>1 || (s._grupHistory||[]).length>1) ? `<p class="tiny"><b>Geçmiş sınıf/grup:</b> ${htmlEscape((s._sinifHistory||[]).join(", ") || "-")} • ${(s._grupHistory||[]).length ? `<b>Gruplar:</b> ${htmlEscape((s._grupHistory||[]).join(", "))}` : ""}</p>` : ""}
-              <div class="summary-row" style="margin-top:8px;">
+                            <div class="summary-row" style="margin-top:8px;">
                 <span class="badge neutral">Toplam Birebir: ${timeline.length}</span>
                 <span class="badge success">Geldi: ${counts.GELDI}</span>
                 <span class="badge danger">Gelmedi: ${counts.GELMEDI}</span>
                 <span class="badge late">Geç: ${counts.GEC}</span>
               </div>
+              ${((s._sinifHistory||[]).length>1 || (s._grupHistory||[]).length>1) ? `
+              <details class="fg-ref" style="margin-top:10px;">
+                <summary>Geçmiş sınıf / grup bilgileri</summary>
+                <div class="tiny muted" style="margin-top:8px; line-height:1.6;">
+                  <div><b>Sınıflar:</b> ${htmlEscape((s._sinifHistory||[]).join(", ") || "-")}</div>
+                  <div style="margin-top:6px;"><b>Gruplar:</b> ${htmlEscape((s._grupHistory||[]).join(", ") || "-")}</div>
+                </div>
+              </details>` : ""}
             </div>
           </div>
           <div class="divider"></div>
