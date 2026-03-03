@@ -473,7 +473,9 @@
               <input id="teacherIdInput" class="input mono" inputmode="numeric" placeholder="" />
             </div>
           </div>
-<div class="divider"></div>
+          <div class="helper" style="margin-top:12px;">Not: <b>Ad/Sınıf/Grup/Cinsiyet</b> bilgileri e-Tablodan gelir ve listelerde daima güncel olan gösterilir. Buradaki Firebase override yalnızca <b>fotoğraf</b> gibi ek alanlar içindir.</div>
+
+          <div class="divider"></div>
           <div class="toolbar">
             <div class="toolbar-left">
               <button id="btnTeacherLogin" class="btn primary">Giriş Yap</button>
@@ -1296,6 +1298,11 @@
           selectedNos.add(no);
           continue;
         }
+        // Geçmiş grup bilgisi tutuluyorsa fallback (boş liste riskini azaltır)
+        const history = Array.isArray(s?._grupHistory) ? s._grupHistory : [];
+        if (history.some(g => normalizeGroupLabel(g) === selected)) {
+          selectedNos.add(no);
+        }
       }
 
       // 2) Ham sheet satırlarından da grup tara (no bazlı sistemi bozmaz)
@@ -1303,6 +1310,11 @@
         const no = normalizeStudentNo(r?.no);
         if (!no) continue;
         if (normalizeGroupLabel(r?.grup) === selected) selectedNos.add(no);
+      }
+      for (const [noKey, ov] of Object.entries(state.data.studentOverrides || {})) {
+        const no = normalizeStudentNo(ov?.no || noKey);
+        if (!no) continue;
+        if (normalizeGroupLabel(ov?.grup) === selected) selectedNos.add(no);
       }
 
       const out = [...selectedNos]
@@ -1323,8 +1335,14 @@
         if (!canonicalToLabel.has(key)) canonicalToLabel.set(key, key || raw);
       };
 
+      for (const s of mergedStudents()) {
+        tryAdd(s?.grup);
+        for (const g of (Array.isArray(s?._grupHistory) ? s._grupHistory : [])) tryAdd(g);
+      }
       for (const s of (state.data.students || [])) tryAdd(s?.grup);
-return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
+      for (const ov of Object.values(state.data.studentOverrides || {})) tryAdd(ov?.grup);
+
+      return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
     }
 
     function mergedStudents(){
@@ -1334,6 +1352,25 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
         if (!no) continue;
         const prev = baseMap.get(no) || { no };
         baseMap.set(no, mergeStudentByNo(prev, { ...s, no }));
+      }
+      for (const [noKey, ov] of Object.entries(state.data.studentOverrides || {})) {
+        const no = normalizeStudentNo(ov?.no || noKey);
+        if (!no) continue;
+        const prev = baseMap.get(no) || { no };
+
+        // OVERRIDE KURALI:
+        // - Kaynak doğruluk: sınıf/grup/adsoyad/cinsiyet her zaman e-tablodan (Sheet) gelsin.
+        // - Firebase override sadece fotoğraf vb. ekstra alanları taşısın.
+        const ovEffective = { ...(ov || {}), no };
+        delete ovEffective.adsoyad;
+        delete ovEffective.sinif;
+        delete ovEffective.grup;
+        delete ovEffective.cinsiyet;
+
+        baseMap.set(no, {
+          ...mergeStudentByNo(prev, ovEffective),
+          _isOverride: true
+        });
       }
       return [...baseMap.values()].sort((a,b)=>{
         const na = Number(a.no), nb = Number(b.no);
