@@ -473,6 +473,7 @@
               <input id="teacherIdInput" class="input mono" inputmode="numeric" placeholder="" />
             </div>
           </div>
+          <div class="helper" style="margin-top:12px;">Not: <b>Ad/Sınıf/Grup/Cinsiyet</b> bilgileri e-Tablodan gelir ve listelerde daima güncel olan gösterilir. Buradaki Firebase override yalnızca <b>fotoğraf</b> gibi ek alanlar içindir.</div>
 
           <div class="divider"></div>
           <div class="toolbar">
@@ -1356,8 +1357,18 @@
         const no = normalizeStudentNo(ov?.no || noKey);
         if (!no) continue;
         const prev = baseMap.get(no) || { no };
+
+        // OVERRIDE KURALI:
+        // - Kaynak doğruluk: sınıf/grup/adsoyad/cinsiyet her zaman e-tablodan (Sheet) gelsin.
+        // - Firebase override sadece fotoğraf vb. ekstra alanları taşısın.
+        const ovEffective = { ...(ov || {}), no };
+        delete ovEffective.adsoyad;
+        delete ovEffective.sinif;
+        delete ovEffective.grup;
+        delete ovEffective.cinsiyet;
+
         baseMap.set(no, {
-          ...mergeStudentByNo(prev, { ...ov, no }),
+          ...mergeStudentByNo(prev, ovEffective),
           _isOverride: true
         });
       }
@@ -3274,19 +3285,19 @@ const searchEl = $("#fgSearch", els.modalBody);
             </div>
             <div class="field">
               <label>Ad Soyad</label>
-              <input id="suName" class="input" value="${htmlEscape(s.adsoyad || "")}" />
+              <input id="suName" class="input" value="${htmlEscape(s.adsoyad || "")}" disabled title="Kaynak: e-Tablo (Sheet)" />
             </div>
             <div class="field">
               <label>Sınıf</label>
-              <input id="suClass" class="input" value="${htmlEscape(s.sinif || "")}" />
+              <input id="suClass" class="input" value="${htmlEscape(s.sinif || "")}" disabled title="Kaynak: e-Tablo (Sheet)" />
             </div>
             <div class="field">
               <label>Grup</label>
-              <input id="suGroup" class="input" value="${htmlEscape(s.grup || "")}" />
+              <input id="suGroup" class="input" value="${htmlEscape(s.grup || "")}" disabled title="Kaynak: e-Tablo (Sheet)" />
             </div>
             <div class="field">
               <label>Cinsiyet</label>
-              <select id="suGender" class="select">
+              <select id="suGender" class="select" disabled title="Kaynak: e-Tablo (Sheet)">
                 <option value="">Belirtme</option>
                 <option value="KIZ" ${(s.cinsiyet||"").toUpperCase()==="KIZ" ? "selected":""}>KIZ</option>
                 <option value="ERKEK" ${(s.cinsiyet||"").toUpperCase()==="ERKEK" ? "selected":""}>ERKEK</option>
@@ -3521,14 +3532,8 @@ const searchEl = $("#fgSearch", els.modalBody);
 
         $("#suSaveBtn", els.modalBody)?.addEventListener("click", async () => {
           if (!currentStudentNo) return showToast("Öğrenci seçin.");
-          const name = ($("#suName", els.modalBody)?.value || "").trim();
-          const sinif = ($("#suClass", els.modalBody)?.value || "").trim();
-          const grup = ($("#suGroup", els.modalBody)?.value || "").trim();
-          const cinsiyet = ($("#suGender", els.modalBody)?.value || "").trim();
-
-          if (!name) return showToast("Ad Soyad boş olamaz.");
-
-          let photoBase64 = null;
+          // Ad/Sınıf/Grup/Cinsiyet alanları e-Tablodan gelir; burada değiştirilmiyor (override yazılmaz).
+                    let photoBase64 = null;
           let photoExportBytes = 0;
           let photoQualityUsed = null;
           try {
@@ -3556,10 +3561,6 @@ const searchEl = $("#fgSearch", els.modalBody);
 
           const patch = {
             no: currentStudentNo,
-            adsoyad: name,
-            sinif,
-            grup,
-            cinsiyet,
             updatedAt: new Date().toISOString()
           };
           if (photoBase64) patch.photoBase64 = photoBase64;
