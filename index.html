@@ -1289,18 +1289,15 @@
       const mergedByNo = new Map(merged.map(s => [normalizeStudentNo(s?.no), s]));
       const selectedNos = new Set();
 
-      // 1) Birleşik kayıtlardaki aktif grup eşleşmeleri
+      // 1) Birleşik kayıtlardaki AKTİF grup eşleşmeleri
+      // Not: Öğrencinin geçmiş grup bilgileri (_grupHistory) sadece profil/karnede gösterilir.
+      // Grup listesinde ise sadece öğrencinin güncel 'grup' alanı dikkate alınır.
       for (const s of merged) {
         const no = normalizeStudentNo(s?.no);
         if (!no) continue;
         if (normalizeGroupLabel(s?.grup) === selected) {
           selectedNos.add(no);
           continue;
-        }
-        // Geçmiş grup bilgisi tutuluyorsa fallback (boş liste riskini azaltır)
-        const history = Array.isArray(s?._grupHistory) ? s._grupHistory : [];
-        if (history.some(g => normalizeGroupLabel(g) === selected)) {
-          selectedNos.add(no);
         }
       }
 
@@ -1334,10 +1331,8 @@
         if (!canonicalToLabel.has(key)) canonicalToLabel.set(key, key || raw);
       };
 
-      for (const s of mergedStudents()) {
-        tryAdd(s?.grup);
-        for (const g of (Array.isArray(s?._grupHistory) ? s._grupHistory : [])) tryAdd(g);
-      }
+      // Not: Geçmiş gruplar burada listelenmez. Sadece aktif (güncel) grup alanları baz alınır.
+      for (const s of mergedStudents()) tryAdd(s?.grup);
       for (const s of (state.data.students || [])) tryAdd(s?.grup);
       for (const ov of Object.values(state.data.studentOverrides || {})) tryAdd(ov?.grup);
 
