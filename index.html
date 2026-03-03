@@ -1295,6 +1295,12 @@
         if (!no) continue;
         if (normalizeGroupLabel(s?.grup) === selected) {
           selectedNos.add(no);
+          continue;
+        }
+        // Geçmiş grup bilgisi tutuluyorsa fallback (boş liste riskini azaltır)
+        const history = Array.isArray(s?._grupHistory) ? s._grupHistory : [];
+        if (history.some(g => normalizeGroupLabel(g) === selected)) {
+          selectedNos.add(no);
         }
       }
 
@@ -1330,6 +1336,7 @@
 
       for (const s of mergedStudents()) {
         tryAdd(s?.grup);
+        for (const g of (Array.isArray(s?._grupHistory) ? s._grupHistory : [])) tryAdd(g);
       }
       for (const s of (state.data.students || [])) tryAdd(s?.grup);
       for (const ov of Object.values(state.data.studentOverrides || {})) tryAdd(ov?.grup);
@@ -1337,23 +1344,38 @@
       return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
     }
 
+    
     function mergedStudents(){
       const baseMap = new Map();
+
+      // 1) Sheet: temel kaynak (güncel sınıf/grup burada kabul edilir)
       for (const s of state.data.students) {
         const no = normalizeStudentNo(s?.no);
         if (!no) continue;
         const prev = baseMap.get(no) || { no };
-        baseMap.set(no, mergeStudentByNo(prev, { ...s, no }));
+        baseMap.set(no, mergeStudentByNo(prev, { ...s, no, _source: "sheet" }));
       }
+
+      // 2) Firebase Overrides: sadece Sheet'te olmayan öğrencileri ekler veya kimlik dışı alanları taşır.
+      //    ÖNEMLİ: Override eski sınıf/grup taşısa bile, Sheet'teki güncel sınıf/grup'u ezmesine izin vermiyoruz.
       for (const [noKey, ov] of Object.entries(state.data.studentOverrides || {})) {
         const no = normalizeStudentNo(ov?.no || noKey);
         if (!no) continue;
+
         const prev = baseMap.get(no) || { no };
-        baseMap.set(no, {
-          ...mergeStudentByNo(prev, { ...ov, no }),
-          _isOverride: true
-        });
+        const merged = mergeStudentByNo(prev, { ...ov, no });
+
+        // Eğer öğrenci Sheet'ten geliyorsa, sınıf/grup/adsoyad/cinsiyet alanlarında Sheet önceliklidir.
+        if (prev?._source === "sheet") {
+          merged.adsoyad = pickNonEmpty(prev.adsoyad, merged.adsoyad);
+          merged.sinif = pickNonEmpty(prev.sinif, merged.sinif);
+          merged.grup = pickNonEmpty(prev.grup, merged.grup);
+          merged.cinsiyet = pickNonEmpty(prev.cinsiyet, merged.cinsiyet);
+        }
+
+        baseMap.set(no, { ...merged, _isOverride: true, _source: prev?._source || "override" });
       }
+
       return [...baseMap.values()].sort((a,b)=>{
         const na = Number(a.no), nb = Number(b.no);
         if (!Number.isNaN(na) && !Number.isNaN(nb) && na!==nb) return na-nb;
@@ -1361,111 +1383,6 @@
       });
     }
 
-    function findTeacherById(id){
-      return state.data.teachers.find(t => String(t.id) === String(id)) || null;
-    }
-
-    function getSlotById(slotId){
-      return (state.data.settings.lessonSlots || []).find(s => s.id === slotId) || null;
-    }
-
-    function summarizeTeacherDraft(){
-      const students = state.teacherDraft.loadedStudents;
-      const statuses = state.teacherDraft.statuses || {};
-      let present=0, absent=0, late=0, unknown=0;
-      for (const s of students) {
-        const st = statuses[s.no];
-        if (st === "GELDI") present++;
-        else if (st === "GELMEDI") absent++;
-        else if (st === "GEC") late++;
-        else unknown++;
-      }
-      return { total: students.length, present, absent, late, unknown };
-    }
-
-    /**********************
-     * GOOGLE SHEETS READ *
-     **********************/
-    function parseCsvText(csvText=""){
-      const txt = String(csvText || "").replace(/^﻿/, "");
-      const rows = [];
-      let row = [];
-      let cell = "";
-      let i = 0;
-      let inQuotes = false;
-
-      while (i < txt.length) {
-        const ch = txt[i];
-
-        if (inQuotes) {
-          if (ch === '"') {
-            if (txt[i + 1] === '"') {
-              cell += '"';
-              i += 2;
-              continue;
-            }
-            inQuotes = false;
-            i++;
-            continue;
-          }
-          cell += ch;
-          i++;
-          continue;
-        }
-
-        if (ch === '"') { inQuotes = true; i++; continue; }
-        if (ch === ',') { row.push(cell); cell = ""; i++; continue; }
-
-        if (ch === '\n') {
-          row.push(cell);
-          rows.push(row);
-          row = [];
-          cell = "";
-          i++;
-          continue;
-        }
-
-        if (ch === '\r') {
-          row.push(cell);
-          rows.push(row);
-          row = [];
-          cell = "";
-          if (txt[i + 1] === '\n') i += 2; else i++;
-          continue;
-        }
-
-        cell += ch;
-        i++;
-      }
-
-      row.push(cell);
-      if (row.length > 1 || String(row[0] || "").trim() !== "") rows.push(row);
-      return rows;
-    }
-
-    function normalizeSheetRowsPayload(headers, rows){
-      headers = Array.isArray(headers) ? headers.map(h => String(h || "").trim()) : [];
-      rows = Array.isArray(rows) ? rows.map(r => Array.isArray(r) ? r.map(v => String(v ?? "")) : []) : [];
-
-      // Başlıklar generic/A-B-C gibi geldiyse ilk dolu satırı başlık kabul et.
-      const normalizedHeaders = headers.map(normalizeText);
-      const headerLooksGeneric = normalizedHeaders.length > 0 && normalizedHeaders.every(h => /^[a-z]{1,2}$/.test(h));
-      const hasKnownHeaderInCols = normalizedHeaders.some(h =>
-        ["id","ogretmenadi","adsoyad","ogrenci","no","numara","grup","grubu","sinif"].includes(h)
-      );
-      if ((!headers.length || !hasKnownHeaderInCols || headerLooksGeneric) && rows.length){
-        const firstNonEmptyRowIndex = rows.findIndex(r => (r || []).some(v => String(v).trim() !== ""));
-        if (firstNonEmptyRowIndex >= 0){
-          const candidateHeaders = rows[firstNonEmptyRowIndex].map(v => String(v || "").trim());
-          const normalizedCandidate = candidateHeaders.map(normalizeText);
-          const candidateHasKnown = normalizedCandidate.some(h =>
-            ["id","ogretmenadi","adsoyad","ogrenci","no","numara","grup","grubu","sinif"].includes(h)
-          );
-          if (candidateHasKnown){
-            headers = candidateHeaders;
-            rows.splice(firstNonEmptyRowIndex, 1);
-          }
-        }
       }
       return { headers, rows };
     }
@@ -1577,11 +1494,7 @@
         throw new Error("Ogrenciler sekmesinde 'NO', 'ADSOYAD', 'Grubu' sütunları bulunamadı.");
       }
 
-      // Aynı öğrenci NO birden fazla satırda varsa:
-      // - İlk görünen satırı "güncel" kabul eder (çoğu okul listesinde güncel kayıt üstte olur).
-      // - Sonraki satırlar mevcut kaydı EZMEZ; sadece geçmiş (_sinifHistory/_grupHistory) için birleştirilir.
-      const map = new Map();
-
+      const out = [];
       for (const row of rows) {
         const no = normalizeStudentNo(row[idxNo] ?? "");
         const adsoyad = String(row[idxAd] ?? "").trim();
@@ -1589,25 +1502,9 @@
         const grup = String(row[idxGrup] ?? "").trim();
         const cinsiyet = String(row[idxCins] ?? "").trim();
         if (!no || !adsoyad) continue;
-
-        const next = { no, adsoyad, sinif, grup, cinsiyet };
-        if (!map.has(no)) {
-          map.set(no, next);
-        } else {
-          const prev = map.get(no) || { no };
-          const merged = mergeStudentByNo(prev, next);
-
-          // "Güncel" alanları ilk kayıttan koru (boşsa yeniyle tamamlanır)
-          merged.adsoyad = pickNonEmpty(prev.adsoyad, merged.adsoyad);
-          merged.sinif = pickNonEmpty(prev.sinif, merged.sinif);
-          merged.grup = pickNonEmpty(prev.grup, merged.grup);
-          merged.cinsiyet = pickNonEmpty(prev.cinsiyet, merged.cinsiyet);
-
-          map.set(no, merged);
-        }
+        out.push({ no, adsoyad, sinif, grup, cinsiyet });
       }
-
-      return [...map.values()];
+      return out;
     }
 
     async function loadGoogleSheetsData(){
@@ -1651,12 +1548,103 @@
       await remove(ref(db, path));
     }
 
+    /**
+     * SHEET -> FIREBASE SENKRON (ANAHTAR: öğrenci no)
+     * - Google Sheet'ten gelen güncel kimlik alanlarını (adsoyad/sınıf/grup/cinsiyet) Firebase'teki studentsByNo düğümüne yazar.
+     * - Sadece farklı olan alanlar güncellenir (diğer veriler korunur).
+     * - Eğer studentOverrides içinde aynı alanlar varsa ve Sheet ile farklıysa, sadece o alanlar Sheet'e eşitlenir
+     *   (böylece override, eski sınıf/grup yüzünden listeyi bozmaz).
+     */
+    async function syncStudentsFromSheetToFirebase(){
+      try {
+        const sheetStudents = Array.isArray(state.data.students) ? state.data.students : [];
+        if (!sheetStudents.length) return;
+
+        const dbStudents = state.data.studentsByNoDb || {};
+        const dbOverrides = state.data.studentOverrides || {};
+
+        const updatesStudents = {};
+        const updatesOverrides = {};
+
+        for (const s of sheetStudents) {
+          const no = normalizeStudentNo(s?.no);
+          if (!no) continue;
+
+          const sheetRec = {
+            no,
+            adsoyad: (s?.adsoyad ?? "").toString().trim(),
+            sinif: (s?.sinif ?? "").toString().trim(),
+            grup: (s?.grup ?? "").toString().trim(),
+            cinsiyet: (s?.cinsiyet ?? "").toString().trim()
+          };
+
+          const dbRec = (dbStudents && typeof dbStudents === "object") ? (dbStudents[no] || null) : null;
+
+          // studentsByNo için sadece farklı alanları patch'le (multi-location update)
+          for (const k of ["adsoyad","sinif","grup","cinsiyet"]) {
+            const sheetVal = sheetRec[k];
+            if (!sheetVal) continue;
+            const dbVal = (dbRec && dbRec[k] != null) ? String(dbRec[k]).trim() : "";
+            if (sheetVal !== dbVal) {
+              updatesStudents[`${no}/${k}`] = sheetVal;
+            }
+          }
+
+          // studentOverrides varsa ve bu alanlar Sheet ile farklıysa, override'ı Sheet'e eşitle
+          // (override'daki diğer alanlara dokunma)
+          const ov = dbOverrides[no] || dbOverrides[String(no)] || null;
+          if (ov && typeof ov === "object") {
+            for (const k of ["adsoyad","sinif","grup","cinsiyet"]) {
+              const sheetVal = sheetRec[k];
+              if (!sheetVal) continue;
+              const ovVal = (ov[k] != null) ? String(ov[k]).trim() : "";
+              if (ovVal && sheetVal !== ovVal) {
+                updatesOverrides[`${no}/${k}`] = sheetVal;
+              }
+            }
+          }
+        }
+
+        const jobs = [];
+        if (Object.keys(updatesStudents).length) {
+          jobs.push(dbUpdate(`${ROOT_PATH}/studentsByNo`, updatesStudents));
+        }
+        if (Object.keys(updatesOverrides).length) {
+          jobs.push(dbUpdate(`${ROOT_PATH}/studentOverrides`, updatesOverrides));
+        }
+
+        if (jobs.length) {
+          await Promise.all(jobs);
+
+          // lokal cache'i güncelle (yeniden okuma yapmadan arayüz tutarlı kalsın)
+          if (Object.keys(updatesStudents).length) {
+            for (const [path, val] of Object.entries(updatesStudents)) {
+              const [no, key] = path.split("/");
+              state.data.studentsByNoDb[no] = state.data.studentsByNoDb[no] || { no };
+              state.data.studentsByNoDb[no][key] = val;
+            }
+          }
+          if (Object.keys(updatesOverrides).length) {
+            for (const [path, val] of Object.entries(updatesOverrides)) {
+              const [no, key] = path.split("/");
+              state.data.studentOverrides[no] = state.data.studentOverrides[no] || { no };
+              state.data.studentOverrides[no][key] = val;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("Sheet->Firebase senkronu başarısız:", e);
+      }
+    }
+
+
     async function loadSettingsFromDb(){
       setChip(els.dbStatusChip, "Firebase: bağlanıyor…", true);
       try {
-        const [settings, studentOverrides] = await Promise.all([
+        const [settings, studentOverrides, studentsByNo] = await Promise.all([
           dbGet(`${ROOT_PATH}/settings`),
-          dbGet(`${ROOT_PATH}/studentOverrides`)
+          dbGet(`${ROOT_PATH}/studentOverrides`),
+          dbGet(`${ROOT_PATH}/studentsByNo`)
         ]);
 
         if (settings?.lessonSlots) {
@@ -1673,6 +1661,7 @@
         }
 
         state.data.studentOverrides = studentOverrides || {};
+        state.data.studentsByNoDb = studentsByNo || {};
         setChip(els.dbStatusChip, "Firebase: bağlı ✓", true);
         await refreshDbMeta();
         renderTeacherSelectors();
@@ -2418,20 +2407,13 @@ const searchEl = $("#fgSearch", els.modalBody);
               <h4>${htmlEscape(s.adsoyad || "-")}</h4>
               <p><b>No:</b> ${htmlEscape(s.no || "-")} • <b>Sınıf:</b> ${htmlEscape(s.sinif || "-")} • <b>Grup:</b> ${htmlEscape(s.grup || "-")}</p>
               <p><b>Cinsiyet:</b> ${htmlEscape(s.cinsiyet || "-")}</p>
-                            <div class="summary-row" style="margin-top:8px;">
+              ${((s._sinifHistory||[]).length>1 || (s._grupHistory||[]).length>1) ? `<p class="tiny"><b>Geçmiş sınıf/grup:</b> ${htmlEscape((s._sinifHistory||[]).join(", ") || "-")} • ${(s._grupHistory||[]).length ? `<b>Gruplar:</b> ${htmlEscape((s._grupHistory||[]).join(", "))}` : ""}</p>` : ""}
+              <div class="summary-row" style="margin-top:8px;">
                 <span class="badge neutral">Toplam Birebir: ${timeline.length}</span>
                 <span class="badge success">Geldi: ${counts.GELDI}</span>
                 <span class="badge danger">Gelmedi: ${counts.GELMEDI}</span>
                 <span class="badge late">Geç: ${counts.GEC}</span>
               </div>
-              ${((s._sinifHistory||[]).length>1 || (s._grupHistory||[]).length>1) ? `
-              <details class="fg-ref" style="margin-top:10px;">
-                <summary>Geçmiş sınıf / grup bilgileri</summary>
-                <div class="tiny muted" style="margin-top:8px; line-height:1.6;">
-                  <div><b>Sınıflar:</b> ${htmlEscape((s._sinifHistory||[]).join(", ") || "-")}</div>
-                  <div style="margin-top:6px;"><b>Gruplar:</b> ${htmlEscape((s._grupHistory||[]).join(", ") || "-")}</div>
-                </div>
-              </details>` : ""}
             </div>
           </div>
           <div class="divider"></div>
@@ -4039,6 +4021,9 @@ function bindEvents(){
         loadGoogleSheetsData(),
         loadSettingsFromDb()
       ]);
+
+      // Sheet ile Firebase öğrenci kimlik alanlarını karşılaştırıp sadece farklı olanları güncelle
+      await syncStudentsFromSheetToFirebase();
 
       refreshGlobalStatsUI();
     }
