@@ -2391,17 +2391,10 @@ const searchEl = $("#fgSearch", els.modalBody);
             const conflictTeacherName = conflict?.teacherName || 'Başka bir öğretmen';
             const conflictSlotLabel = slot ? makeSlotLabel(slot) : slotId;
             await confirmDialog(
-              `Bu saatte bu öğretmen bu grupla birebir kayıt açmıştır. Siz üzerine yazamazsınız.
+              `Öğretmen giriş ekranı açılamadı. e-Tablo veya veritabanı verileri okunamadı.
 
-` +
-              `Öğretmen: ${conflictTeacherName}
-` +
-              `Tarih: ${date}
-` +
-              `Saat: ${conflictSlotLabel}
-` +
-              `Grup: ${group}`,
-              { title: 'Kayıt Engellendi', okText: 'Tamam', cancelText: 'Kapat', tone: 'danger', icon: '⛔' }
+Lütfen internet bağlantınızı kontrol edip tekrar deneyin.`,
+              { title: "Veri Okuma Hatası", okText: "Tamam", cancelText: "Kapat", tone: "danger", icon: "🌐" }
             );
             return;
           }
@@ -3948,9 +3941,7 @@ function bindEvents(){
           const ready = await ensureTeacherEntryDataReady({ retryOnce: true });
           if (!ready) {
             await confirmDialog(
-              "Öğretmen giriş ekranı açılamadı. e-Tablo veya veritabanı verileri okunamadı.
-
-Lütfen internet bağlantınızı kontrol edip tekrar deneyin.",
+              `Öğretmen giriş ekranı açılamadı. e-Tablo veya veritabanı verileri okunamadı.\n\nLütfen internet bağlantınızı kontrol edip tekrar deneyin.`,
               { title: "Veri Okuma Hatası", okText: "Tamam", cancelText: "Kapat", tone: "danger", icon: "🌐" }
             );
             return;
