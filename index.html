@@ -747,7 +747,7 @@
     // firebase-analytics içinden "resource_url_builders" hatası düşebiliyor. Uygulama akışını
     // etkilememesi için bu sürümde analytics devre dışı bırakıldı.
     import {
-      getDatabase, ref, get, set, update, remove, serverTimestamp
+      getDatabase, ref, get, set, update, remove, serverTimestamp, runTransaction
     } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-database.js";
 
     const firebaseConfig = {
@@ -1314,6 +1314,7 @@
       const out = [...selectedNos]
         .map(no => mergedByNo.get(no) || null)
         .filter(Boolean)
+        .map(s => ({ ...s, _sessionGroup: selected }))
         .sort((a,b)=> String(a.adsoyad||"").localeCompare(String(b.adsoyad||""), 'tr', {sensitivity:'base'}));
       return out;
     }
@@ -1354,6 +1355,28 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
 
     function getSlotById(slotId){
       return (state.data.settings.lessonSlots || []).find(s => s.id === slotId) || null;
+    }
+
+    function getStudentSessionGroup(student, fallbackGroup=""){
+      const fromDraft = normalizeGroupLabel(student?._sessionGroup || "");
+      if (fromDraft) return fromDraft;
+      const fromStudent = normalizeGroupLabel(student?.grup || "");
+      if (fromStudent) return fromStudent;
+      return normalizeGroupLabel(fallbackGroup || "") || String(fallbackGroup || "").trim();
+    }
+
+    function getSessionRecordDisplayGroup(session, stInfo, fallbackStudent=null){
+      return (
+        normalizeGroupLabel(stInfo?.sessionGroup || "") ||
+        normalizeGroupLabel(stInfo?.grup || "") ||
+        normalizeGroupLabel(session?.group || "") ||
+        normalizeGroupLabel(fallbackStudent?.grup || "") ||
+        String(stInfo?.sessionGroup || stInfo?.grup || session?.group || fallbackStudent?.grup || "-")
+      );
+    }
+
+    function getStudentTimelineGroups(timeline=[]){
+      return [...new Set((timeline || []).map(t => normalizeGroupLabel(t?.group || "") || String(t?.group || "").trim()).filter(Boolean))];
     }
 
     function summarizeTeacherDraft(){
@@ -1616,6 +1639,9 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
     }
     async function dbRemove(path){
       await remove(ref(db, path));
+    }
+    async function dbRunTransaction(path, updater, options){
+      return await runTransaction(ref(db, path), updater, options);
     }
 
     async function loadSettingsFromDb(){
@@ -2017,7 +2043,7 @@ const searchEl = $("#fgSearch", els.modalBody);
         const manualSlotLabel = `${startVal} - ${endVal}`;
 
         // Apply to teacher draft
-        const picked = all.filter(s => selected.has(String(s.no))).map(s => ({ ...s }));
+        const picked = all.filter(s => selected.has(String(s.no))).map(s => ({ ...s, _sessionGroup: FREE_GROUP_LABEL }));
         picked.sort((a,b)=>String(a.no||"").localeCompare(String(b.no||""),"tr",{numeric:true,sensitivity:"base"}));
 
         state.teacherDraft.date = dateVal;
@@ -2254,11 +2280,13 @@ const searchEl = $("#fgSearch", els.modalBody);
       for (const s of state.teacherDraft.loadedStudents) {
         const studentNoKey = normalizeStudentNo(s.no);
         if (!studentNoKey) continue;
+        const sessionGroupForStudent = getStudentSessionGroup(s, group);
         studentsPayload[studentNoKey] = {
           no: studentNoKey,
           adsoyad: s.adsoyad || "",
           sinif: s.sinif || "",
-          grup: s.grup || "",
+          grup: sessionGroupForStudent || s.grup || "",
+          sessionGroup: sessionGroupForStudent || s.grup || "",
           cinsiyet: s.cinsiyet || "",
           status: state.teacherDraft.statuses[s.no] || "",
           teacherNote: (state.teacherDraft.studentNotes?.[s.no] || "").trim()
@@ -2298,8 +2326,64 @@ const searchEl = $("#fgSearch", els.modalBody);
       );
       if (!ok) return;
 
+      const sessionPath = `${ROOT_PATH}/sessionsByDate/${date}/${sessionKey}`;
+      const sessionGroupKey = safeKey(normalizeGroupLabel(group) || group);
+      const lockPath = (group !== FREE_GROUP_LABEL)
+        ? `${ROOT_PATH}/sessionLocks/${date}/${slotId}/${sessionGroupKey}`
+        : null;
+
+      let acquiredLock = false;
       try {
-        await dbSet(`${ROOT_PATH}/sessionsByDate/${date}/${sessionKey}`, payload);
+        if (lockPath) {
+          const lockRes = await dbRunTransaction(lockPath, (current) => {
+            if (current == null) {
+              return {
+                teacherId: String(teacher.id),
+                teacherName: teacher.name || "",
+                group: normalizeGroupLabel(group) || group,
+                slotId,
+                sessionId: sessionKey,
+                createdAt: new Date().toISOString()
+              };
+            }
+            if (String(current.teacherId || "") === String(teacher.id) && String(current.sessionId || "") === String(sessionKey)) {
+              return current;
+            }
+            return;
+          }, { applyLocally: false });
+
+          if (!lockRes.committed) {
+            const conflict = lockRes.snapshot?.val?.() || null;
+            const conflictTeacherName = conflict?.teacherName || 'Başka bir öğretmen';
+            const conflictSlotLabel = slot ? makeSlotLabel(slot) : slotId;
+            await confirmDialog(
+              `Bu saatte bu öğretmen bu grupla birebir kayıt açmıştır. Siz üzerine yazamazsınız.
+
+` +
+              `Öğretmen: ${conflictTeacherName}
+` +
+              `Tarih: ${date}
+` +
+              `Saat: ${conflictSlotLabel}
+` +
+              `Grup: ${group}`,
+              { title: 'Kayıt Engellendi', okText: 'Tamam', cancelText: 'Kapat', tone: 'danger', icon: '⛔' }
+            );
+            return;
+          }
+          acquiredLock = true;
+        }
+
+        const saveRes = await dbRunTransaction(sessionPath, (current) => {
+          if (current == null) return payload;
+          return;
+        }, { applyLocally: false });
+
+        if (!saveRes.committed) {
+          showToast("Bu öğretmen + tarih + saat + grup için kayıt zaten var. (Çift kayıt engellendi)");
+          return;
+        }
+
         invalidateSessionsCache();
         await refreshDbMeta();
 
@@ -2309,6 +2393,14 @@ const searchEl = $("#fgSearch", els.modalBody);
         setTimeout(() => resetTeacherDraft({keepDate:true}), 350);
       } catch (e) {
         console.error(e);
+        if (acquiredLock && lockPath) {
+          try {
+            const lockSnap = await dbGet(lockPath);
+            if (lockSnap && String(lockSnap.sessionId || "") === String(sessionKey) && String(lockSnap.teacherId || "") === String(teacher.id)) {
+              await dbRemove(lockPath);
+            }
+          } catch (_) {}
+        }
         showToast("Kayıt sırasında hata oluştu.");
       }
     }
@@ -2324,7 +2416,7 @@ const searchEl = $("#fgSearch", els.modalBody);
           ${src ? `<img src="${htmlEscape(src)}" alt="${htmlEscape(s.adsoyad || "Öğrenci")}" />` : `<div class="image-preview-fallback" aria-label="${htmlEscape(s.adsoyad || "Öğrenci")}">${htmlEscape(initials(s.adsoyad || ""))}</div>`}
         </div>
         <div class="tiny muted" style="margin-top:10px;text-align:center;">
-          ${htmlEscape(s.adsoyad || "-")} • No: ${htmlEscape(s.no || "-")} • Sınıf: ${htmlEscape(s.sinif || "-")}
+          ${htmlEscape(s.adsoyad || "-")} • No: ${htmlEscape(s.no || "-")} • Sınıf: ${htmlEscape(s.sinif || "-")} • Grup: ${htmlEscape(s.grup || "-")}
         </div>
       `;
       openModal("Öğrenci Fotoğrafı", body, {
@@ -2360,7 +2452,7 @@ const searchEl = $("#fgSearch", els.modalBody);
             teacherName: session.teacherName || "-",
             teacherId: session.teacherId || "-",
             brans: session.brans || "-",
-            group: session.group || "-",
+            group: getSessionRecordDisplayGroup(session, stInfo, s),
             topic: session.topic || "-",
             status: stInfo.status || "-",
             teacherNote: stInfo.teacherNote || "",
@@ -2378,14 +2470,20 @@ const searchEl = $("#fgSearch", els.modalBody);
       const { student: s, timeline, counts } = await getStudentReportData(no);
       if (!s) return `<div class="empty">Öğrenci bulunamadı.</div>`;
       const photoHtml = studentPhotoSrc(s) ? `<img src="${studentPhotoSrc(s)}" alt="Öğrenci Fotoğrafı" />` : `${htmlEscape(initials(s.adsoyad || ""))}`;
+      const timelineGroups = getStudentTimelineGroups(timeline);
+      const classList = [...new Set([...(s._sinifHistory || []), s.sinif].filter(Boolean))];
+      const groupList = [...new Set([...(s._grupHistory || []), ...timelineGroups, s.grup].filter(Boolean))];
+      const primaryClass = classList[0] || s.sinif || "-";
+      const primaryGroup = timelineGroups.length === 1 ? timelineGroups[0] : (groupList.length === 1 ? groupList[0] : "Birden Fazla Grup");
       return `
           <div class="profile-card student-report">
             <div class="avatar" data-photo-preview="1" data-student-no="${htmlEscape(s.no || "")}" role="button" tabindex="0" title="Fotoğrafı büyüt">${photoHtml}</div>
             <div class="profile-meta">
               <h4>${htmlEscape(s.adsoyad || "-")}</h4>
-              <p><b>No:</b> ${htmlEscape(s.no || "-")} • <b>Sınıf:</b> ${htmlEscape(s.sinif || "-")} • <b>Grup:</b> ${htmlEscape(s.grup || "-")}</p>
+              <p><b>No:</b> ${htmlEscape(s.no || "-")} • <b>Sınıf:</b> ${htmlEscape(primaryClass || "-")} • <b>Grup:</b> ${htmlEscape(primaryGroup || "-")}</p>
               <p><b>Cinsiyet:</b> ${htmlEscape(s.cinsiyet || "-")}</p>
-              ${((s._sinifHistory||[]).length>1 || (s._grupHistory||[]).length>1) ? `<p class="tiny"><b>Geçmiş sınıf/grup:</b> ${htmlEscape((s._sinifHistory||[]).join(", ") || "-")} • ${(s._grupHistory||[]).length ? `<b>Gruplar:</b> ${htmlEscape((s._grupHistory||[]).join(", "))}` : ""}</p>` : ""}
+              ${classList.length > 1 ? `<p class="tiny"><b>Sınıf geçmişi:</b> ${htmlEscape(classList.join(", "))}</p>` : ""}
+              ${groupList.length > 1 ? `<p class="tiny"><b>Kayıtlı grup(lar):</b> ${htmlEscape(groupList.join(", "))}</p>` : ""}
               <div class="summary-row" style="margin-top:8px;">
                 <span class="badge neutral">Toplam Birebir: ${timeline.length}</span>
                 <span class="badge success">Geldi: ${counts.GELDI}</span>
