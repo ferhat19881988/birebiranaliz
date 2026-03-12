@@ -1600,7 +1600,8 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
       return out;
     }
 
-    async function loadGoogleSheetsData(){
+    async function loadGoogleSheetsData(options={}){
+      const { silent = false } = options || {};
       setChip(els.sheetStatusChip, "Sheet: yükleniyor…", true);
       try {
         const [ogretmenTab, ogrenciTab] = await Promise.all([
@@ -1619,7 +1620,7 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
       } catch (err) {
         console.error(err);
         setChip(els.sheetStatusChip, "Sheet: hata", false);
-        showToast("Google Sheet okunamadı. Paylaşım ayarını kontrol edin.");
+        if (!silent) showToast("Google Sheet okunamadı. Paylaşım ayarını kontrol edin.");
         return false;
       }
     }
@@ -1644,7 +1645,8 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
       return await runTransaction(ref(db, path), updater, options);
     }
 
-    async function loadSettingsFromDb(){
+    async function loadSettingsFromDb(options={}){
+      const { silent = false } = options || {};
       setChip(els.dbStatusChip, "Firebase: bağlanıyor…", true);
       try {
         const [settings, studentOverrides] = await Promise.all([
@@ -1673,7 +1675,7 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
       } catch (e) {
         console.error(e);
         setChip(els.dbStatusChip, "Firebase: hata", false);
-        showToast("Firebase bağlantısında hata oluştu.");
+        if (!silent) showToast("Firebase bağlantısında hata oluştu.");
         return false;
       }
     }
@@ -1704,6 +1706,38 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
 
     function invalidateSessionsCache(){
       state.data.sessionsByDate = null;
+    }
+
+    function hasTeacherEntryDataReady(){
+      const hasTeachers = Array.isArray(state.data.teachers) && state.data.teachers.length > 0;
+      const hasStudents = Array.isArray(state.data.students) && state.data.students.length > 0;
+      const hasSlots = Array.isArray(state.data.settings?.lessonSlots) && state.data.settings.lessonSlots.length > 0;
+      return hasTeachers && hasStudents && hasSlots;
+    }
+
+    let teacherEntryReadinessPromise = null;
+    async function ensureTeacherEntryDataReady(options={}){
+      const { retryOnce = true } = options || {};
+      if (hasTeacherEntryDataReady()) return true;
+      if (teacherEntryReadinessPromise) return await teacherEntryReadinessPromise;
+
+      teacherEntryReadinessPromise = (async () => {
+        const attempts = retryOnce ? 2 : 1;
+        for (let i = 0; i < attempts; i++) {
+          const [sheetOk, dbOk] = await Promise.all([
+            loadGoogleSheetsData({ silent: true }),
+            loadSettingsFromDb({ silent: true })
+          ]);
+          if (sheetOk && dbOk && hasTeacherEntryDataReady()) return true;
+        }
+        return false;
+      })();
+
+      try {
+        return await teacherEntryReadinessPromise;
+      } finally {
+        teacherEntryReadinessPromise = null;
+      }
     }
 
     /**********************
@@ -3908,7 +3942,21 @@ function bindEvents(){
       });
 
       // home nav
-      $("#goTeacherLogin").addEventListener("click", () => {
+      $("#goTeacherLogin").addEventListener("click", async () => {
+        if (!hasTeacherEntryDataReady()) {
+          showToast("Giriş verileri kontrol ediliyor...");
+          const ready = await ensureTeacherEntryDataReady({ retryOnce: true });
+          if (!ready) {
+            await confirmDialog(
+              "Öğretmen giriş ekranı açılamadı. e-Tablo veya veritabanı verileri okunamadı.
+
+Lütfen internet bağlantınızı kontrol edip tekrar deneyin.",
+              { title: "Veri Okuma Hatası", okText: "Tamam", cancelText: "Kapat", tone: "danger", icon: "🌐" }
+            );
+            return;
+          }
+          showToast("Giriş verileri hazırlandı ✅");
+        }
         setView("teacherLogin");
         els.teacherIdInput.focus();
       });
