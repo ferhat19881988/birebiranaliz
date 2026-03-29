@@ -348,6 +348,58 @@
     #btnFinalizeLesson, #btnTeacherLogout { width:100%; }
   }
 
+  /* ===== Öğretmen paneli vizatlı akış iyileştirmeleri ===== */
+  .teacher-panel-grid { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.35fr); align-items:start; }
+  .teacher-flow-helper { display:grid; gap:12px; margin-bottom:18px; }
+  .teacher-progress { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:10px; }
+  .teacher-progress-step { border:1px solid var(--panel-border); border-radius:16px; padding:12px; background:linear-gradient(180deg,#fff,#f8fafc); min-height:86px; }
+  .teacher-progress-step.active { border-color:rgba(79,70,229,.35); box-shadow:0 0 0 3px rgba(79,70,229,.08); background:linear-gradient(180deg,#eef2ff,#ffffff); }
+  .teacher-progress-step.done { border-color:rgba(16,185,129,.32); background:linear-gradient(180deg,#ecfdf5,#ffffff); }
+  .teacher-progress-step .k { font-size:.78rem; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:.03em; }
+  .teacher-progress-step .v { margin-top:6px; font-weight:800; color:var(--text); }
+  .teacher-progress-step .s { margin-top:6px; font-size:.8rem; color:var(--text-muted); line-height:1.45; }
+  .teacher-selection-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-top:14px; }
+  .teacher-selection-item { border:1px solid var(--panel-border); border-radius:14px; padding:12px; background:var(--bg); min-height:74px; }
+  .teacher-selection-item .k { display:block; font-size:.76rem; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:.03em; }
+  .teacher-selection-item .v { display:block; margin-top:6px; font-weight:700; color:var(--text); line-height:1.35; word-break:break-word; }
+  .teacher-mobile-tip { margin-top:14px; }
+  .teacher-panel-grid .card { position:relative; }
+  .teacher-sticky-footer { position:sticky; bottom:calc(10px + env(safe-area-inset-bottom)); z-index:10; padding-top:8px; background:linear-gradient(180deg,rgba(248,250,252,0), rgba(248,250,252,.96) 25%, rgba(248,250,252,.98)); }
+  .teacher-sticky-footer .toolbar { gap:12px; }
+  .student-row.is-complete { border-color:rgba(16,185,129,.28); background:linear-gradient(180deg,#ffffff,#f0fdf4); }
+  .student-row.is-pending { border-style:dashed; }
+  .student-seq { width:30px; height:30px; border-radius:999px; display:grid; place-items:center; background:#eef2ff; color:var(--primary); font-size:.8rem; font-weight:800; flex:0 0 30px; margin-top:6px; }
+  .student-row-top { display:flex; gap:12px; align-items:flex-start; }
+  .student-row-main { display:grid; gap:10px; flex:1; min-width:0; }
+  .student-note-box label { display:inline-flex; margin-bottom:6px; font-size:.78rem; font-weight:700; color:var(--text-muted); }
+  .field-hint { margin-top:6px; font-size:.8rem; color:var(--text-muted); line-height:1.5; }
+  .field-actions-inline { display:flex; gap:8px; flex-wrap:wrap; }
+  .field-actions-inline .btn { flex:1 1 0; }
+  .select, .input, .textarea { -webkit-appearance:none; appearance:none; }
+  .select { background-image:linear-gradient(45deg, transparent 50%, #64748b 50%), linear-gradient(135deg, #64748b 50%, transparent 50%); background-position:calc(100% - 18px) calc(50% - 3px), calc(100% - 12px) calc(50% - 3px); background-size:6px 6px, 6px 6px; background-repeat:no-repeat; padding-right:40px; }
+  .select option[disabled] { color:#94a3b8; }
+  #groupSelect, #lessonSlotSelect { font-size:16px; }
+  .student-list, .fg-list, .modal-body { -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
+  .fg-list .search-item { align-items:center; -webkit-user-select:none; user-select:none; }
+  .fg-list .search-item input[type=checkbox] { width:28px; height:28px; accent-color:var(--primary); flex:0 0 28px; }
+
+  @media (max-width: 900px){
+    .teacher-panel-grid { grid-template-columns:1fr; }
+    .teacher-progress { grid-template-columns:1fr; }
+    .teacher-selection-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .teacher-sticky-footer { bottom:0; margin-inline:-16px; padding:10px 16px calc(14px + env(safe-area-inset-bottom)); }
+    .student-row-top { flex-direction:column; }
+    .student-seq { margin-top:0; }
+  }
+
+  @media (max-width: 560px){
+    .teacher-selection-summary { grid-template-columns:1fr; }
+    .teacher-progress-step { min-height:auto; }
+    .field-actions-inline { flex-direction:column; }
+    .teacher-mobile-tip { font-size:.84rem; }
+    .teacher-sticky-footer { margin-inline:-16px; }
+  }
+
 
   /* ===== Admin panel mobil sığma iyileştirmeleri ===== */
   #view-admin .grid.grid-2 { gap: 16px; }
@@ -512,7 +564,7 @@
 
       <!-- TEACHER PANEL -->
       <section id="view-teacher" class="view">
-        <div class="grid">
+        <div class="grid teacher-panel-grid">
           <div class="card">
             <div class="teacher-header">
               <div>
@@ -528,28 +580,73 @@
 
             <div class="divider"></div>
 
+            <div class="teacher-flow-helper">
+              <div class="helper">Öğretmen girişi sonrası akış sırası: <b>tarih-saat-grup seç</b> → <b>öğrencileri yükle</b> → <b>yoklama işaretle</b> → <b>konuyu yaz</b> → <b>kaydı tamamla</b>.</div>
+              <div id="teacherProgress" class="teacher-progress">
+                <div class="teacher-progress-step active" data-step="1">
+                  <div class="k">1. Hazırlık</div>
+                  <div class="v">Tarih, saat ve grup seçin</div>
+                  <div class="s">Grup yüklendiğinde sistem sonraki adıma geçer.</div>
+                </div>
+                <div class="teacher-progress-step" data-step="2">
+                  <div class="k">2. Yoklama</div>
+                  <div class="v">Öğrencileri işaretleyin</div>
+                  <div class="s">Tüm öğrenciler için durum seçimi tamamlanmalı.</div>
+                </div>
+                <div class="teacher-progress-step" data-step="3">
+                  <div class="k">3. Kayıt</div>
+                  <div class="v">Konu yazıp kaydı kapatın</div>
+                  <div class="s">Kaydedilen ders artık düzenlenemez.</div>
+                </div>
+              </div>
+            </div>
+
             <div class="form-grid">
               <div class="field">
                 <label for="lessonDateInput">Tarih</label>
                 <input id="lessonDateInput" class="input" type="date" />
+                <div class="field-hint">Bugünün tarihi otomatik gelir. Gerekirse değiştirin.</div>
               </div>
               <div class="field">
                 <label for="lessonSlotSelect">Ders Saati</label>
                 <select id="lessonSlotSelect" class="select"></select>
+                <div class="field-hint">Telefon kullanımında seçiminiz üstte özetlenir.</div>
               </div>
               <div class="field">
                 <label for="groupSelect">Öğrenci Grubu</label>
                 <select id="groupSelect" class="select"></select>
+                <div class="field-hint">Hazır grup seçebilir veya alttan serbest grup oluşturabilirsiniz.</div>
               </div>
               <div class="field">
-                <label>&nbsp;</label>
-                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <label>Listeleme</label>
+                <div class="field-actions-inline">
                   <button id="btnLoadGroup" class="btn">Grubu Yükle</button>
                   <button id="btnFreeGroup" class="btn warning">Serbest Grup</button>
                   <button id="btnTeacherResetDraft" class="btn ghost">Formu Temizle</button>
                 </div>
               </div>
             </div>
+
+            <div id="teacherSelectionSummary" class="teacher-selection-summary">
+              <div class="teacher-selection-item">
+                <span class="k">Seçilen Tarih</span>
+                <span id="teacherSummaryDate" class="v">-</span>
+              </div>
+              <div class="teacher-selection-item">
+                <span class="k">Seçilen Saat</span>
+                <span id="teacherSummarySlot" class="v">-</span>
+              </div>
+              <div class="teacher-selection-item">
+                <span class="k">Seçilen Grup</span>
+                <span id="teacherSummaryGroup" class="v">-</span>
+              </div>
+              <div class="teacher-selection-item">
+                <span class="k">Yükleme Durumu</span>
+                <span id="teacherSummaryLoad" class="v">Henüz grup yüklenmedi</span>
+              </div>
+            </div>
+
+            <div class="helper teacher-mobile-tip">Mobil kullanım için: iPhone dahil tüm telefonlarda rahat seçim yapılabilsin diye saat, grup ve yükleme durumu burada ayrı ayrı gösterilir. Serbest grup kullanımında öğrenciler dokunarak çoklu seçilebilir.</div>
 
             <div class="divider"></div>
 
@@ -569,11 +666,11 @@
             </div>
           </div>
 
-          <div class="card">
-            <div class="teacher-step-title"><span class="step-no">1</span><h3 style="margin:0;">Öğrenci Listesi / Yoklama</h3></div>
+          <div class="card teacher-topic-card">
+            <div class="teacher-step-title"><span class="step-no">2</span><h3 style="margin:0;">Öğrenci Listesi / Yoklama</h3></div>
             <p class="muted tiny">
               Grup yüklendikten sonra öğrenciler listelenir. Her öğrenci için <b>Geldi / Gelmedi / Geç Geldi</b> seçin.
-              Ders bitmeden önce düzenleme yapılabilir. <b>Ders Bitti</b> sonrası kayıt kilitlenir.
+              Tüm yoklama tamamlanınca <b>İşlenen Konu</b> alanı açılır. <b>Ders Bitti</b> sonrası kayıt kilitlenir.
             </p>
 
             <div class="divider"></div>
@@ -583,19 +680,21 @@
 
             <div class="divider"></div>
 
-            <div class="teacher-step-title"><span class="step-no">2</span><h3 style="margin:0; font-size:1rem;">İşlenen Konu / İçerik</h3></div>
+            <div class="teacher-step-title"><span class="step-no">3</span><h3 style="margin:0; font-size:1rem;">İşlenen Konu / İçerik</h3></div>
             <div class="field">
               <label for="lessonTopicInput">Yoklama sonrası konu yazısı</label>
               <textarea id="lessonTopicInput" class="textarea" placeholder="Örn: Sıfatlar, paragraf soruları, yeni nesil soru çözümü..."></textarea>
+              <div class="field-hint">Bu alan, tüm öğrencilerin yoklaması tamamlandığında aktif olur.</div>
             </div>
 
-            <div class="divider"></div>
-            <div class="toolbar">
-              <div class="toolbar-left">
-                <button id="btnFinalizeLesson" class="btn primary">Ders Bitti • Kaydı Tamamla</button>
-              </div>
-              <div class="toolbar-right">
-                <button id="btnTeacherLogout" class="btn">Çıkış</button>
+            <div class="teacher-sticky-footer">
+              <div class="toolbar">
+                <div class="toolbar-left">
+                  <button id="btnFinalizeLesson" class="btn primary">Ders Bitti • Kaydı Tamamla</button>
+                </div>
+                <div class="toolbar-right">
+                  <button id="btnTeacherLogout" class="btn">Çıkış</button>
+                </div>
               </div>
             </div>
           </div>
@@ -844,6 +943,11 @@
       teacherMetaId: $("#teacherMetaId"),
       teacherMetaBranch: $("#teacherMetaBranch"),
       teacherDraftState: $("#teacherDraftState"),
+      teacherSummaryDate: $("#teacherSummaryDate"),
+      teacherSummarySlot: $("#teacherSummarySlot"),
+      teacherSummaryGroup: $("#teacherSummaryGroup"),
+      teacherSummaryLoad: $("#teacherSummaryLoad"),
+      teacherProgress: $("#teacherProgress"),
 
       sumTotal: $("#sumTotal"),
       sumPresent: $("#sumPresent"),
@@ -1791,7 +1895,7 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
       const slots = getActiveSlots();
       const prevSlot = state.teacherDraft.slotId;
       els.lessonSlotSelect.innerHTML = `
-        <option value="">Ders saati seçin</option>
+        <option value="" disabled selected>Ders saati seçin</option>
         ${slots.map(s => `<option value="${htmlEscape(s.id)}">${htmlEscape(s.id)} • ${htmlEscape(makeSlotLabel(s))}</option>`).join("")}
       `;
       if (slots.some(s => s.id===prevSlot)) {
@@ -1813,7 +1917,7 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
       // Böylece kayıt tamamlanıp form temizlenince açılır listede "Serbest Grup" kalmaz.
       if (prevGroup === FREE_GROUP_LABEL && !groups.includes(FREE_GROUP_LABEL)) groups.unshift(FREE_GROUP_LABEL);
       els.groupSelect.innerHTML = `
-        <option value="">Grup seçin</option>
+        <option value="" disabled selected>Grup seçin</option>
         ${groups.map(g => `<option value="${htmlEscape(g)}">${htmlEscape(g)}</option>`).join("")}
       `;
       if (groups.includes(prevGroup)) {
@@ -1869,7 +1973,54 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
     }
 
     function updateTeacherDraftState(){
-      els.teacherDraftState.textContent = state.teacherDraft.locked ? "Kilitli (Kaydedildi)" : "Düzenlenebilir";
+      const listLoaded = (state.teacherDraft.loadedStudents || []).length > 0;
+      const sum = summarizeTeacherDraft();
+      const hasTopic = Boolean((state.teacherDraft.topic || els.lessonTopicInput?.value || '').trim());
+      let stateText = "Hazırlık aşaması";
+      if (state.teacherDraft.locked) stateText = "Kilitli (Kaydedildi)";
+      else if (hasTopic && sum.total && sum.unknown === 0) stateText = "Kayda hazır";
+      else if (listLoaded && sum.total && sum.unknown === 0) stateText = "Konu bekleniyor";
+      else if (listLoaded) stateText = "Yoklama sürüyor";
+      els.teacherDraftState.textContent = stateText;
+      updateTeacherWizardUI();
+    }
+
+    function updateTeacherWizardUI(){
+      const dateVal = (els.lessonDateInput?.value || state.teacherDraft.date || '').trim();
+      const slotId = (els.lessonSlotSelect?.value || state.teacherDraft.slotId || '').trim();
+      const groupVal = (els.groupSelect?.value || state.teacherDraft.group || '').trim();
+      const listLoaded = (state.teacherDraft.loadedStudents || []).length > 0;
+      const sum = summarizeTeacherDraft();
+      const topicVal = (els.lessonTopicInput?.value || state.teacherDraft.topic || '').trim();
+      const slot = getSlotById(slotId);
+      const slotLabel = (groupVal === FREE_GROUP_LABEL && state.teacherDraft.freeGroupMeta?.enabled)
+        ? `${state.teacherDraft.freeGroupMeta.start || '-'} - ${state.teacherDraft.freeGroupMeta.end || '-'}`
+        : (slot ? makeSlotLabel(slot) : (slotId || '-'));
+
+      if (els.teacherSummaryDate) els.teacherSummaryDate.textContent = dateVal ? formatDateTR(dateVal) : '-';
+      if (els.teacherSummarySlot) els.teacherSummarySlot.textContent = slotLabel || '-';
+      if (els.teacherSummaryGroup) els.teacherSummaryGroup.textContent = groupVal || '-';
+      if (els.teacherSummaryLoad) {
+        let loadText = 'Henüz grup yüklenmedi';
+        if (listLoaded) loadText = `${state.teacherDraft.loadedStudents.length} öğrenci yüklendi`;
+        if (state.teacherDraft.locked) loadText = `Kayıt tamamlandı • ${state.teacherDraft.loadedStudents.length} öğrenci`;
+        els.teacherSummaryLoad.textContent = loadText;
+      }
+
+      if (els.teacherProgress) {
+        const steps = $$('.teacher-progress-step', els.teacherProgress);
+        const step1Done = Boolean(dateVal && slotId && groupVal && listLoaded);
+        const step2Done = Boolean(listLoaded && sum.total > 0 && sum.unknown === 0);
+        const step3Done = Boolean(state.teacherDraft.locked || (step2Done && topicVal));
+        steps.forEach(step => {
+          const idx = Number(step.dataset.step || 0);
+          step.classList.remove('active','done');
+          if ((idx === 1 && step1Done) || (idx === 2 && step2Done) || (idx === 3 && step3Done)) step.classList.add('done');
+          if (!state.teacherDraft.locked) {
+            if ((idx === 1 && !step1Done) || (idx === 2 && step1Done && !step2Done) || (idx === 3 && step2Done && !step3Done)) step.classList.add('active');
+          }
+        });
+      }
     }
 
     function loadTeacherGroupStudents(){
@@ -1894,6 +2045,7 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
       state.teacherDraft.studentNotes = {};
       renderTeacherStudentList();
       updateTeacherDraftSummary();
+      updateTeacherDraftState();
       showFloatingToast(`${group} grubu yüklendi (${list.length} öğrenci).`, 1700);
     }
 
@@ -2098,6 +2250,7 @@ const searchEl = $("#fgSearch", els.modalBody);
 
         renderTeacherStudentList();
         updateTeacherDraftSummary();
+        updateTeacherDraftState();
         showFloatingToast(`Serbest grup oluşturuldu (${picked.length} öğrenci).`, 1700);
         closeModal();
       });
@@ -2114,37 +2267,45 @@ const searchEl = $("#fgSearch", els.modalBody);
       const list = state.teacherDraft.loadedStudents || [];
       if (!list.length) {
         els.teacherStudentList.innerHTML = `<div class="empty">Henüz grup yüklenmedi.</div>`;
+        updateTeacherWizardUI();
         return;
       }
 
-      els.teacherStudentList.innerHTML = list.map(s => {
+      els.teacherStudentList.innerHTML = list.map((s, index) => {
         const st = state.teacherDraft.statuses[s.no] || "";
         const note = state.teacherDraft.studentNotes?.[s.no] || "";
+        const rowClass = st ? 'is-complete' : 'is-pending';
+        const sessionGroup = getStudentSessionGroup(s, state.teacherDraft.group);
         return `
-          <div class="student-row" data-student-no="${htmlEscape(s.no)}">
-            <div class="student-left">
-              ${renderStudentAvatarHtml(s).replace('class="student-mini-avatar"', `class="student-mini-avatar" data-photo-preview="1" role="button" tabindex="0"`)}
-              <div class="student-main">
-                <div class="student-name">${htmlEscape(s.adsoyad || "-")}</div>
-                <div class="student-sub">
-                  <span>No: <b>${htmlEscape(s.no || "-")}</b></span>
-                  <span>Sınıf: <b>${htmlEscape(s.sinif || "-")}</b></span>
-                  <span>Grup: <b>${htmlEscape(s.grup || "-")}</b></span>
-                  <span>Cinsiyet: <b>${htmlEscape(s.cinsiyet || "-")}</b></span>
+          <div class="student-row ${rowClass}" data-student-no="${htmlEscape(s.no)}">
+            <div class="student-row-top">
+              <div class="student-seq">${index + 1}</div>
+              <div class="student-left">
+                ${renderStudentAvatarHtml(s).replace('class="student-mini-avatar"', `class="student-mini-avatar" data-photo-preview="1" role="button" tabindex="0"`)}
+                <div class="student-main student-row-main">
+                  <div class="student-name">${htmlEscape(s.adsoyad || "-")}</div>
+                  <div class="student-sub">
+                    <span>No: <b>${htmlEscape(s.no || "-")}</b></span>
+                    <span>Sınıf: <b>${htmlEscape(s.sinif || "-")}</b></span>
+                    <span>Grup: <b>${htmlEscape(sessionGroup || s.grup || "-")}</b></span>
+                    <span>Cinsiyet: <b>${htmlEscape(s.cinsiyet || "-")}</b></span>
+                  </div>
+                  <div class="status-buttons">
+                    <button class="status-btn ${st==="GELDI" ? "active present" : ""}" data-status="GELDI">Geldi</button>
+                    <button class="status-btn ${st==="GELMEDI" ? "active absent" : ""}" data-status="GELMEDI">Gelmedi</button>
+                    <button class="status-btn ${st==="GEC" ? "active late" : ""}" data-status="GEC">Geç Geldi</button>
+                  </div>
                 </div>
               </div>
             </div>
-            <div class="status-buttons">
-              <button class="status-btn ${st==="GELDI" ? "active present" : ""}" data-status="GELDI">Geldi</button>
-              <button class="status-btn ${st==="GELMEDI" ? "active absent" : ""}" data-status="GELMEDI">Gelmedi</button>
-              <button class="status-btn ${st==="GEC" ? "active late" : ""}" data-status="GEC">Geç Geldi</button>
-            </div>
             <div class="student-note-box">
-              <textarea class="textarea student-note-input" data-note-input="1" placeholder="Öğrenciye özel not (opsiyonel) — admin karnesinde görünür">${htmlEscape(note)}</textarea>
+              <label>Öğrenci notu (opsiyonel)</label>
+              <textarea class="textarea student-note-input" data-note-input="1" placeholder="Öğrenciye özel not — admin karnesinde görünür">${htmlEscape(note)}</textarea>
             </div>
           </div>
         `;
       }).join("");
+      updateTeacherWizardUI();
     }
 
     function setStudentStatus(no, status){
@@ -3988,17 +4149,24 @@ function bindEvents(){
       els.lessonDateInput.addEventListener("change", () => {
         if (state.teacherDraft.locked) return;
         state.teacherDraft.date = els.lessonDateInput.value;
+        updateTeacherDraftState();
       });
       els.lessonSlotSelect.addEventListener("change", () => {
         if (state.teacherDraft.locked) return;
         state.teacherDraft.slotId = els.lessonSlotSelect.value;
+        updateTeacherDraftState();
       });
       els.groupSelect.addEventListener("change", () => {
         if (state.teacherDraft.locked) return;
         state.teacherDraft.group = els.groupSelect.value;
+        if (String(state.teacherDraft.group || "").trim() === FREE_GROUP_LABEL) {
+          openFreeGroupModal();
+          return;
+        }
         if (String(state.teacherDraft.group || "").trim() !== FREE_GROUP_LABEL) {
           state.teacherDraft.freeGroupMeta = { enabled:false, start:"", end:"" };
         }
+        updateTeacherDraftState();
       });
       const resetGroupDropdownScrollTop = () => {
         if (!els.groupSelect) return;
@@ -4018,6 +4186,7 @@ function bindEvents(){
       els.lessonTopicInput.addEventListener("input", () => {
         if (state.teacherDraft.locked) return;
         state.teacherDraft.topic = els.lessonTopicInput.value;
+        updateTeacherDraftState();
       });
 
       $("#btnLoadGroup").addEventListener("click", loadTeacherGroupStudents);
@@ -4046,6 +4215,7 @@ function bindEvents(){
         const no = row.dataset.studentNo;
         if (!no) return;
         state.teacherDraft.studentNotes[no] = noteEl.value || "";
+        updateTeacherDraftState();
       });
 
       els.teacherStudentList.addEventListener("click", e => {
