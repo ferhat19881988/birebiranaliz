@@ -566,6 +566,7 @@
                 <span id="teacherMetaId" class="pill">ID: -</span>
                 <span id="teacherMetaBranch" class="pill">Branş: -</span>
                 <span class="pill">Durum: <span id="teacherDraftState">Yeni oturum</span></span>
+                <button id="btnGoYoklama" class="btn success small" type="button">📋 Yoklama Sistemine Geç</button>
               </div>
             </div>
 
@@ -853,6 +854,14 @@
     const db = getDatabase(app);
 
     /**********************
+     * APP BRIDGE         *
+     **********************/
+    const TEACHER_BRIDGE_KEY = "fenomen_teacher_bridge_v1";
+    const TEACHER_BRIDGE_MAX_AGE_MS = 10 * 60 * 1000;
+    const YOKLAMA_SYSTEM_URL = "https://ferhat19881988.github.io/yoklama/";
+    const BIREBIR_SYSTEM_URL = "https://ferhat19881988.github.io/birebiranaliz/";
+
+    /**********************
      * GLOBAL STATE       *
      **********************/
     const state = {
@@ -931,6 +940,7 @@
       teacherWelcome: $("#teacherWelcome"),
       teacherMetaId: $("#teacherMetaId"),
       teacherMetaBranch: $("#teacherMetaBranch"),
+      btnGoYoklama: $("#btnGoYoklama"),
       teacherDraftState: $("#teacherDraftState"),
       teacherWizardProgress: $("#teacherWizardProgress"),
 
@@ -1036,6 +1046,77 @@
 
     function safeKey(value=""){
       return String(value).replace(/[.#$[\]/]/g, "_");
+    }
+
+    function normalizeBridgeTeacherId(value=""){
+      return String(value ?? "").trim();
+    }
+
+    function buildTeacherBridgeUrl(baseUrl, teacherId, target){
+      const url = new URL(baseUrl, window.location.href);
+      url.searchParams.set("bridge", "teacher");
+      url.searchParams.set("teacherId", normalizeBridgeTeacherId(teacherId));
+      url.searchParams.set("target", target || "");
+      url.searchParams.set("t", String(Date.now()));
+      return url.toString();
+    }
+
+    function writeTeacherBridge(teacherId, target, source){
+      const cleanId = normalizeBridgeTeacherId(teacherId);
+      if (!cleanId) return false;
+      try {
+        localStorage.setItem(TEACHER_BRIDGE_KEY, JSON.stringify({
+          teacherId: cleanId,
+          target: target || "",
+          source: source || "",
+          ts: Date.now()
+        }));
+        return true;
+      } catch (err) {
+        console.warn("Öğretmen geçiş anahtarı yazılamadı:", err);
+        return false;
+      }
+    }
+
+    function readTeacherBridge(target){
+      let bridgeRequested = false;
+      try {
+        const url = new URL(window.location.href);
+        bridgeRequested = url.searchParams.get("bridge") === "teacher" || url.searchParams.get("bridge") === "1";
+        const idFromUrl = normalizeBridgeTeacherId(
+          url.searchParams.get("teacherId") || url.searchParams.get("ogretmenId") || url.searchParams.get("kod") || ""
+        );
+        const targetFromUrl = url.searchParams.get("target") || "";
+        if (bridgeRequested && idFromUrl && (!targetFromUrl || targetFromUrl === target)) return idFromUrl;
+      } catch (_) {}
+
+      try {
+        const raw = localStorage.getItem(TEACHER_BRIDGE_KEY);
+        if (!raw) return "";
+        const payload = JSON.parse(raw);
+        const teacherId = normalizeBridgeTeacherId(payload?.teacherId);
+        const age = Date.now() - Number(payload?.ts || 0);
+        const targetOk = !payload?.target || payload.target === target;
+        if (teacherId && targetOk && age >= 0 && age <= TEACHER_BRIDGE_MAX_AGE_MS) return teacherId;
+      } catch (err) {
+        console.warn("Öğretmen geçiş anahtarı okunamadı:", err);
+      }
+      return "";
+    }
+
+    function clearTeacherBridge(){
+      try { localStorage.removeItem(TEACHER_BRIDGE_KEY); } catch (_) {}
+    }
+
+    function cleanTeacherBridgeUrl(){
+      try {
+        const url = new URL(window.location.href);
+        const hasBridge = url.searchParams.has("bridge");
+        if (!hasBridge) return;
+        ["bridge", "teacherId", "ogretmenId", "kod", "target", "source", "t"].forEach(key => url.searchParams.delete(key));
+        const cleaned = `${url.pathname}${url.search}${url.hash}`;
+        window.history.replaceState({}, document.title, cleaned);
+      } catch (_) {}
     }
 
     function normalizeStudentNo(value=""){
@@ -1958,6 +2039,55 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
       updateTeacherDraftSummary();
       updateTeacherDraftState();
       renderTeacherWizard();
+    }
+
+    function loginTeacherById(id, options={}){
+      const { silent = false, clearInput = false, clearBridge = false } = options || {};
+      const teacherId = normalizeBridgeTeacherId(id);
+      if (!teacherId) {
+        if (!silent) showToast("ID girin.");
+        return false;
+      }
+      const t = findTeacherById(teacherId);
+      if (!t) {
+        if (!silent) showToast("Öğretmen ID bulunamadı.");
+        return false;
+      }
+      state.auth.role = "teacher";
+      state.auth.teacher = t;
+      resetTeacherDraft({keepDate:false});
+      setTeacherContextUI();
+      setView("teacher");
+      if (clearInput && els.teacherIdInput) els.teacherIdInput.value = "";
+      if (clearBridge) clearTeacherBridge();
+      return true;
+    }
+
+    async function handleIncomingTeacherBridge(){
+      const bridgedTeacherId = readTeacherBridge("birebir");
+      if (!bridgedTeacherId) return false;
+
+      const ready = await ensureTeacherEntryDataReady({ retryOnce: true });
+      if (!ready) {
+        cleanTeacherBridgeUrl();
+        showToast("Otomatik giriş için veriler okunamadı.");
+        return false;
+      }
+
+      const ok = loginTeacherById(bridgedTeacherId, { silent: true, clearInput: true, clearBridge: true });
+      cleanTeacherBridgeUrl();
+      showToast(ok ? "Birebir sistemine otomatik giriş yapıldı ✅" : "Aktarılan öğretmen ID bulunamadı.");
+      return ok;
+    }
+
+    function goToYoklamaSystem(){
+      const teacherId = normalizeBridgeTeacherId(state.auth.teacher?.id);
+      if (!teacherId) {
+        showToast("Öğretmen oturumu bulunamadı.");
+        return;
+      }
+      writeTeacherBridge(teacherId, "yoklama", "birebir");
+      window.location.assign(buildTeacherBridgeUrl(YOKLAMA_SYSTEM_URL, teacherId, "yoklama"));
     }
 
     function updateTeacherDraftState(){
@@ -4155,18 +4285,10 @@ function bindEvents(){
 
       // teacher login
       $("#btnTeacherLogin").addEventListener("click", () => {
-        const id = (els.teacherIdInput.value || "").trim();
-        if (!id) return showToast("ID girin.");
-        const t = findTeacherById(id);
-        if (!t) return showToast("Öğretmen ID bulunamadı.");
-        state.auth.role = "teacher";
-        state.auth.teacher = t;
-        resetTeacherDraft({keepDate:false});
-        setTeacherContextUI();
-        setView("teacher");
-        els.teacherIdInput.value = "";
+        loginTeacherById(els.teacherIdInput.value, { clearInput: true });
       });
       els.teacherIdInput.addEventListener("keydown", e => { if (e.key==="Enter") $("#btnTeacherLogin").click(); });
+      els.btnGoYoklama?.addEventListener("click", goToYoklamaSystem);
 
       // admin login
       $("#btnAdminLogin").addEventListener("click", async () => {
@@ -4335,6 +4457,7 @@ function bindEvents(){
       ]);
 
       refreshGlobalStatsUI();
+      await handleIncomingTeacherBridge();
     }
 
     init();
