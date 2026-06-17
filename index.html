@@ -243,6 +243,20 @@
   .profile-card.student-report .avatar { width: 135px; height: 135px; border-radius: 22px; font-size: 2.35rem; transition: transform .2s ease, box-shadow .2s ease; cursor: zoom-in; }
   .profile-card.student-report .avatar:hover { box-shadow: var(--shadow-lg); position: relative; z-index: 2; }
   .profile-card.student-report .avatar img { transition: transform .2s ease; }
+  .crop-grid { display:grid; grid-template-columns: 360px 1fr; gap:18px; align-items:start; }
+  .crop-preview { width:100%; max-width:360px; border:1px solid var(--panel-border); border-radius:16px; background:var(--bg); padding:12px; display:grid; place-items:center; }
+  .crop-preview canvas { width:100%; max-width:320px; aspect-ratio:1; height:auto; border-radius:12px; display:block; }
+  .range-row { display:grid; grid-template-columns: 130px 1fr; gap:12px; align-items:center; margin-bottom:12px; }
+  .range-row label { font-size:.86rem; font-weight:700; color:var(--text-muted); }
+  .range-row input[type="range"] { width:100%; accent-color: var(--primary); }
+  .camera-helper { border:1px solid #bfdbfe; background:#eff6ff; color:#1e3a8a; border-radius:12px; padding:10px 12px; line-height:1.45; }
+  .photo-action-row .btn { width:auto; }
+  @media (max-width: 820px){
+    .crop-grid { grid-template-columns:1fr; }
+    .crop-preview { max-width:100%; }
+    .range-row { grid-template-columns:1fr; gap:6px; }
+    .photo-action-row .btn, .photo-action-row label.btn { width:100%; }
+  }
   @media (max-width: 720px) {
     .student-row { padding: 14px; gap: 12px; }
     .student-left { min-width: 100%; }
@@ -3736,11 +3750,16 @@ Lütfen internet bağlantınızı kontrol edip tekrar deneyin.`,
                 <canvas id="suCropCanvas" width="320" height="320"></canvas>
               </div>
               <div class="tiny muted" id="suPhotoInfo" style="margin-top:8px;">Mevcut foto / seçili görsel yok.</div>
+              <div class="camera-helper tiny" style="margin-top:6px;">
+                📱 Android ve iPhone için iki aşamalı sistem: <b>Kamera ile Çek</b> doğrudan kamerayı açmayı dener; desteklenmeyen tarayıcıda otomatik olarak telefonun fotoğraf seçicisine düşer. <b>Galeriden Seç</b> her zaman yedek seçenektir.
+              </div>
               <div class="tiny muted" style="margin-top:6px;">Sistem 320x320 JPEG olarak kaydeder. Büyük dosyalar yüklenmez; kayıt sırasında ek sıkıştırma uygulanır.</div>
-              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
-                <label class="btn small" for="suPhotoInput">Fotoğraf Seç</label>
-                <input id="suPhotoInput" type="file" accept="image/*" style="display:none;">
-                <button id="suPhotoClearBtn" class="btn small">Fotoğrafı Kaldır</button>
+              <div class="photo-action-row" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+                <button id="suCameraBtn" class="btn small primary" type="button">📷 Kamera ile Çek</button>
+                <label class="btn small" for="suPhotoInput">🖼️ Galeriden Seç</label>
+                <input id="suCameraInput" type="file" accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif" capture="environment" style="display:none;">
+                <input id="suPhotoInput" type="file" accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif" style="display:none;">
+                <button id="suPhotoClearBtn" class="btn small" type="button">Fotoğrafı Kaldır</button>
               </div>
             </div>
 
@@ -3901,14 +3920,42 @@ Lütfen internet bağlantınızı kontrol edip tekrar deneyin.`,
 
       function bindStudentUpdateEditorEvents(){
         const photoInput = $("#suPhotoInput", els.modalBody);
+        const cameraInput = $("#suCameraInput", els.modalBody);
+        const cameraBtn = $("#suCameraBtn", els.modalBody);
         const photoClearBtn = $("#suPhotoClearBtn", els.modalBody);
 
-        photoInput?.addEventListener("change", async () => {
-          const file = photoInput.files?.[0];
+        const isLikelyImageFile = (file) => {
+          if (!file) return false;
+          const type = String(file.type || "").toLowerCase();
+          if (type.startsWith("image/")) return true;
+          // Bazı iPhone/WebView sürümleri HEIC/JPEG dosyayı boş MIME ile döndürebilir.
+          return /\.(jpe?g|png|webp|gif|bmp|heic|heif)$/i.test(String(file.name || ""));
+        };
+
+        const applyImageToCropper = (img, file, sourceLabel) => {
+          if (!cropCtx) return;
+          cropCtx.img = img;
+          cropCtx.currentBase64 = null;
+          cropCtx.sourceFileName = file?.name || sourceLabel || "camera-photo";
+          cropCtx.sourceFileBytes = Number(file?.size || 0);
+          cropCtx.zoom = 1;
+          cropCtx.offsetX = 0;
+          cropCtx.offsetY = 0;
+          $("#suZoom", els.modalBody).value = "1";
+          $("#suOffsetX", els.modalBody).value = "0";
+          $("#suOffsetY", els.modalBody).value = "0";
+          cropCtx.draw();
+          showToast(`${sourceLabel || "Fotoğraf"} hazır (${formatBytes(file?.size || 0)}). Kırpma ayarlarını yapabilirsiniz.`);
+        };
+
+        const handleSelectedPhotoFile = async (file, sourceLabel, sourceInput) => {
           if (!file) return;
-          if (!file.type.startsWith("image/")) return showToast("Lütfen resim dosyası seçin.");
+          if (!isLikelyImageFile(file)) {
+            if (sourceInput) sourceInput.value = "";
+            return showToast("Lütfen geçerli bir resim dosyası seçin.");
+          }
           if (file.size > STUDENT_PHOTO_UPLOAD_MAX_BYTES) {
-            photoInput.value = "";
+            if (sourceInput) sourceInput.value = "";
             await confirmDialog(`Seçtiğiniz fotoğraf çok büyük (${formatBytes(file.size)}).\nEn fazla ${formatBytes(STUDENT_PHOTO_UPLOAD_MAX_BYTES)} dosya yükleyebilirsiniz.`, {
               title: "Fotoğraf Çok Büyük",
               tone: "danger",
@@ -3918,26 +3965,31 @@ Lütfen internet bağlantınızı kontrol edip tekrar deneyin.`,
             });
             return;
           }
+
           const reader = new FileReader();
+          reader.onerror = () => showToast("Fotoğraf okunamadı. Lütfen tekrar deneyin veya galeriden seçin.");
           reader.onload = () => {
             const img = new Image();
-            img.onload = () => {
-              if (!cropCtx) return;
-              cropCtx.img = img;
-              cropCtx.sourceFileName = file.name || "";
-              cropCtx.sourceFileBytes = Number(file.size || 0);
-              cropCtx.zoom = 1;
-              cropCtx.offsetX = 0;
-              cropCtx.offsetY = 0;
-              $("#suZoom", els.modalBody).value = "1";
-              $("#suOffsetX", els.modalBody).value = "0";
-              $("#suOffsetY", els.modalBody).value = "0";
-              cropCtx.draw();
-              showToast(`Fotoğraf yüklendi (${formatBytes(file.size)}). Kırpma ayarlarını yapabilirsiniz.`);
-            };
+            img.onload = () => applyImageToCropper(img, file, sourceLabel);
+            img.onerror = () => showToast("Bu fotoğraf tarayıcı tarafından açılamadı. JPEG/PNG olarak tekrar deneyin.");
             img.src = reader.result;
           };
           reader.readAsDataURL(file);
+        };
+
+        cameraBtn?.addEventListener("click", () => {
+          // Kullanıcı hareketi içinde .click() çağrısı iOS Safari/Android Chrome için gereklidir.
+          cameraInput?.click();
+        });
+
+        cameraInput?.addEventListener("change", async () => {
+          const file = cameraInput.files?.[0];
+          await handleSelectedPhotoFile(file, "Kamera fotoğrafı", cameraInput);
+        });
+
+        photoInput?.addEventListener("change", async () => {
+          const file = photoInput.files?.[0];
+          await handleSelectedPhotoFile(file, "Galeri fotoğrafı", photoInput);
         });
 
         photoClearBtn?.addEventListener("click", () => {
