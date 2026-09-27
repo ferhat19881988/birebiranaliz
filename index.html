@@ -182,7 +182,12 @@
   .fg-search-wrap .input { padding-left:40px; background:#fff; min-width:0; max-width:100%; }
   .fg-search-icon { position:absolute; left:13px; top:50%; transform:translateY(-50%); color:var(--text-muted); pointer-events:none; font-size:.95rem; }
   .fg-count { white-space:nowrap; min-height:42px; display:inline-flex; align-items:center; justify-content:center; padding:0 12px; background:#eef2ff; border-color:#c7d2fe; color:#3730a3; }
-  .fg-clear { min-height:42px; width:auto; padding-inline:12px; }
+  .fg-search-bar .fg-clear {
+    min-height:42px; width:42px; min-width:42px; max-width:42px; padding:0;
+    display:inline-flex; align-items:center; justify-content:center; flex:0 0 42px;
+    border-radius:12px;
+  }
+  .fg-search-bar .fg-clear svg { width:18px; height:18px; display:block; pointer-events:none; }
 
   .fg-list-shell { min-width:0; min-height:0; width:100%; max-width:100%; flex:1; display:flex; flex-direction:column; border:1px solid var(--panel-border); border-radius:16px; background:var(--bg); overflow:hidden; }
   .fg-list-head { flex:0 0 auto; display:flex; justify-content:space-between; gap:8px; align-items:center; padding:10px 12px; border-bottom:1px solid var(--panel-border); background:#fff; }
@@ -225,8 +230,11 @@
     .fg-time-grid .input { min-height:44px; padding:10px 11px; }
     .fg-slot-wrap { margin-top:10px; }
     .fg-slot-chip { min-height:36px; padding:7px 10px; }
-    .fg-search-bar { grid-template-columns:minmax(0,1fr) auto; }
-    .fg-clear { display:none; }
+    .fg-search-bar { grid-template-columns:minmax(0,1fr) auto auto; }
+    .fg-search-bar .fg-clear {
+      display:inline-flex; width:44px; min-width:44px; max-width:44px; min-height:44px;
+      padding:0; flex-basis:44px;
+    }
     .fg-count { min-height:44px; padding:0 10px; }
     .fg-search-wrap .input { min-height:44px; }
     .fg-list-shell { border-radius:14px; }
@@ -243,7 +251,8 @@
     .fg-intro { display:none; }
     .fg-section-hint { display:none; }
     .fg-time-grid { gap:7px; }
-    .fg-count { font-size:.7rem; padding-inline:8px; }
+    .fg-count { font-size:.7rem; padding-inline:7px; }
+    .fg-search-bar .fg-clear { width:40px; min-width:40px; max-width:40px; min-height:40px; flex-basis:40px; }
     .fg-list .search-item { gap:8px; }
   }
 
@@ -2813,7 +2822,11 @@ function openFreeGroupModal(){
             <input id="fgSearch" class="input" type="search" placeholder="Öğrenci ara: ad veya numara" inputmode="search" autocomplete="off" />
           </div>
           <span id="fgSelectedCount" class="badge fg-count">0 seçili</span>
-          <button id="fgClearSelection" type="button" class="btn small ghost fg-clear" disabled>Temizle</button>
+          <button id="fgClearSelection" type="button" class="btn small ghost fg-clear" aria-label="Seçimleri temizle" title="Seçimleri temizle" disabled>
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
         </div>
       </div>
 
