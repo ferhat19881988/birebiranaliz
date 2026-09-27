@@ -455,6 +455,50 @@
   .today-student-chip.has-note:hover { border-color: var(--primary); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
   @media (max-width: 900px){ .today-session-grid{ grid-template-columns:1fr; } }
 
+
+  /* ===== V1.1 • Firebase programlı birebir akışı ===== */
+  .schedule-panel { display:grid; gap:14px; }
+  .schedule-head { display:flex; gap:12px; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; }
+  .schedule-head-main { min-width:0; }
+  .schedule-date { font-weight:800; color:var(--text); font-size:1rem; }
+  .schedule-sub { color:var(--text-muted); font-size:.84rem; margin-top:4px; line-height:1.45; }
+  .schedule-actions { display:flex; gap:8px; flex-wrap:wrap; }
+  .schedule-list { display:grid; gap:12px; }
+  .schedule-card { border:1px solid var(--panel-border); border-radius:16px; padding:16px; background:linear-gradient(180deg,#fff,#f8fafc); box-shadow:var(--shadow-sm); display:grid; grid-template-columns:minmax(0,1fr) auto; gap:14px; align-items:center; }
+  .schedule-card.saved { border-color:#a7f3d0; background:linear-gradient(180deg,#fff,#ecfdf5); }
+  .schedule-card-main { min-width:0; }
+  .schedule-card-time { font-size:1.02rem; font-weight:800; color:var(--text); }
+  .schedule-card-title { margin-top:5px; font-size:1.08rem; font-weight:800; color:var(--text); }
+  .schedule-card-meta { margin-top:7px; display:flex; gap:7px; flex-wrap:wrap; }
+  .schedule-card-action { display:flex; flex-direction:column; gap:8px; min-width:138px; }
+  .schedule-empty { border:2px dashed var(--panel-border); border-radius:16px; padding:28px 18px; text-align:center; background:var(--bg); }
+  .schedule-empty .t { font-size:1.08rem; font-weight:800; color:var(--text); }
+  .schedule-empty .s { color:var(--text-muted); margin-top:6px; font-size:.86rem; }
+  .free-work-card { border:1px solid #fde68a; background:#fffbeb; border-radius:16px; padding:14px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .free-work-card .t { font-weight:800; color:#78350f; }
+  .free-work-card .s { margin-top:3px; color:#92400e; font-size:.82rem; line-height:1.4; }
+  .compat-teacher-fields { display:none !important; }
+  .history-session-list { display:grid; gap:10px; }
+  .history-session-card { border:1px solid var(--panel-border); border-radius:14px; padding:14px; background:var(--bg); display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; align-items:center; }
+  .history-session-card .t { font-weight:800; color:var(--text); }
+  .history-session-card .s { margin-top:4px; color:var(--text-muted); font-size:.82rem; line-height:1.45; }
+  .history-session-card .a { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+  .session-preview-students { display:grid; gap:8px; }
+  .session-preview-row { border:1px solid var(--panel-border); border-radius:12px; padding:10px 12px; background:var(--bg); }
+  .session-preview-row .h { display:flex; gap:8px; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; }
+  .session-preview-row .n { font-weight:700; color:var(--text); }
+  .session-preview-row .note { margin-top:7px; color:var(--text-muted); font-size:.82rem; white-space:pre-wrap; }
+  .app-version-footer { text-align:center; padding:0 16px calc(18px + env(safe-area-inset-bottom)); color:var(--text-muted); font-size:.76rem; font-weight:600; }
+  @media (max-width:680px){
+    .schedule-card, .history-session-card { grid-template-columns:1fr; padding:14px; }
+    .schedule-card-action, .history-session-card .a { width:100%; min-width:0; }
+    .schedule-card-action .btn, .history-session-card .a .btn { width:100%; }
+    .schedule-actions { width:100%; display:grid; grid-template-columns:1fr 1fr; }
+    .schedule-actions .btn { width:100%; min-width:0; }
+    .free-work-card { align-items:stretch; }
+    .free-work-card .btn { width:100%; }
+  }
+
 </style>
 </head>
 <body>
@@ -470,6 +514,7 @@
       <div class="top-actions">
         <span id="sheetStatusChip" class="chip">Sheet: yükleniyor…</span>
         <span id="dbStatusChip" class="chip">Firebase: bağlanıyor…</span>
+        <span id="scheduleStatusChip" class="chip">Program: bekliyor…</span>
         <button id="btnTopHome" class="btn small ghost">Ana Sayfa</button>
       </div>
     </header>
@@ -487,7 +532,7 @@
             <div class="login-buttons">
               <button id="goTeacherLogin" class="big-button" type="button">
                 <div class="t">👩‍🏫 Öğretmen Girişi</div>
-                <div class="s">Öğretmen ID ile giriş • Grup seç • Yoklama al • Konu yaz • Ders bitti kaydı oluştur</div>
+                <div class="s">Öğretmen ID ile giriş • Firebase programındaki birebiri aç • Yoklama al • Konu yaz • Kaydet</div>
               </button>
               <button id="goAdminLogin" class="big-button" type="button">
                 <div class="t">🛠️ Admin Girişi</div>
@@ -590,7 +635,7 @@
                   <div class="wiz-no">1</div>
                   <div class="wiz-text">
                     <div class="wiz-title">Hazırlık</div>
-                    <div class="wiz-sub">Tarih, saat ve grup seçin. Serbest grup da buradan açılır.</div>
+                    <div class="wiz-sub">Firebase programınızdaki birebiri seçin veya Serbest Çalışma açın.</div>
                   </div>
                 </div>
                 <div class="teacher-wizard-step" data-wizard-step-indicator="2">
@@ -613,33 +658,40 @@
             <div class="divider"></div>
 
             <div id="teacherStep1" class="teacher-step-panel active" data-teacher-step="1">
-              <div class="teacher-step-title"><span class="step-no">1</span><h3 style="margin:0; font-size:1rem;">Ders Hazırlığı</h3></div>
-              <div class="form-grid">
-                <div class="field">
-                  <label for="lessonDateInput">Tarih</label>
-                  <input id="lessonDateInput" class="input" type="date" />
-                </div>
-                <div class="field">
-                  <label for="lessonSlotSelect">Ders Saati</label>
-                  <select id="lessonSlotSelect" class="select"></select>
-                </div>
-                <div class="field">
-                  <label for="groupSelect">Öğrenci Grubu</label>
-                  <select id="groupSelect" class="select"></select>
-                </div>
-                <div class="field">
-                  <label>&nbsp;</label>
-                  <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                    <button id="btnLoadGroup" class="btn">Grubu Yükle</button>
-                    <button id="btnFreeGroup" class="btn warning">Serbest Grup</button>
-                    <button id="btnTeacherResetDraft" class="btn ghost">Formu Temizle</button>
+              <div class="teacher-step-title"><span class="step-no">1</span><h3 style="margin:0; font-size:1rem;">Bugünkü Birebirlerim</h3></div>
+
+              <div class="schedule-panel">
+                <div class="schedule-head">
+                  <div class="schedule-head-main">
+                    <div id="teacherScheduleDate" class="schedule-date">Bugün</div>
+                    <div class="schedule-sub">Ders programınız planlama sisteminin Firebase atamalarından otomatik okunur. Ders kartına dokunduğunuzda öğrenciler doğrudan açılır.</div>
                   </div>
+                  <div class="schedule-actions">
+                    <button id="btnRefreshTeacherSchedule" class="btn small" type="button">Programı Yenile</button>
+                    <button id="btnTeacherHistory" class="btn small ghost" type="button">Geçmiş Kayıtlarım</button>
+                  </div>
+                </div>
+
+                <div id="teacherScheduleList" class="schedule-list">
+                  <div class="empty">Program kontrol ediliyor…</div>
+                </div>
+
+                <div class="free-work-card">
+                  <div>
+                    <div class="t">Serbest Çalışma</div>
+                    <div class="s">Program dışında istediğiniz öğrenci ve saat aralığıyla ayrı bir birebir oluşturabilirsiniz.</div>
+                  </div>
+                  <button id="btnFreeGroup" class="btn warning" type="button">Serbest Çalışma Aç</button>
                 </div>
               </div>
 
-              <div class="divider"></div>
-              <div class="helper">
-                Önce tarih, saat ve grup seçin. Ardından <b>Grubu Yükle</b> ile yoklama listesine geçin.
+              <!-- Mevcut kayıt/yoklama motoruyla uyumluluk için alanlar DOM'da tutulur; normal kullanımda program kartları doldurur. -->
+              <div class="compat-teacher-fields" aria-hidden="true">
+                <input id="lessonDateInput" class="input" type="date" tabindex="-1" />
+                <select id="lessonSlotSelect" class="select" tabindex="-1"></select>
+                <select id="groupSelect" class="select" tabindex="-1"></select>
+                <button id="btnLoadGroup" class="btn" type="button" tabindex="-1">Grubu Yükle</button>
+                <button id="btnTeacherResetDraft" class="btn ghost" type="button" tabindex="-1">Formu Temizle</button>
               </div>
             </div>
 
@@ -647,7 +699,7 @@
               <div class="teacher-step-title"><span class="step-no">2</span><h3 style="margin:0;">Öğrenci Listesi / Yoklama</h3></div>
               <p class="muted tiny">
                 Grup yüklendikten sonra öğrenciler listelenir. Her öğrenci için <b>Geldi / Gelmedi / Geç Geldi</b> seçin.
-                Ders bitmeden önce düzenleme yapılabilir. <b>Ders Bitti</b> sonrası kayıt kilitlenir.
+                Kaydı tamamladıktan sonra <b>aynı gün içinde tekrar düzenleyebilirsiniz</b>. Gün geçince kayıt yalnızca ön izleme olarak açılır.
               </p>
 
               <div class="divider"></div>
@@ -691,7 +743,7 @@
               <button id="btnTeacherPrevStep" class="btn">← Önceki Adım</button>
               <div class="teacher-nav-right">
                 <button id="btnTeacherNextStep" class="btn primary">Sonraki Adım →</button>
-                <button id="btnFinalizeLesson" class="btn primary">Ders Bitti • Kaydı Tamamla</button>
+                <button id="btnFinalizeLesson" class="btn primary">Kaydı Tamamla</button>
                 <button id="btnTeacherLogout" class="btn">Çıkış</button>
               </div>
             </div>
@@ -775,6 +827,7 @@
 
       <div class="footer-space"></div>
     </main>
+    <footer class="app-version-footer">Birebir Analiz Sistemi • <span id="appVersionText">V1.1</span></footer>
   </div>
 
   <!-- Generic Modal -->
@@ -814,6 +867,7 @@
     const GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1oJGMO7FOPV4U86peeA63lmMk-wVCKsfWuyw2yefMweg/edit?usp=sharing";
     const ADMIN_PASSWORD = "13579";
     const ROOT_PATH = "Birebirlerianaliz";
+    const APP_VERSION = "V1.1";
     const DEFAULT_LESSON_SLOTS = [
       { id: "S1", start: "16:00", end: "16:40", active: true },
       { id: "S2", start: "16:50", end: "17:30", active: true },
@@ -867,6 +921,21 @@
     let analytics = null; // intentionally disabled (optional)
     const db = getDatabase(app);
 
+    // Grup Ders Planlama sisteminin Firebase'i yalnızca OKUMA amacıyla bağlanır.
+    // Atamalar burada `atamapath`, gün/saat tanımları `program` yolundadır.
+    const assignmentFirebaseConfig = {
+      apiKey: "AIzaSyAIzu6aNQstwQCdMWODyIwiaVVBm63OeGw",
+      authDomain: "odevfeno.firebaseapp.com",
+      databaseURL: "https://odevfeno-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "odevfeno",
+      storageBucket: "odevfeno.firebasestorage.app",
+      messagingSenderId: "662757516934",
+      appId: "1:662757516934:web:0042188832f63deb6fd307",
+      measurementId: "G-4Q99NQRB38"
+    };
+    const assignmentApp = initializeApp(assignmentFirebaseConfig, "assignmentSchedule");
+    const assignmentDb = getDatabase(assignmentApp);
+
     /**********************
      * APP BRIDGE         *
      **********************/
@@ -898,6 +967,16 @@
         dbMeta: {
           sessionCount: 0,
           lastMetaRefresh: null
+        },
+        schedule: {
+          assignments: [],
+          program: null,
+          loaded: false,
+          loading: false,
+          error: null,
+          lastLoadedAt: null,
+          renderToken: 0,
+          currentEntries: []
         }
       },
       teacherDraft: {
@@ -910,6 +989,8 @@
         studentNotes: {}, // no -> öğretmene özel/öğrenciye özgü not
         locked: false,
         freeGroupMeta: { enabled:false, start:"", end:"" },
+        scheduleMeta: { enabled:false, day:null, slot:null, slotLabel:"", branch:"", assignmentKey:"" },
+        editingSessionId: "",
         step: 1
       }
     };
@@ -923,6 +1004,7 @@
     const els = {
       sheetStatusChip: $("#sheetStatusChip"),
       dbStatusChip: $("#dbStatusChip"),
+      scheduleStatusChip: $("#scheduleStatusChip"),
 
       statTeachers: $("#statTeachers"),
       statStudents: $("#statStudents"),
@@ -957,6 +1039,9 @@
       btnGoYoklama: $("#btnGoYoklama"),
       teacherDraftState: $("#teacherDraftState"),
       teacherWizardProgress: $("#teacherWizardProgress"),
+      teacherScheduleDate: $("#teacherScheduleDate"),
+      teacherScheduleList: $("#teacherScheduleList"),
+      appVersionText: $("#appVersionText"),
 
       sumTotal: $("#sumTotal"),
       sumPresent: $("#sumPresent"),
@@ -1829,6 +1914,343 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
       return await runTransaction(ref(db, path), updater, options);
     }
 
+    async function assignmentDbGet(path){
+      const snap = await get(ref(assignmentDb, path));
+      return snap.exists() ? snap.val() : null;
+    }
+
+    let assignmentScheduleLoadPromise = null;
+    async function loadAssignmentScheduleFromFirebase({ force=false, silent=false } = {}){
+      const schedule = state.data.schedule;
+      if (!force && schedule.loaded) return true;
+      if (assignmentScheduleLoadPromise) return await assignmentScheduleLoadPromise;
+
+      schedule.loading = true;
+      schedule.error = null;
+      setChip(els.scheduleStatusChip, "Program: bağlanıyor…", true);
+
+      assignmentScheduleLoadPromise = (async () => {
+        try {
+          const [rawAssignments, rawProgram] = await Promise.all([
+            assignmentDbGet("atamapath"),
+            assignmentDbGet("program")
+          ]);
+          const assignments = Array.isArray(rawAssignments)
+            ? rawAssignments.filter(Boolean)
+            : (rawAssignments && typeof rawAssignments === "object" ? Object.values(rawAssignments).filter(Boolean) : []);
+          schedule.assignments = assignments;
+          schedule.program = rawProgram && typeof rawProgram === "object" ? rawProgram : null;
+          schedule.loaded = true;
+          schedule.loading = false;
+          schedule.lastLoadedAt = new Date().toISOString();
+          setChip(els.scheduleStatusChip, assignments.length ? `Program: bağlı ✓ (${assignments.length})` : "Program: atama yok", true);
+          return true;
+        } catch (err) {
+          console.error("Atama Firebase okunamadı:", err);
+          schedule.assignments = [];
+          schedule.program = null;
+          schedule.loaded = false;
+          schedule.loading = false;
+          schedule.error = err?.message || String(err);
+          setChip(els.scheduleStatusChip, "Program: hata", false);
+          if (!silent) showToast("Ders programı Firebase'den okunamadı.");
+          return false;
+        } finally {
+          assignmentScheduleLoadPromise = null;
+        }
+      })();
+
+      return await assignmentScheduleLoadPromise;
+    }
+
+    function isoLocalDateToDayIndex(isoDate){
+      const m = String(isoDate || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!m) return null;
+      const d = new Date(Number(m[1]), Number(m[2])-1, Number(m[3]));
+      if (Number.isNaN(d.getTime())) return null;
+      return (d.getDay() + 6) % 7; // Pazartesi=0 ... Pazar=6
+    }
+
+    function assignmentTeacherMatches(assignment, teacher){
+      if (!assignment || !teacher) return false;
+      const assignmentKey = normalizeText(assignment.teacherId || "");
+      if (!assignmentKey) return false;
+      const nameKey = normalizeText(teacher.name || "");
+      const appIdKey = normalizeText(teacher.id || "");
+      return assignmentKey === nameKey || assignmentKey === appIdKey;
+    }
+
+    function assignmentKeyOf(a){
+      return [a?.teacherId ?? "", a?.day ?? "", a?.slot ?? "", a?.group ?? "", a?.branch ?? ""].map(v => String(v)).join("|");
+    }
+
+    function scheduleSlotId(slotIndex){
+      const n = Number(slotIndex);
+      return Number.isFinite(n) && n >= 0 ? `S${n+1}` : "";
+    }
+
+    function scheduleSlotLabel(slotIndex){
+      const n = Number(slotIndex);
+      const fromProgram = state.data.schedule.program?.slotLabels?.[n];
+      if (String(fromProgram || "").trim()) return String(fromProgram).trim().replace(/\s*-\s*/g, " - ");
+      const localSlot = getActiveSlots()[n];
+      if (localSlot) return makeSlotLabel(localSlot);
+      return Number.isFinite(n) ? `${n+1}. ders` : "-";
+    }
+
+    function scheduleDayLabel(dayIndex){
+      const days = state.data.schedule.program?.days;
+      const n = Number(dayIndex);
+      if (Array.isArray(days) && days[n]) return String(days[n]);
+      return ["Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi","Pazar"][n] || "-";
+    }
+
+    function buildTeacherSessionKey(teacherId, date, slotId, group){
+      return safeKey(`${teacherId}_${date}_${slotId}_${group}`);
+    }
+
+    function getTeacherAssignmentsForDate(teacher, date){
+      const dayIndex = isoLocalDateToDayIndex(date);
+      if (dayIndex == null) return [];
+      return (state.data.schedule.assignments || [])
+        .filter(a => assignmentTeacherMatches(a, teacher) && Number(a.day) === Number(dayIndex))
+        .sort((a,b) => Number(a.slot)-Number(b.slot) || String(a.group||"").localeCompare(String(b.group||""), "tr"));
+    }
+
+    function statusNice(status){
+      return ({GELDI:"Geldi", GELMEDI:"Gelmedi", GEC:"Geç Geldi"})[String(status || "").toUpperCase()] || "Belirsiz";
+    }
+
+    function sessionSourceLabel(session){
+      if (session?.source === "free" || session?.group === FREE_GROUP_LABEL) return "Serbest Çalışma";
+      if (session?.source === "schedule") return "Programlı Ders";
+      return "Birebir";
+    }
+
+    async function renderTeacherScheduleCards({ force=false } = {}){
+      if (!els.teacherScheduleList) return;
+      const teacher = state.auth.teacher;
+      if (!teacher) return;
+      const token = ++state.data.schedule.renderToken;
+      const date = todayISO();
+      if (els.teacherScheduleDate) {
+        const dayIndex = isoLocalDateToDayIndex(date);
+        els.teacherScheduleDate.textContent = `${formatDateTR(date)} • ${scheduleDayLabel(dayIndex)}`;
+      }
+      els.teacherScheduleList.innerHTML = `<div class="empty">Program kontrol ediliyor…</div>`;
+
+      const ok = await loadAssignmentScheduleFromFirebase({ force, silent:true });
+      if (token !== state.data.schedule.renderToken || state.auth.teacher !== teacher) return;
+      if (!ok) {
+        els.teacherScheduleList.innerHTML = `<div class="schedule-empty"><div class="t">Program bağlantısı okunamadı</div><div class="s">Programı Yenile butonuyla tekrar deneyebilirsiniz. Serbest Çalışma kullanılabilir.</div></div>`;
+        return;
+      }
+
+      const assignments = getTeacherAssignmentsForDate(teacher, date);
+      if (!assignments.length) {
+        state.data.schedule.currentEntries = [];
+        els.teacherScheduleList.innerHTML = `<div class="schedule-empty"><div class="t">Birebir görünmüyor</div><div class="s">Firebase atamalarında bugün için size tanımlanmış birebir bulunamadı.</div></div>`;
+        return;
+      }
+
+      let daySessions = {};
+      try { daySessions = await dbGet(`${ROOT_PATH}/sessionsByDate/${date}`) || {}; }
+      catch (err) { console.warn("Bugünkü kayıtlar okunamadı:", err); }
+      if (token !== state.data.schedule.renderToken || state.auth.teacher !== teacher) return;
+
+      const entries = assignments.map(a => {
+        const slotId = scheduleSlotId(a.slot);
+        const sessionKey = buildTeacherSessionKey(teacher.id, date, slotId, a.group || "");
+        const existing = daySessions?.[sessionKey] || null;
+        return { assignment:a, key:assignmentKeyOf(a), slotId, slotLabel:scheduleSlotLabel(a.slot), sessionKey, existing };
+      });
+      state.data.schedule.currentEntries = entries;
+
+      els.teacherScheduleList.innerHTML = entries.map((entry, idx) => {
+        const a = entry.assignment;
+        const saved = !!entry.existing;
+        return `
+          <div class="schedule-card ${saved ? "saved" : ""}" data-schedule-index="${idx}">
+            <div class="schedule-card-main">
+              <div class="schedule-card-time">${htmlEscape(entry.slotLabel)}</div>
+              <div class="schedule-card-title">${htmlEscape(a.group || "-")}</div>
+              <div class="schedule-card-meta">
+                <span class="badge neutral">${htmlEscape(a.branch || state.auth.teacher?.brans || "Branş")}</span>
+                <span class="badge ${saved ? "success" : "neutral"}">${saved ? "Kaydedildi" : "Bekliyor"}</span>
+              </div>
+            </div>
+            <div class="schedule-card-action">
+              <button class="btn ${saved ? "success" : "primary"}" type="button" data-open-schedule="${idx}">${saved ? "Düzenle" : "Dersi Aç"}</button>
+              ${saved ? `<button class="btn ghost small" type="button" data-preview-schedule="${idx}">Ön İzleme</button>` : ""}
+            </div>
+          </div>`;
+      }).join("");
+    }
+
+    function populateDraftFromSession(session){
+      if (!session) return false;
+      const currentStudents = new Map(mergedStudents().map(s => [normalizeStudentNo(s.no), s]));
+      const sessionStudents = Object.values(session.students || {}).filter(Boolean).map(st => {
+        const no = normalizeStudentNo(st.no);
+        const live = currentStudents.get(no) || {};
+        return {
+          ...live,
+          ...st,
+          no,
+          adsoyad: st.adsoyad || live.adsoyad || "",
+          sinif: st.sinif || live.sinif || "",
+          grup: st.grup || live.grup || session.group || "",
+          _sessionGroup: st.sessionGroup || st.grup || session.group || ""
+        };
+      }).sort((a,b)=>String(a.no||"").localeCompare(String(b.no||""),"tr",{numeric:true,sensitivity:"base"}));
+
+      resetTeacherDraft({ keepDate:false });
+      state.teacherDraft.date = String(session.date || todayISO());
+      state.teacherDraft.slotId = String(session.slotId || "");
+      state.teacherDraft.group = String(session.group || "");
+      state.teacherDraft.topic = String(session.topic || "");
+      state.teacherDraft.loadedStudents = sessionStudents;
+      state.teacherDraft.statuses = Object.fromEntries(sessionStudents.map(st => [st.no, String(st.status || "")]));
+      state.teacherDraft.studentNotes = Object.fromEntries(sessionStudents.map(st => [st.no, String(st.teacherNote || "")]));
+      state.teacherDraft.freeGroupMeta = session.freeGroupMeta?.enabled
+        ? { enabled:true, start:String(session.freeGroupMeta.start||""), end:String(session.freeGroupMeta.end||"") }
+        : { enabled: session.group === FREE_GROUP_LABEL, start:"", end:"" };
+      state.teacherDraft.scheduleMeta = session.scheduleMeta?.enabled
+        ? { ...session.scheduleMeta, enabled:true }
+        : { enabled: session.source === "schedule", day:null, slot:null, slotLabel:String(session.slotLabel||""), branch:String(session.brans||""), assignmentKey:"" };
+      state.teacherDraft.editingSessionId = String(session.sessionId || buildTeacherSessionKey(session.teacherId, session.date, session.slotId, session.group));
+      state.teacherDraft.locked = false;
+
+      els.lessonDateInput.value = state.teacherDraft.date;
+      renderTeacherSelectors();
+      els.lessonSlotSelect.value = state.teacherDraft.slotId;
+      els.groupSelect.value = state.teacherDraft.group;
+      els.lessonTopicInput.value = state.teacherDraft.topic;
+      renderTeacherStudentList();
+      updateTeacherDraftSummary();
+      setTeacherWizardStep(2, { force:true, silent:true });
+      updateTeacherDraftState();
+      return true;
+    }
+
+    function openTeacherSessionPreview(session, title="Ders Ön İzleme"){
+      if (!session) return showToast("Ders kaydı bulunamadı.");
+      const students = Object.values(session.students || {}).filter(Boolean)
+        .sort((a,b)=>String(a.no||"").localeCompare(String(b.no||""),"tr",{numeric:true,sensitivity:"base"}));
+      const rows = students.length ? students.map(st => `
+        <div class="session-preview-row">
+          <div class="h">
+            <div class="n">${htmlEscape(st.adsoyad || "-")} <span class="muted tiny">• No: ${htmlEscape(st.no || "-")}</span></div>
+            <span class="badge ${st.status === "GELDI" ? "success" : st.status === "GELMEDI" ? "danger" : st.status === "GEC" ? "late" : "neutral"}">${htmlEscape(statusNice(st.status))}</span>
+          </div>
+          ${String(st.teacherNote || "").trim() ? `<div class="note"><b>Not:</b> ${htmlEscape(st.teacherNote)}</div>` : ""}
+        </div>`).join("") : `<div class="empty">Öğrenci kaydı bulunamadı.</div>`;
+      openModal(title, `
+        <div class="grid">
+          <div class="card">
+            <div class="summary-row">
+              <span class="badge neutral">${htmlEscape(formatDateTR(session.date))}</span>
+              <span class="badge neutral">${htmlEscape(session.slotLabel || session.slotId || "-")}</span>
+              <span class="badge neutral">${htmlEscape(session.group || "-")}</span>
+              <span class="badge neutral">${htmlEscape(sessionSourceLabel(session))}</span>
+            </div>
+            <div class="helper" style="margin-top:12px;"><b>İşlenen Konu:</b> ${htmlEscape(session.topic || "-")}</div>
+          </div>
+          <div class="session-preview-students">${rows}</div>
+        </div>`, { modalClass:"modal-wide modal-free-group" });
+    }
+
+    async function openScheduledAssignment(entry){
+      const teacher = state.auth.teacher;
+      if (!teacher || !entry?.assignment) return;
+      if (entry.existing) {
+        if (String(entry.existing.date || todayISO()) !== todayISO()) return openTeacherSessionPreview(entry.existing);
+        populateDraftFromSession(entry.existing);
+        showFloatingToast("Kayıt düzenleme için açıldı.", 1500);
+        return;
+      }
+
+      const a = entry.assignment;
+      resetTeacherDraft({ keepDate:false });
+      state.teacherDraft.date = todayISO();
+      state.teacherDraft.slotId = entry.slotId;
+      state.teacherDraft.group = String(a.group || "");
+      state.teacherDraft.scheduleMeta = {
+        enabled:true,
+        day:Number(a.day),
+        slot:Number(a.slot),
+        slotLabel:entry.slotLabel,
+        branch:String(a.branch || teacher.brans || ""),
+        assignmentKey:entry.key
+      };
+      state.teacherDraft.freeGroupMeta = { enabled:false, start:"", end:"" };
+      state.teacherDraft.loadedStudents = getStudentsForGroup(state.teacherDraft.group);
+      state.teacherDraft.statuses = {};
+      state.teacherDraft.studentNotes = {};
+      state.teacherDraft.editingSessionId = "";
+      els.lessonDateInput.value = state.teacherDraft.date;
+      renderTeacherSelectors();
+      els.lessonSlotSelect.value = state.teacherDraft.slotId;
+      els.groupSelect.value = state.teacherDraft.group;
+      renderTeacherStudentList();
+      updateTeacherDraftSummary();
+      if (!state.teacherDraft.loadedStudents.length) {
+        setTeacherWizardStep(1, { force:true, silent:true });
+        showToast("Bu program grubunda öğrenci bulunamadı.");
+        return;
+      }
+      setTeacherWizardStep(2, { force:true, silent:true });
+      updateTeacherDraftState();
+      showFloatingToast(`${a.group} açıldı (${state.teacherDraft.loadedStudents.length} öğrenci).`, 1500);
+    }
+
+    async function openTeacherHistoryModal(){
+      const teacher = state.auth.teacher;
+      if (!teacher) return showToast("Öğretmen oturumu bulunamadı.");
+      let all = {};
+      try { all = await ensureSessionsLoaded(true) || {}; }
+      catch (err) { console.error(err); return showToast("Kayıtlar okunamadı."); }
+      const today = todayISO();
+      const sessions = [];
+      for (const [date, dayObj] of Object.entries(all || {})) {
+        for (const session of Object.values(dayObj || {})) {
+          if (!session || String(session.teacherId || "") !== String(teacher.id)) continue;
+          sessions.push(session);
+        }
+      }
+      sessions.sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")) || String(b.slotId||"").localeCompare(String(a.slotId||"")));
+      const list = sessions.slice(0,80);
+      const body = list.length ? `<div class="history-session-list">${list.map((session, idx) => {
+        const editable = String(session.date || "") === today;
+        return `<div class="history-session-card">
+          <div>
+            <div class="t">${htmlEscape(formatDateTR(session.date))} • ${htmlEscape(session.slotLabel || session.slotId || "-")} • ${htmlEscape(session.group || "-")}</div>
+            <div class="s">${htmlEscape(sessionSourceLabel(session))} • ${htmlEscape(session.topic || "Konu girilmemiş")}</div>
+          </div>
+          <div class="a">
+            ${editable ? `<button class="btn success small" type="button" data-history-edit="${idx}">Düzenle</button>` : ""}
+            <button class="btn small ghost" type="button" data-history-preview="${idx}">Ön İzleme</button>
+          </div>
+        </div>`;
+      }).join("")}</div>` : `<div class="empty">Henüz kayıtlı birebiriniz bulunmuyor.</div>`;
+
+      openModal("Birebir Kayıtlarım", body, {
+        modalClass:"modal-wide modal-free-group",
+        onRender: () => {
+          els.modalBody.querySelectorAll("[data-history-preview]").forEach(btn => btn.addEventListener("click", () => {
+            const session = list[Number(btn.dataset.historyPreview)];
+            openTeacherSessionPreview(session);
+          }));
+          els.modalBody.querySelectorAll("[data-history-edit]").forEach(btn => btn.addEventListener("click", () => {
+            const session = list[Number(btn.dataset.historyEdit)];
+            if (!session || String(session.date || "") !== todayISO()) return showToast("Geçmiş gün kayıtları düzenlenemez.");
+            closeModal();
+            populateDraftFromSession(session);
+          }));
+        }
+      });
+    }
+
     async function loadSettingsFromDb(options={}){
       const { silent = false } = options || {};
       setChip(els.dbStatusChip, "Firebase: bağlanıyor…", true);
@@ -1948,6 +2370,8 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
         <div><b>Aktif ders saatleri:</b> ${activeSlots || "-"}</div>
         <div style="margin-top:6px;"><b>Firebase kök yolu:</b> <span class="mono">${ROOT_PATH}</span></div>
         <div style="margin-top:6px;"><b>Öğrenci override / foto:</b> <span class="mono">${ROOT_PATH}/studentOverrides</span></div>
+        <div style="margin-top:6px;"><b>Ders programı kaynağı:</b> <span class="mono">odevfeno / atamapath</span> (salt okunur)</div>
+        <div style="margin-top:6px;"><b>Sürüm:</b> ${APP_VERSION}</div>
       `;
     }
 
@@ -1980,6 +2404,12 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
       `;
       if (slots.some(s => s.id===prevSlot)) {
         els.lessonSlotSelect.value = prevSlot;
+      } else if (state.teacherDraft.scheduleMeta?.enabled && prevSlot) {
+        const opt = document.createElement("option");
+        opt.value = prevSlot;
+        opt.textContent = `Program • ${state.teacherDraft.scheduleMeta.slotLabel || prevSlot}`;
+        els.lessonSlotSelect.appendChild(opt);
+        els.lessonSlotSelect.value = prevSlot;
       } else if (String(prevSlot||"").startsWith("FG_")) {
         const meta = state.teacherDraft.freeGroupMeta || {};
         const label = meta?.start && meta?.end ? `${meta.start} - ${meta.end}` : prevSlot;
@@ -1995,7 +2425,7 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
       const prevGroup = state.teacherDraft.group;
       // "Serbest Grup" seçeneğini sadece gerçekten serbest grup aktifken göster.
       // Böylece kayıt tamamlanıp form temizlenince açılır listede "Serbest Grup" kalmaz.
-      if (prevGroup === FREE_GROUP_LABEL && !groups.includes(FREE_GROUP_LABEL)) groups.unshift(FREE_GROUP_LABEL);
+      if (prevGroup && !groups.includes(prevGroup)) groups.unshift(prevGroup);
       els.groupSelect.innerHTML = `
         <option value="">Grup seçin</option>
         ${groups.map(g => `<option value="${htmlEscape(g)}">${htmlEscape(g)}</option>`).join("")}
@@ -2027,6 +2457,8 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
         studentNotes: {},
         locked: false,
         freeGroupMeta: { enabled:false, start:"", end:"" },
+        scheduleMeta: { enabled:false, day:null, slot:null, slotLabel:"", branch:"", assignmentKey:"" },
+        editingSessionId: "",
         step: 1
       };
       els.lessonDateInput.value = dateVal;
@@ -2053,6 +2485,8 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
       updateTeacherDraftSummary();
       updateTeacherDraftState();
       renderTeacherWizard();
+      renderTeacherScheduleCards({ force:true });
+      if (els.appVersionText) els.appVersionText.textContent = APP_VERSION;
     }
 
     function loginTeacherById(id, options={}){
@@ -2106,7 +2540,11 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
 
     function updateTeacherDraftState(){
       const step = getTeacherWizardStep();
-      const base = state.teacherDraft.locked ? "Kilitli (Kaydedildi)" : "Düzenlenebilir";
+      let base = "Yeni oturum";
+      if (state.teacherDraft.editingSessionId) base = "Düzenleme • Bugün";
+      else if (state.teacherDraft.scheduleMeta?.enabled) base = "Programlı ders";
+      else if (state.teacherDraft.freeGroupMeta?.enabled) base = "Serbest çalışma";
+      if (state.teacherDraft.locked) base = "Salt okunur";
       els.teacherDraftState.textContent = `${base} • Adım ${step}/3`;
     }
 
@@ -2163,7 +2601,10 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
       });
 
       const finalizeBtn = $('#btnFinalizeLesson');
-      if (finalizeBtn) finalizeBtn.style.display = currentStep === 3 ? '' : 'none';
+      if (finalizeBtn) {
+        finalizeBtn.style.display = currentStep === 3 ? '' : 'none';
+        finalizeBtn.textContent = state.teacherDraft.editingSessionId ? 'Değişiklikleri Kaydet' : 'Kaydı Tamamla';
+      }
     }
 
     function setTeacherWizardStep(step, opts={}){
@@ -2423,6 +2864,8 @@ const searchEl = $("#fgSearch", els.modalBody);
         state.teacherDraft.statuses = {};
         state.teacherDraft.studentNotes = {};
         state.teacherDraft.freeGroupMeta = { enabled:true, start:startVal, end:endVal };
+        state.teacherDraft.scheduleMeta = { enabled:false, day:null, slot:null, slotLabel:"", branch:"", assignmentKey:"" };
+        state.teacherDraft.editingSessionId = "";
 
         // sync UI
         els.lessonDateInput.value = dateVal;
@@ -2558,72 +3001,57 @@ const searchEl = $("#fgSearch", els.modalBody);
     async function finalizeTeacherLesson(){
       const teacher = state.auth.teacher;
       if (!teacher) return showToast("Öğretmen oturumu yok.");
-      if (state.teacherDraft.locked) return showToast("Bu ders zaten kaydedildi.");
+      if (state.teacherDraft.locked) return showToast("Bu kayıt salt okunur.");
 
-      const date = (els.lessonDateInput.value || "").trim();
-      const slotId = (els.lessonSlotSelect.value || "").trim();
-      const group = (els.groupSelect.value || "").trim();
-      const topic = (els.lessonTopicInput.value || "").trim();
+      const date = (els.lessonDateInput.value || state.teacherDraft.date || "").trim();
+      const slotId = (els.lessonSlotSelect.value || state.teacherDraft.slotId || "").trim();
+      const group = (els.groupSelect.value || state.teacherDraft.group || "").trim();
+      const topic = (els.lessonTopicInput.value || state.teacherDraft.topic || "").trim();
+      const isEditing = !!state.teacherDraft.editingSessionId;
 
       state.teacherDraft.date = date;
       state.teacherDraft.slotId = slotId;
       state.teacherDraft.group = group;
       state.teacherDraft.topic = topic;
 
-      if (!date) return showToast("Tarih seçin.");
-      if (!slotId) return showToast("Ders saati seçin.");
-      if (!group) return showToast("Grup seçin.");
+      if (!date) return showToast("Tarih bulunamadı.");
+      if (!slotId) return showToast("Ders saati bulunamadı.");
+      if (!group) return showToast("Grup bulunamadı.");
+      if (isEditing && date !== todayISO()) return showToast("Geçmiş gün kayıtları düzenlenemez.");
       if (!state.teacherDraft.loadedStudents.length) {
-        await showFinalizeWarningDialog(
-          "Önce Yoklama Hazırlığı",
-          "Kaydı tamamlamadan önce Grubu Yükle ile öğrenci listesini açın ve yoklama alın.",
-          "👥"
-        );
+        await showFinalizeWarningDialog("Önce Yoklama Hazırlığı", "Öğrenci listesi yüklenemedi. Dersi yeniden açıp kontrol edin.", "👥");
         return;
       }
 
       const sum = summarizeTeacherDraft();
       if (sum.total === 0) {
-        await showFinalizeWarningDialog(
-          "Öğrenci Listesi Boş",
-          "Seçilen grupta öğrenci görünmüyor. Önce grubu tekrar yükleyip kontrol edin.",
-          "📋"
-        );
+        await showFinalizeWarningDialog("Öğrenci Listesi Boş", "Bu derste öğrenci görünmüyor. Öğrenci grubunu kontrol edin.", "📋");
         return;
       }
       if (sum.unknown > 0) {
-        await showFinalizeWarningDialog(
-          "Yoklama Eksik",
-          `Önce yoklama tamamlanmalı.\n\nBelirsiz öğrenci sayısı: ${sum.unknown}\nTüm öğrenciler için Geldi / Gelmedi / Geç Geldi seçimi yapın.`,
-          "📝"
-        );
+        await showFinalizeWarningDialog("Yoklama Eksik", `Belirsiz öğrenci sayısı: ${sum.unknown}\nTüm öğrenciler için Geldi / Gelmedi / Geç Geldi seçimi yapın.`, "📝");
         return;
       }
-
       if (!topic) {
-        await showFinalizeWarningDialog(
-          "Konu Bilgisi Eksik",
-          "Yoklama tamamlandı. Şimdi İşlenen Konu / İçerik alanını doldurup tekrar Kaydı Tamamla butonuna basın.",
-          "📚"
-        );
+        await showFinalizeWarningDialog("Konu Bilgisi Eksik", "Yoklama tamamlandı. İşlenen Konu / İçerik alanını doldurup tekrar kaydedin.", "📚");
         els.lessonTopicInput?.focus();
         return;
       }
 
       const slot = getSlotById(slotId);
-      const sessionKey = safeKey(`${teacher.id}_${date}_${slotId}_${group}`);
-
-      const daySessions = await dbGet(`${ROOT_PATH}/sessionsByDate/${date}`);
+      const sessionKey = buildTeacherSessionKey(teacher.id, date, slotId, group);
+      const daySessions = await dbGet(`${ROOT_PATH}/sessionsByDate/${date}`) || {};
       const existing = daySessions?.[sessionKey] || null;
-      if (existing) {
-        return showToast("Bu öğretmen + tarih + saat + grup için kayıt zaten var. (Çift kayıt engellendi)");
+      const editingSameSession = isEditing && String(state.teacherDraft.editingSessionId) === String(sessionKey) && !!existing;
+
+      if (existing && !editingSameSession) {
+        return showToast("Bu ders için kayıt zaten var. Program kartından Düzenle ile açın.");
       }
 
-      // Aynı gün + aynı ders saati + aynı grup için başka öğretmen kaydı kontrolü
-      // Not: Serbest Grup seçiliyken bu kural uygulanmaz.
       if (group !== FREE_GROUP_LABEL && daySessions && typeof daySessions === 'object') {
         const conflictingSession = Object.values(daySessions).find(sess => {
           if (!sess || typeof sess !== 'object') return false;
+          if (String(sess.sessionId || '') === String(sessionKey)) return false;
           const sameDate = String(sess.date || date) === String(date);
           const sameSlot = String(sess.slotId || '') === String(slotId);
           const sameGroup = String(sess.group || '').trim() === String(group).trim();
@@ -2631,20 +3059,9 @@ const searchEl = $("#fgSearch", els.modalBody);
           return sameDate && sameSlot && sameGroup && differentTeacher;
         });
         if (conflictingSession) {
-          const conflictTeacherName = conflictingSession.teacherName || 'Başka bir öğretmen';
-          const conflictSlotLabel = conflictingSession.slotLabel || (slot ? makeSlotLabel(slot) : slotId);
           await confirmDialog(
-            `Bu saatte bu öğretmen bu grupla birebir kayıt açmıştır. Siz üzerine yazamazsınız.
-
-` +
-            `Öğretmen: ${conflictTeacherName}
-` +
-            `Tarih: ${date}
-` +
-            `Saat: ${conflictSlotLabel}
-` +
-            `Grup: ${group}`,
-            { title: 'Kayıt Engellendi', okText: 'Tamam', cancelText: 'Kapat', tone: 'danger', icon: '⛔' }
+            `Bu saatte bu grupla başka bir öğretmenin kaydı bulunuyor.\n\nÖğretmen: ${conflictingSession.teacherName || 'Başka bir öğretmen'}\nTarih: ${date}\nSaat: ${conflictingSession.slotLabel || slotId}\nGrup: ${group}`,
+            { title:'Kayıt Engellendi', okText:'Tamam', cancelText:'Kapat', tone:'danger', icon:'⛔' }
           );
           return;
         }
@@ -2667,100 +3084,94 @@ const searchEl = $("#fgSearch", els.modalBody);
         };
       }
 
+      const isFree = group === FREE_GROUP_LABEL || state.teacherDraft.freeGroupMeta?.enabled;
+      const isSchedule = !!state.teacherDraft.scheduleMeta?.enabled && !isFree;
+      const displaySlotLabel = isFree
+        ? `${state.teacherDraft.freeGroupMeta.start} - ${state.teacherDraft.freeGroupMeta.end}`
+        : (state.teacherDraft.scheduleMeta?.slotLabel || (slot ? makeSlotLabel(slot) : slotId));
+      const nowIso = new Date().toISOString();
       const payload = {
         sessionId: sessionKey,
         date,
         slotId,
-        slotLabel: (group===FREE_GROUP_LABEL && state.teacherDraft.freeGroupMeta?.enabled)
-          ? `${state.teacherDraft.freeGroupMeta.start} - ${state.teacherDraft.freeGroupMeta.end}`
-          : (slot ? makeSlotLabel(slot) : slotId),
+        slotLabel: displaySlotLabel,
         teacherId: String(teacher.id),
         teacherName: teacher.name || "",
-        brans: teacher.brans || "",
+        brans: state.teacherDraft.scheduleMeta?.branch || teacher.brans || "",
         group,
         topic,
         totalStudents: sum.total,
-        counts: {
-          geldi: sum.present,
-          gelmedi: sum.absent,
-          gec: sum.late
-        },
+        counts: { geldi:sum.present, gelmedi:sum.absent, gec:sum.late },
         students: studentsPayload,
-        clientSavedAt: new Date().toISOString(),
-        serverSavedAt: serverTimestamp(),
+        source: isFree ? "free" : (isSchedule ? "schedule" : (existing?.source || "manual")),
+        freeGroupMeta: isFree ? { ...state.teacherDraft.freeGroupMeta, enabled:true } : { enabled:false, start:"", end:"" },
+        scheduleMeta: isSchedule ? { ...state.teacherDraft.scheduleMeta, enabled:true } : { enabled:false },
+        clientSavedAt: existing?.clientSavedAt || nowIso,
+        clientUpdatedAt: nowIso,
+        serverSavedAt: existing?.serverSavedAt || serverTimestamp(),
+        serverUpdatedAt: serverTimestamp(),
         finalized: true,
+        editableThroughDate: date,
         studentKeyStrategy: "no",
-        version: 2
+        version: 3
       };
 
       const ok = await confirmDialog(
-        `Ders kaydı tamamlanacak ve geri alınamayacak.\n\n` +
-        `Tarih: ${date}\nSaat: ${(group===FREE_GROUP_LABEL && state.teacherDraft.freeGroupMeta?.enabled) ? `${state.teacherDraft.freeGroupMeta.start} - ${state.teacherDraft.freeGroupMeta.end}` : (slot ? makeSlotLabel(slot) : slotId)}\nGrup: ${group}\n` +
-        `Konu: ${topic}\n\nDevam edilsin mi?`
+        `${editingSameSession ? 'Değişiklikler kaydedilecek.' : 'Ders kaydı tamamlanacak.'}\n\n` +
+        `Tarih: ${date}\nSaat: ${displaySlotLabel}\nGrup: ${group}\nKonu: ${topic}\n\nDevam edilsin mi?`,
+        { title: editingSameSession ? 'Değişiklikleri Kaydet' : 'Dersi Kaydet', okText:'Kaydet', cancelText:'Vazgeç', tone:'success', icon:'💾' }
       );
       if (!ok) return;
 
       const sessionPath = `${ROOT_PATH}/sessionsByDate/${date}/${sessionKey}`;
       const sessionGroupKey = safeKey(normalizeGroupLabel(group) || group);
-      const lockPath = (group !== FREE_GROUP_LABEL)
-        ? `${ROOT_PATH}/sessionLocks/${date}/${slotId}/${sessionGroupKey}`
-        : null;
+      const lockPath = !isFree ? `${ROOT_PATH}/sessionLocks/${date}/${slotId}/${sessionGroupKey}` : null;
+      let newLockAttempt = !editingSameSession;
 
-      let acquiredLock = false;
       try {
         if (lockPath) {
-          const lockRes = await dbRunTransaction(lockPath, (current) => {
+          const lockRes = await dbRunTransaction(lockPath, current => {
             if (current == null) {
-              return {
-                teacherId: String(teacher.id),
-                teacherName: teacher.name || "",
-                group: normalizeGroupLabel(group) || group,
-                slotId,
-                sessionId: sessionKey,
-                createdAt: new Date().toISOString()
-              };
+              return { teacherId:String(teacher.id), teacherName:teacher.name || "", group:normalizeGroupLabel(group)||group, slotId, sessionId:sessionKey, createdAt:nowIso };
             }
-            if (String(current.teacherId || "") === String(teacher.id) && String(current.sessionId || "") === String(sessionKey)) {
-              return current;
-            }
+            if (String(current.teacherId || "") === String(teacher.id) && String(current.sessionId || "") === String(sessionKey)) return current;
             return;
-          }, { applyLocally: false });
-
+          }, { applyLocally:false });
           if (!lockRes.committed) {
             const conflict = lockRes.snapshot?.val?.() || null;
-            const conflictTeacherName = conflict?.teacherName || 'Başka bir öğretmen';
-            const conflictSlotLabel = slot ? makeSlotLabel(slot) : slotId;
             await confirmDialog(
-              `Öğretmen giriş ekranı açılamadı. e-Tablo veya veritabanı verileri okunamadı.
-
-Lütfen internet bağlantınızı kontrol edip tekrar deneyin.`,
-              { title: "Veri Okuma Hatası", okText: "Tamam", cancelText: "Kapat", tone: "danger", icon: "🌐" }
+              `Bu saat ve grup başka bir öğretmenin kaydıyla kilitli.\n\nÖğretmen: ${conflict?.teacherName || 'Başka bir öğretmen'}\nSaat: ${displaySlotLabel}\nGrup: ${group}`,
+              { title:'Kayıt Engellendi', okText:'Tamam', cancelText:'Kapat', tone:'danger', icon:'⛔' }
             );
             return;
           }
-          acquiredLock = true;
         }
 
-        const saveRes = await dbRunTransaction(sessionPath, (current) => {
+        const saveRes = await dbRunTransaction(sessionPath, current => {
+          if (editingSameSession) {
+            if (!current) return;
+            if (String(current.teacherId || "") !== String(teacher.id)) return;
+            if (String(current.date || date) !== todayISO()) return;
+            return { ...current, ...payload };
+          }
           if (current == null) return payload;
           return;
-        }, { applyLocally: false });
+        }, { applyLocally:false });
 
         if (!saveRes.committed) {
-          showToast("Bu öğretmen + tarih + saat + grup için kayıt zaten var. (Çift kayıt engellendi)");
+          showToast(editingSameSession ? "Kayıt artık düzenlenemiyor." : "Bu ders için kayıt zaten var.");
           return;
         }
 
         invalidateSessionsCache();
         await refreshDbMeta();
-
-        state.teacherDraft.locked = true;
-        updateTeacherDraftState();
-        showToast("Ders kaydı başarıyla tamamlandı ✅", 2600);
-        setTimeout(() => resetTeacherDraft({keepDate:true}), 350);
+        showToast(editingSameSession ? "Değişiklikler kaydedildi ✅" : "Ders kaydedildi ✅", 2400);
+        resetTeacherDraft({ keepDate:true });
+        setTeacherWizardStep(1, { force:true, silent:true });
+        await renderTeacherScheduleCards({ force:false });
       } catch (e) {
         console.error(e);
-        if (acquiredLock && lockPath) {
+        if (newLockAttempt && lockPath && !existing) {
           try {
             const lockSnap = await dbGet(lockPath);
             if (lockSnap && String(lockSnap.sessionId || "") === String(sessionKey) && String(lockSnap.teacherId || "") === String(teacher.id)) {
@@ -4341,6 +4752,24 @@ function bindEvents(){
       });
       els.teacherIdInput.addEventListener("keydown", e => { if (e.key==="Enter") $("#btnTeacherLogin").click(); });
       els.btnGoYoklama?.addEventListener("click", goToYoklamaSystem);
+      $("#btnRefreshTeacherSchedule")?.addEventListener("click", async () => {
+        await renderTeacherScheduleCards({ force:true });
+        showToast("Program Firebase'den yenilendi.");
+      });
+      $("#btnTeacherHistory")?.addEventListener("click", openTeacherHistoryModal);
+      els.teacherScheduleList?.addEventListener("click", async (e) => {
+        const openBtn = e.target.closest("[data-open-schedule]");
+        if (openBtn) {
+          const entry = state.data.schedule.currentEntries?.[Number(openBtn.dataset.openSchedule)];
+          if (entry) await openScheduledAssignment(entry);
+          return;
+        }
+        const previewBtn = e.target.closest("[data-preview-schedule]");
+        if (previewBtn) {
+          const entry = state.data.schedule.currentEntries?.[Number(previewBtn.dataset.previewSchedule)];
+          if (entry?.existing) openTeacherSessionPreview(entry.existing);
+        }
+      });
 
       // admin login
       $("#btnAdminLogin").addEventListener("click", async () => {
@@ -4410,6 +4839,8 @@ function bindEvents(){
           if (!await confirmDialog("Mevcut ders formu temizlensin mi?", { title:"Formu Temizle", tone:"warning" })) return;
         }
         resetTeacherDraft({keepDate:true});
+        setTeacherWizardStep(1, { force:true, silent:true });
+        renderTeacherScheduleCards({ force:false });
       });
       $("#btnFinalizeLesson").addEventListener("click", finalizeTeacherLesson);
       $("#btnTeacherLogout").addEventListener("click", () => {
@@ -4472,7 +4903,7 @@ function bindEvents(){
       });
       $("#btnAdminRefreshAll").addEventListener("click", async () => {
         invalidateSessionsCache();
-        await Promise.all([loadGoogleSheetsData(), loadSettingsFromDb(), refreshDbMeta()]);
+        await Promise.all([loadGoogleSheetsData(), loadSettingsFromDb(), refreshDbMeta(), loadAssignmentScheduleFromFirebase({ force:true, silent:true })]);
         showToast("Tüm veriler yenilendi.");
       });
       $("#btnOpenStudentDetail").addEventListener("click", openStudentDetailModal);
@@ -4498,6 +4929,7 @@ function bindEvents(){
      **********************/
     async function init(){
       bindEvents();
+      if (els.appVersionText) els.appVersionText.textContent = APP_VERSION;
 
       // teacher varsayılan tarih
       resetTeacherDraft({keepDate:false});
