@@ -149,45 +149,101 @@
   .modal-foot { padding: 16px 24px; border-top: 1px solid var(--panel-border); display: flex; justify-content: flex-end; gap: 12px; background: var(--bg); }
 
 
-  /* ===== Serbest Grup Modal (Mobil optimize) ===== */
-  .fg-modal { display:flex; flex-direction:column; gap:14px; }
-  .fg-title { margin:0; font-size:1.15rem; font-weight:800; color:var(--text); }
-  .fg-sub { margin:0 0 10px; }
-  .fg-time-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap:12px; }
-  .fg-ref { border:1px solid var(--panel-border); border-radius:14px; padding:10px 12px; background: var(--bg); }
-  .fg-ref > summary { cursor:pointer; font-weight:700; color:var(--text); list-style:none; }
-  .fg-ref > summary::-webkit-details-marker { display:none; }
-  .fg-ref[open] > summary { margin-bottom:8px; }
-  .fg-search { margin:0; gap:10px; }
-  .fg-search .input { flex:1; min-width: 0; }
-  .fg-count { white-space:nowrap; }
-  .fg-list { max-height: 55dvh; overflow:auto; padding-right:6px; }
-  .fg-list .search-item { padding:14px; gap:10px; }
-  .fg-list .search-item .name { font-size: 1rem; }
-  .fg-list .search-item .sub { font-size: .82rem; }
+  /* ===== Serbest Grup Modal • V1.4 mobil öncelikli ===== */
+  .modal.modal-free-group { width:min(920px, 100%); }
+  .modal.modal-free-group .modal-body { display:flex; flex:1; min-height:0; overflow:hidden; padding:18px; }
+  .modal.modal-free-group .modal-foot { align-items:center; }
 
-  .modal.modal-free-group { width: min(980px, 100%); }
+  .fg-modal { display:flex; flex-direction:column; flex:1; min-height:0; gap:14px; }
+  .fg-sticky-top { display:grid; gap:12px; flex:0 0 auto; }
+  .fg-intro { display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border:1px solid #c7d2fe; border-radius:14px; background:linear-gradient(180deg,#eef2ff,#f8fafc); }
+  .fg-intro-icon { width:34px; height:34px; border-radius:11px; display:grid; place-items:center; flex:0 0 34px; background:#fff; border:1px solid #c7d2fe; }
+  .fg-intro-title { font-size:.92rem; font-weight:800; color:var(--text); }
+  .fg-intro-sub { margin-top:3px; color:var(--text-muted); font-size:.8rem; line-height:1.4; }
 
-  @media (max-width: 560px){
-    .modal-overlay { padding: 0; align-items: stretch; }
-    .modal.modal-free-group { width: 100%; height: 100dvh; max-height: 100dvh; border-radius: 0; }
-    .modal.modal-free-group .modal-head { position: sticky; top: 0; z-index: 2; padding: 14px 14px; }
-    .modal.modal-free-group .modal-body { padding: 14px; }
+  .fg-setup-card { border:1px solid var(--panel-border); border-radius:16px; padding:14px; background:#fff; box-shadow:var(--shadow-sm); }
+  .fg-section-label { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; font-size:.82rem; font-weight:800; color:var(--text); }
+  .fg-section-hint { font-size:.72rem; font-weight:600; color:var(--text-muted); }
+  .fg-time-grid { display:grid; grid-template-columns:1.35fr 1fr 1fr; gap:10px; }
+  .fg-time-grid .field { gap:6px; }
+  .fg-time-grid .field label { font-size:.76rem; }
+  .fg-time-grid .input { background:#fff; }
+
+  .fg-slot-wrap { margin-top:12px; }
+  .fg-slot-list { display:flex; gap:8px; overflow-x:auto; padding:2px 1px 4px; scrollbar-width:none; scroll-snap-type:x proximity; }
+  .fg-slot-list::-webkit-scrollbar { display:none; }
+  .fg-slot-chip { flex:0 0 auto; scroll-snap-align:start; border:1px solid var(--panel-border); background:var(--bg); color:var(--text); border-radius:999px; padding:8px 11px; font-size:.76rem; font-weight:750; cursor:pointer; transition:var(--trans); white-space:nowrap; }
+  .fg-slot-chip:hover { border-color:rgba(79,70,229,.45); background:#eef2ff; }
+  .fg-slot-chip.active { border-color:var(--primary); background:var(--primary); color:#fff; box-shadow:0 4px 10px rgba(79,70,229,.2); }
+
+  .fg-search-bar { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:8px; align-items:center; }
+  .fg-search-wrap { position:relative; min-width:0; }
+  .fg-search-wrap .input { padding-left:40px; background:#fff; }
+  .fg-search-icon { position:absolute; left:13px; top:50%; transform:translateY(-50%); color:var(--text-muted); pointer-events:none; font-size:.95rem; }
+  .fg-count { white-space:nowrap; min-height:42px; display:inline-flex; align-items:center; justify-content:center; padding:0 12px; background:#eef2ff; border-color:#c7d2fe; color:#3730a3; }
+  .fg-clear { min-height:42px; width:auto; padding-inline:12px; }
+
+  .fg-list-shell { min-height:0; flex:1; display:flex; flex-direction:column; border:1px solid var(--panel-border); border-radius:16px; background:var(--bg); overflow:hidden; }
+  .fg-list-head { flex:0 0 auto; display:flex; justify-content:space-between; gap:8px; align-items:center; padding:10px 12px; border-bottom:1px solid var(--panel-border); background:#fff; }
+  .fg-list-head .t { font-size:.8rem; font-weight:800; color:var(--text); }
+  .fg-list-head .s { font-size:.72rem; color:var(--text-muted); }
+  .fg-list { flex:1; min-height:0; max-height:none; overflow:auto; padding:8px; display:grid; gap:8px; align-content:start; }
+  .fg-list .search-item { padding:11px; gap:10px; border-radius:14px; background:#fff; cursor:pointer; min-height:68px; }
+  .fg-list .search-item:hover { transform:none; }
+  .fg-list .search-item.selected { border-color:rgba(79,70,229,.5); background:#eef2ff; box-shadow:0 0 0 1px rgba(79,70,229,.08) inset; }
+  .fg-list .search-item .name { font-size:.94rem; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .fg-list .search-item .sub { font-size:.76rem; }
+  .fg-list .student-mini-avatar { width:42px; height:42px; flex-basis:42px; border-radius:12px; }
+  .fg-toggle-btn { min-width:80px; min-height:38px; border:1px solid var(--panel-border); border-radius:999px; background:#fff; padding:8px 11px; font-weight:750; font-size:.78rem; color:var(--text); cursor:pointer; transition:var(--trans); }
+  .fg-toggle-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+  .fg-footer-note { margin-right:auto; color:var(--text-muted); font-size:.78rem; font-weight:650; }
+
+  @media (max-width: 680px){
+    .modal-overlay.modal-free-group-open { padding:0; align-items:stretch; }
+    .modal.modal-free-group { width:100%; height:100dvh; max-height:100dvh; border-radius:0; border:0; }
+    .modal.modal-free-group .modal-head { flex:0 0 auto; padding:12px 12px 10px; background:rgba(255,255,255,.96); backdrop-filter:blur(12px); }
+    .modal.modal-free-group .modal-head h3 { font-size:1rem; }
+    .modal.modal-free-group .modal-head .btn { width:auto; min-height:38px; padding:8px 12px; }
+    .modal.modal-free-group .modal-body { padding:10px; }
     .modal.modal-free-group .modal-foot {
-      position: sticky; bottom: 0; z-index: 2;
-      padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
-      flex-direction: column-reverse;
-      background: linear-gradient(180deg, rgba(248,250,252,0.6), var(--bg));
-      backdrop-filter: blur(10px);
+      flex:0 0 auto; position:relative; bottom:auto; padding:10px 10px calc(10px + env(safe-area-inset-bottom));
+      display:grid !important; grid-template-columns:.72fr 1.28fr; gap:8px;
+      background:rgba(255,255,255,.96); backdrop-filter:blur(12px);
     }
-    .modal.modal-free-group .modal-foot .btn { width: 100%; }
-    .fg-time-grid { grid-template-columns: 1fr; }
-    .fg-ref { padding: 10px 10px; }
-    .fg-search { flex-direction: column; align-items: stretch; }
-    .fg-count { width: 100%; text-align: center; }
-    .fg-list { max-height: calc(100dvh - 330px); } /* yaklaşık: head+inputs+footer */
-    .fg-list .search-item { padding: 12px; }
-    .fg-list .fg-check { width: 26px !important; height: 26px !important; }
+    .modal.modal-free-group .modal-foot .btn { width:100%; min-height:48px; }
+    .fg-footer-note { display:none; }
+    .fg-modal { gap:10px; }
+    .fg-sticky-top { gap:9px; }
+    .fg-intro { padding:10px 11px; border-radius:13px; }
+    .fg-intro-icon { width:32px; height:32px; flex-basis:32px; }
+    .fg-intro-title { font-size:.86rem; }
+    .fg-intro-sub { font-size:.75rem; }
+    .fg-setup-card { padding:11px; border-radius:14px; }
+    .fg-time-grid { grid-template-columns:1fr 1fr; gap:8px; }
+    .fg-date-field { grid-column:1 / -1; }
+    .fg-time-grid .input { min-height:44px; padding:10px 11px; }
+    .fg-slot-wrap { margin-top:10px; }
+    .fg-slot-chip { min-height:36px; padding:7px 10px; }
+    .fg-search-bar { grid-template-columns:minmax(0,1fr) auto; }
+    .fg-clear { display:none; }
+    .fg-count { min-height:44px; padding:0 10px; }
+    .fg-search-wrap .input { min-height:44px; }
+    .fg-list-shell { border-radius:14px; }
+    .fg-list-head { padding:8px 10px; }
+    .fg-list { padding:6px; gap:6px; }
+    .fg-list .search-item { padding:9px; min-height:62px; }
+    .fg-list .search-item .name { font-size:.9rem; }
+    .fg-list .search-item .sub { font-size:.72rem; }
+    .fg-list .student-mini-avatar { width:40px; height:40px; flex-basis:40px; }
+    .fg-toggle-btn { min-width:68px; min-height:36px; padding:7px 9px; font-size:.74rem; }
+  }
+
+  @media (max-width: 390px){
+    .fg-intro { display:none; }
+    .fg-section-hint { display:none; }
+    .fg-time-grid { gap:7px; }
+    .fg-count { font-size:.7rem; padding-inline:8px; }
+    .fg-list .search-item { gap:8px; }
   }
 
 
@@ -322,13 +378,6 @@
     backdrop-filter: blur(8px);
   }
   .teacher-mobile-sticky-actions .btn { flex:1; }
-  .fg-list .search-item { cursor:pointer; }
-  .fg-list .search-item.selected { border-color:rgba(79,70,229,.45); background:#eef2ff; }
-  .fg-toggle-btn {
-    min-width:92px; border:1px solid var(--panel-border); border-radius:999px; background:#fff;
-    padding:9px 12px; font-weight:700; font-size:.82rem; color:var(--text); cursor:pointer; transition:var(--trans);
-  }
-  .fg-toggle-btn.active { background:var(--primary); color:#fff; border-color:var(--primary); }
 
   @media (max-width: 900px){
     .container { padding: 16px 12px 88px; }
@@ -456,7 +505,7 @@
   @media (max-width: 900px){ .today-session-grid{ grid-template-columns:1fr; } }
 
 
-  /* ===== V1.3 • Veritabanı programlı birebir akışı ===== */
+  /* ===== V1.4 • Veritabanı programlı birebir akışı ===== */
   .schedule-panel { display:grid; gap:14px; }
   .schedule-head { display:flex; gap:12px; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; }
   .schedule-head-main { min-width:0; }
@@ -514,7 +563,7 @@
       <div class="top-actions">
         <span id="sheetStatusChip" class="chip">Sheet: yükleniyor…</span>
         <span id="dbStatusChip" class="chip">Veritabanı: bağlanıyor…</span>
-        <span id="scheduleStatusChip" class="chip">Program: bekliyor…</span>
+        <span id="scheduleStatusChip" class="chip" hidden>Program: bekliyor…</span>
         <button id="btnTopHome" class="btn small ghost">Ana Sayfa</button>
       </div>
     </header>
@@ -827,7 +876,7 @@
 
       <div class="footer-space"></div>
     </main>
-    <footer class="app-version-footer">Birebir Analiz Sistemi • <span id="appVersionText">V1.3</span></footer>
+    <footer class="app-version-footer">Birebir Analiz Sistemi • <span id="appVersionText">V1.4</span></footer>
   </div>
 
   <!-- Generic Modal -->
@@ -867,7 +916,7 @@
     const GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1oJGMO7FOPV4U86peeA63lmMk-wVCKsfWuyw2yefMweg/edit?usp=sharing";
     const ADMIN_PASSWORD = "13579";
     const ROOT_PATH = "Birebirlerianaliz";
-    const APP_VERSION = "V1.3";
+    const APP_VERSION = "V1.4";
     const DEFAULT_LESSON_SLOTS = [
       { id: "S1", start: "16:00", end: "16:40", active: true },
       { id: "S2", start: "16:50", end: "17:30", active: true },
@@ -1498,17 +1547,26 @@
       el.style.background = ok ? "var(--chip)" : "rgba(239,68,68,.12)";
     }
 
+    function syncRoleAwareTopbar(){
+      if (els.scheduleStatusChip) {
+        // Program durumu yalnızca öğretmen oturumu açıkken görünür.
+        els.scheduleStatusChip.hidden = state.auth.role !== "teacher" || !state.auth.teacher;
+      }
+    }
+
     function setView(name){
       Object.entries(els.views).forEach(([k, node]) => {
         node.classList.toggle("active", k===name);
       });
       state.ui.activeView = name;
+      syncRoleAwareTopbar();
     }
 
     function openModal(title, html, { footerHtml="", onRender=null, modalClass="" } = {}){
       els.modalTitle.textContent = title;
       const modalEl = els.modalOverlay.querySelector(".modal");
       if (modalEl) modalEl.className = `modal ${modalClass}`.trim();
+      els.modalOverlay.classList.toggle("modal-free-group-open", String(modalClass).split(/\s+/).includes("modal-free-group"));
       els.modalBody.innerHTML = html;
       if (footerHtml) {
         els.modalFooter.style.display = "flex";
@@ -1526,6 +1584,7 @@
     function closeModal(){
       const modalEl = els.modalOverlay.querySelector(".modal");
       if (modalEl) modalEl.className = "modal";
+      els.modalOverlay.classList.remove("modal-free-group-open");
       els.modalOverlay.classList.remove("show");
       els.modalOverlay.setAttribute("aria-hidden", "true");
       els.modalBody.innerHTML = "";
@@ -2700,49 +2759,77 @@ function openFreeGroupModal(){
   let filter = "";
   const selected = new Set();
 
+  const quickSlotsHtml = activeSlots.length
+    ? activeSlots.map(s => `
+        <button type="button" class="fg-slot-chip" data-fg-slot-start="${htmlEscape(s.start)}" data-fg-slot-end="${htmlEscape(s.end)}">
+          ${htmlEscape(s.start)}–${htmlEscape(s.end)}
+        </button>`).join("")
+    : `<span class="muted tiny">Aktif ders saati tanımlı değil.</span>`;
+
   const modalHtml = `
     <div class="fg-modal">
       <div class="fg-sticky-top">
-        <h3 class="fg-title">Serbest Grup • Öğrenci Seçimi</h3>
-        <p class="muted tiny fg-sub">
-          Tarih ve saat aralığını girin. Sonra öğrencileri arayıp çoklu seçin.
-        </p>
-
-        <div class="form-grid fg-time-grid">
-          <div class="field">
-            <label for="fgDate">Tarih</label>
-            <input id="fgDate" class="input" type="date" value="${htmlEscape(defaultDate)}" />
-          </div>
-          <div class="field">
-            <label for="fgStart">Başlangıç</label>
-            <input id="fgStart" class="input" type="time" value="${htmlEscape(preStart)}" />
-          </div>
-          <div class="field">
-            <label for="fgEnd">Bitiş</label>
-            <input id="fgEnd" class="input" type="time" value="${htmlEscape(preEnd)}" />
+        <div class="fg-intro">
+          <div class="fg-intro-icon">👥</div>
+          <div>
+            <div class="fg-intro-title">Program dışı birebir oluşturun</div>
+            <div class="fg-intro-sub">Tarih ve saati belirleyin, ardından öğrenci listesinden bir veya daha fazla öğrenci seçin.</div>
           </div>
         </div>
 
-        <details class="fg-ref">
-          <summary>Aktif ders saatleri (referans)</summary>
-          <div class="helper" style="margin-top:10px;">
-            ${activeSlots.map(s => `${htmlEscape(s.start)}-${htmlEscape(s.end)} (${htmlEscape(s.id)})`).join(" • ") || "-"}
+        <div class="fg-setup-card">
+          <div class="fg-section-label">
+            <span>1. Tarih ve saat</span>
+            <span class="fg-section-hint">Saatleri elle de değiştirebilirsiniz</span>
           </div>
-        </details>
 
-        <div class="search-box fg-search">
-          <input id="fgSearch" class="input" placeholder="Öğrenci ara (No / İsim)" inputmode="search" autocomplete="off" />
-          <span id="fgSelectedCount" class="badge neutral fg-count">Seçili: 0</span>
+          <div class="fg-time-grid">
+            <div class="field fg-date-field">
+              <label for="fgDate">Tarih</label>
+              <input id="fgDate" class="input" type="date" value="${htmlEscape(defaultDate)}" />
+            </div>
+            <div class="field">
+              <label for="fgStart">Başlangıç</label>
+              <input id="fgStart" class="input" type="time" value="${htmlEscape(preStart)}" />
+            </div>
+            <div class="field">
+              <label for="fgEnd">Bitiş</label>
+              <input id="fgEnd" class="input" type="time" value="${htmlEscape(preEnd)}" />
+            </div>
+          </div>
+
+          <div class="fg-slot-wrap">
+            <div class="fg-section-label" style="margin-bottom:7px;">
+              <span>Hızlı saat seçimi</span>
+            </div>
+            <div class="fg-slot-list">${quickSlotsHtml}</div>
+          </div>
+        </div>
+
+        <div class="fg-search-bar">
+          <div class="fg-search-wrap">
+            <span class="fg-search-icon" aria-hidden="true">⌕</span>
+            <input id="fgSearch" class="input" type="search" placeholder="Öğrenci ara: ad veya numara" inputmode="search" autocomplete="off" />
+          </div>
+          <span id="fgSelectedCount" class="badge fg-count">0 seçili</span>
+          <button id="fgClearSelection" type="button" class="btn small ghost fg-clear" disabled>Temizle</button>
         </div>
       </div>
 
-      <div id="fgList" class="search-results fg-list"></div>
+      <div class="fg-list-shell">
+        <div class="fg-list-head">
+          <span class="t">2. Öğrencileri seçin</span>
+          <span id="fgResultCount" class="s">${all.length} öğrenci</span>
+        </div>
+        <div id="fgList" class="search-results fg-list"></div>
+      </div>
     </div>
   `;
 
   const footerHtml = `
+    <span id="fgFooterNote" class="fg-footer-note">En az 1 öğrenci seçin</span>
     <button id="fgCancel" class="btn">İptal</button>
-    <button id="fgAdd" class="btn primary" disabled>Öğrencileri Ekle</button>
+    <button id="fgAdd" class="btn primary" disabled>Grubu Oluştur</button>
   `;
 
   const normalizeNeedle = (t) => normalizeText(String(t || ""));
@@ -2755,14 +2842,44 @@ function openFreeGroupModal(){
       return no.includes(n) || name.includes(n);
     });
   };
-  const refreshAddState = () => {
+
+  const refreshControls = () => {
     const dateVal = $("#fgDate", els.modalBody)?.value || "";
     const startVal = $("#fgStart", els.modalBody)?.value || "";
     const endVal = $("#fgEnd", els.modalBody)?.value || "";
     const hasStudents = selected.size > 0;
-    const ok = Boolean(dateVal && startVal && endVal && hasStudents);
-    const btn = $("#fgAdd", els.modalFooter);
-    if (btn) btn.disabled = !ok;
+    const validTime = Boolean(startVal && endVal && endVal > startVal);
+    const ready = Boolean(dateVal && validTime && hasStudents);
+
+    const count = $("#fgSelectedCount", els.modalBody);
+    if (count) count.textContent = `${selected.size} seçili`;
+
+    const clearBtn = $("#fgClearSelection", els.modalBody);
+    if (clearBtn) clearBtn.disabled = !selected.size;
+
+    const addBtn = $("#fgAdd", els.modalFooter);
+    if (addBtn) {
+      addBtn.disabled = !ready;
+      addBtn.textContent = selected.size ? `${selected.size} Öğrenciyle Oluştur` : "Grubu Oluştur";
+    }
+
+    const note = $("#fgFooterNote", els.modalFooter);
+    if (note) {
+      if (!dateVal) note.textContent = "Tarih seçin";
+      else if (!startVal || !endVal) note.textContent = "Başlangıç ve bitiş saatini seçin";
+      else if (!validTime) note.textContent = "Bitiş saati başlangıçtan sonra olmalı";
+      else if (!hasStudents) note.textContent = "En az 1 öğrenci seçin";
+      else note.textContent = `${selected.size} öğrenci hazır`;
+    }
+  };
+
+  const syncQuickSlotState = () => {
+    const startVal = $("#fgStart", els.modalBody)?.value || "";
+    const endVal = $("#fgEnd", els.modalBody)?.value || "";
+    $$('[data-fg-slot-start]', els.modalBody).forEach(btn => {
+      const active = btn.dataset.fgSlotStart === startVal && btn.dataset.fgSlotEnd === endVal;
+      btn.classList.toggle("active", active);
+    });
   };
 
   const renderList = () => {
@@ -2770,9 +2887,12 @@ function openFreeGroupModal(){
     const wrap = $("#fgList", els.modalBody);
     if (!wrap) return;
 
+    const resultCount = $("#fgResultCount", els.modalBody);
+    if (resultCount) resultCount.textContent = filter ? `${list.length} sonuç` : `${list.length} öğrenci`;
+
     if (!list.length) {
-      wrap.innerHTML = `<div class="empty" style="padding:18px;">Sonuç bulunamadı.</div>`;
-      refreshAddState();
+      wrap.innerHTML = `<div class="empty" style="padding:18px;">Aramanıza uygun öğrenci bulunamadı.</div>`;
+      refreshControls();
       return;
     }
 
@@ -2784,8 +2904,8 @@ function openFreeGroupModal(){
       const active = selected.has(rawNo);
       const avatar = renderStudentAvatarHtml(s, "student-mini-avatar");
       return `
-        <div class="search-item ${active ? "selected" : ""}" data-row-no="${no}" style="gap:12px; align-items:center;">
-          <div style="display:flex; gap:12px; align-items:center; min-width:0; flex:1;">
+        <div class="search-item ${active ? "selected" : ""}" data-row-no="${no}" role="button" tabindex="0" aria-pressed="${active ? "true" : "false"}">
+          <div style="display:flex; gap:10px; align-items:center; min-width:0; flex:1;">
             ${avatar}
             <div class="l" style="min-width:0;">
               <div class="name">${name}</div>
@@ -2793,27 +2913,19 @@ function openFreeGroupModal(){
             </div>
           </div>
           <button type="button" class="fg-toggle-btn ${active ? "active" : ""}" data-toggle-no="${no}" aria-pressed="${active ? "true" : "false"}">
-            ${active ? "Seçildi" : "Seç"}
+            ${active ? "✓ Seçili" : "Seç"}
           </button>
         </div>
       `;
     }).join("");
 
-    $("#fgSelectedCount", els.modalBody).textContent = `Seçili: ${selected.size}`;
-    refreshAddState();
+    refreshControls();
   };
 
-  openModal("Serbest Grup", modalHtml, {
-    modalClass: "modal-wide modal-free-group",
+  openModal("Serbest Grup Oluştur", modalHtml, {
+    modalClass: "modal-free-group",
     footerHtml,
     onRender: () => {
-      // mobilde 3 kolon dar gelirse tek kolona düşür
-      if (window.matchMedia?.("(max-width: 560px)")?.matches) {
-        const fgGrid = $(".form-grid", els.modalBody);
-        if (fgGrid) fgGrid.style.gridTemplateColumns = "1fr";
-      }
-
-      
       const ensureManualSlotOption = (id, label) => {
         if (!id) return;
         const sel = els.lessonSlotSelect;
@@ -2825,13 +2937,8 @@ function openFreeGroupModal(){
         sel.appendChild(opt);
       };
 
-const searchEl = $("#fgSearch", els.modalBody);
+      const searchEl = $("#fgSearch", els.modalBody);
       const listWrap = $("#fgList", els.modalBody);
-
-      const updateCount = () => {
-        const c = $("#fgSelectedCount", els.modalBody);
-        if (c) c.textContent = `Seçili: ${selected.size}`;
-      };
 
       searchEl?.addEventListener("input", () => {
         filter = searchEl.value || "";
@@ -2842,7 +2949,6 @@ const searchEl = $("#fgSearch", els.modalBody);
         const id = String(no || "").trim();
         if (!id) return;
         if (selected.has(id)) selected.delete(id); else selected.add(id);
-        updateCount();
         renderList();
       };
 
@@ -2854,9 +2960,38 @@ const searchEl = $("#fgSearch", els.modalBody);
         toggleSelectedStudent(no);
       });
 
-      $("#fgDate", els.modalBody)?.addEventListener("input", refreshAddState);
-      $("#fgStart", els.modalBody)?.addEventListener("input", refreshAddState);
-      $("#fgEnd", els.modalBody)?.addEventListener("input", refreshAddState);
+      listWrap?.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        if (e.target?.closest?.("[data-toggle-no]")) return;
+        const rowEl = e.target?.closest?.("[data-row-no]");
+        const no = String(rowEl?.dataset?.rowNo || "").trim();
+        if (!no) return;
+        e.preventDefault();
+        toggleSelectedStudent(no);
+      });
+
+      $$('[data-fg-slot-start]', els.modalBody).forEach(btn => {
+        btn.addEventListener("click", () => {
+          const startEl = $("#fgStart", els.modalBody);
+          const endEl = $("#fgEnd", els.modalBody);
+          if (startEl) startEl.value = btn.dataset.fgSlotStart || "";
+          if (endEl) endEl.value = btn.dataset.fgSlotEnd || "";
+          syncQuickSlotState();
+          refreshControls();
+        });
+      });
+
+      ["#fgDate", "#fgStart", "#fgEnd"].forEach(sel => {
+        $(sel, els.modalBody)?.addEventListener("input", () => {
+          syncQuickSlotState();
+          refreshControls();
+        });
+      });
+
+      $("#fgClearSelection", els.modalBody)?.addEventListener("click", () => {
+        selected.clear();
+        renderList();
+      });
 
       $("#fgCancel", els.modalFooter)?.addEventListener("click", closeModal);
 
@@ -2867,12 +3002,12 @@ const searchEl = $("#fgSearch", els.modalBody);
 
         if (!dateVal) return showToast("Tarih boş olamaz.");
         if (!startVal || !endVal) return showToast("Başlangıç ve bitiş saati zorunludur.");
+        if (endVal <= startVal) return showToast("Bitiş saati başlangıç saatinden sonra olmalıdır.");
         if (!selected.size) return showToast("En az 1 öğrenci seçin.");
-        // Serbest grup: saat aralığı aktif ders saatleriyle aynı olmak zorunda değildir.
+
         const manualSlotId = `FG_${startVal.replace(":", "")}_${endVal.replace(":", "")}`;
         const manualSlotLabel = `${startVal} - ${endVal}`;
 
-        // Apply to teacher draft
         const picked = all.filter(s => selected.has(String(s.no))).map(s => ({ ...s, _sessionGroup: FREE_GROUP_LABEL }));
         picked.sort((a,b)=>String(a.no||"").localeCompare(String(b.no||""),"tr",{numeric:true,sensitivity:"base"}));
 
@@ -2886,11 +3021,9 @@ const searchEl = $("#fgSearch", els.modalBody);
         state.teacherDraft.scheduleMeta = { enabled:false, day:null, slot:null, slotLabel:"", branch:"", assignmentKey:"" };
         state.teacherDraft.editingSessionId = "";
 
-        // sync UI
         els.lessonDateInput.value = dateVal;
         ensureManualSlotOption(manualSlotId, manualSlotLabel);
         els.lessonSlotSelect.value = manualSlotId;
-        // groupSelect içinde Serbest Grup opsiyonu renderTeacherSelectors ile garanti
         renderTeacherSelectors();
         els.groupSelect.value = FREE_GROUP_LABEL;
 
@@ -2903,11 +3036,14 @@ const searchEl = $("#fgSearch", els.modalBody);
       });
 
       renderList();
-      setTimeout(() => searchEl?.focus(), 0);
+      syncQuickSlotState();
+      refreshControls();
+      if (!window.matchMedia?.("(max-width: 680px)")?.matches) {
+        setTimeout(() => searchEl?.focus(), 0);
+      }
     }
   });
 }
-
 
 
     function renderTeacherStudentList(){
