@@ -456,7 +456,7 @@
   @media (max-width: 900px){ .today-session-grid{ grid-template-columns:1fr; } }
 
 
-  /* ===== V1.1 • Firebase programlı birebir akışı ===== */
+  /* ===== V1.3 • Veritabanı programlı birebir akışı ===== */
   .schedule-panel { display:grid; gap:14px; }
   .schedule-head { display:flex; gap:12px; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; }
   .schedule-head-main { min-width:0; }
@@ -508,12 +508,12 @@
         <img src="https://i.ibb.co/8L8bR92g/1.png" alt="Logo" />
         <div class="titles">
           <h1>Birebir Analiz Sistemi</h1>
-          <p>Öğretmen & Admin Paneli • Firebase + Google Sheets</p>
+          <p>Öğretmen & Admin Paneli • Veritabanı + Google Sheets</p>
         </div>
       </div>
       <div class="top-actions">
         <span id="sheetStatusChip" class="chip">Sheet: yükleniyor…</span>
-        <span id="dbStatusChip" class="chip">Firebase: bağlanıyor…</span>
+        <span id="dbStatusChip" class="chip">Veritabanı: bağlanıyor…</span>
         <span id="scheduleStatusChip" class="chip">Program: bekliyor…</span>
         <button id="btnTopHome" class="btn small ghost">Ana Sayfa</button>
       </div>
@@ -532,7 +532,7 @@
             <div class="login-buttons">
               <button id="goTeacherLogin" class="big-button" type="button">
                 <div class="t">👩‍🏫 Öğretmen Girişi</div>
-                <div class="s">Öğretmen ID ile giriş • Firebase programındaki birebiri aç • Yoklama al • Konu yaz • Kaydet</div>
+                <div class="s">Öğretmen ID ile giriş • Veritabanı programındaki birebiri aç • Yoklama al • Konu yaz • Kaydet</div>
               </button>
               <button id="goAdminLogin" class="big-button" type="button">
                 <div class="t">🛠️ Admin Girişi</div>
@@ -635,7 +635,7 @@
                   <div class="wiz-no">1</div>
                   <div class="wiz-text">
                     <div class="wiz-title">Hazırlık</div>
-                    <div class="wiz-sub">Firebase programınızdaki birebiri seçin veya Serbest Çalışma açın.</div>
+                    <div class="wiz-sub">Veritabanı programınızdaki birebiri seçin veya Serbest Çalışma açın.</div>
                   </div>
                 </div>
                 <div class="teacher-wizard-step" data-wizard-step-indicator="2">
@@ -664,7 +664,7 @@
                 <div class="schedule-head">
                   <div class="schedule-head-main">
                     <div id="teacherScheduleDate" class="schedule-date">Bugün</div>
-                    <div class="schedule-sub">Ders programınız planlama sisteminin Firebase atamalarından otomatik okunur. Ders kartına dokunduğunuzda öğrenciler doğrudan açılır.</div>
+                    <div class="schedule-sub">Ders programınız planlama sisteminin veritabanı atamalarından otomatik okunur. Ders kartına dokunduğunuzda öğrenciler doğrudan açılır.</div>
                   </div>
                   <div class="schedule-actions">
                     <button id="btnRefreshTeacherSchedule" class="btn small" type="button">Programı Yenile</button>
@@ -827,7 +827,7 @@
 
       <div class="footer-space"></div>
     </main>
-    <footer class="app-version-footer">Birebir Analiz Sistemi • <span id="appVersionText">V1.1</span></footer>
+    <footer class="app-version-footer">Birebir Analiz Sistemi • <span id="appVersionText">V1.3</span></footer>
   </div>
 
   <!-- Generic Modal -->
@@ -867,7 +867,7 @@
     const GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1oJGMO7FOPV4U86peeA63lmMk-wVCKsfWuyw2yefMweg/edit?usp=sharing";
     const ADMIN_PASSWORD = "13579";
     const ROOT_PATH = "Birebirlerianaliz";
-    const APP_VERSION = "V1.1";
+    const APP_VERSION = "V1.3";
     const DEFAULT_LESSON_SLOTS = [
       { id: "S1", start: "16:00", end: "16:40", active: true },
       { id: "S2", start: "16:50", end: "17:30", active: true },
@@ -1953,7 +1953,7 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
           schedule.loading = false;
           schedule.error = err?.message || String(err);
           setChip(els.scheduleStatusChip, "Program: hata", false);
-          if (!silent) showToast("Ders programı Firebase'den okunamadı.");
+          if (!silent) showToast("Ders programı veritabanından okunamadı.");
           return false;
         } finally {
           assignmentScheduleLoadPromise = null;
@@ -2049,7 +2049,7 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
       const assignments = getTeacherAssignmentsForDate(teacher, date);
       if (!assignments.length) {
         state.data.schedule.currentEntries = [];
-        els.teacherScheduleList.innerHTML = `<div class="schedule-empty"><div class="t">Birebir görünmüyor</div><div class="s">Firebase atamalarında bugün için size tanımlanmış birebir bulunamadı.</div></div>`;
+        els.teacherScheduleList.innerHTML = `<div class="schedule-empty"><div class="t">Birebir görünmüyor</div><div class="s">Veritabanı atamalarında bugün için size tanımlanmış birebir bulunamadı.</div></div>`;
         return;
       }
 
@@ -2211,15 +2211,34 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
       try { all = await ensureSessionsLoaded(true) || {}; }
       catch (err) { console.error(err); return showToast("Kayıtlar okunamadı."); }
       const today = todayISO();
+      const cutoff = new Date();
+      cutoff.setHours(0, 0, 0, 0);
+      cutoff.setDate(cutoff.getDate() - 6); // bugün dahil son 7 takvim günü
+      const cutoffISO = `${cutoff.getFullYear()}-${String(cutoff.getMonth()+1).padStart(2,"0")}-${String(cutoff.getDate()).padStart(2,"0")}`;
+
       const sessions = [];
       for (const [date, dayObj] of Object.entries(all || {})) {
+        const dayISO = String(date || "");
+        if (dayISO < cutoffISO || dayISO > today) continue;
         for (const session of Object.values(dayObj || {})) {
           if (!session || String(session.teacherId || "") !== String(teacher.id)) continue;
           sessions.push(session);
         }
       }
-      sessions.sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")) || String(b.slotId||"").localeCompare(String(a.slotId||"")));
-      const list = sessions.slice(0,80);
+
+      const sessionStartTime = (session) => {
+        const label = String(session?.slotLabel || "");
+        const match = label.match(/(?:^|\s)([01]\d|2[0-3]):([0-5]\d)(?:\s|$|-)/);
+        return match ? `${match[1]}:${match[2]}` : "00:00";
+      };
+      sessions.sort((a,b) => {
+        const dateCompare = String(b.date || "").localeCompare(String(a.date || ""));
+        if (dateCompare) return dateCompare;
+        const timeCompare = sessionStartTime(b).localeCompare(sessionStartTime(a));
+        if (timeCompare) return timeCompare;
+        return String(b.clientUpdatedAt || b.clientSavedAt || "").localeCompare(String(a.clientUpdatedAt || a.clientSavedAt || ""));
+      });
+      const list = sessions;
       const body = list.length ? `<div class="history-session-list">${list.map((session, idx) => {
         const editable = String(session.date || "") === today;
         return `<div class="history-session-card">
@@ -2232,9 +2251,9 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
             <button class="btn small ghost" type="button" data-history-preview="${idx}">Ön İzleme</button>
           </div>
         </div>`;
-      }).join("")}</div>` : `<div class="empty">Henüz kayıtlı birebiriniz bulunmuyor.</div>`;
+      }).join("")}</div>` : `<div class="empty">Son 7 gün içinde kayıtlı birebiriniz bulunmuyor.</div>`;
 
-      openModal("Birebir Kayıtlarım", body, {
+      openModal("Birebir Kayıtlarım • Son 7 Gün", body, {
         modalClass:"modal-wide modal-free-group",
         onRender: () => {
           els.modalBody.querySelectorAll("[data-history-preview]").forEach(btn => btn.addEventListener("click", () => {
@@ -2253,7 +2272,7 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
 
     async function loadSettingsFromDb(options={}){
       const { silent = false } = options || {};
-      setChip(els.dbStatusChip, "Firebase: bağlanıyor…", true);
+      setChip(els.dbStatusChip, "Veritabanı: bağlanıyor…", true);
       try {
         const [settings, studentOverrides] = await Promise.all([
           dbGet(`${ROOT_PATH}/settings`),
@@ -2274,14 +2293,14 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
         }
 
         state.data.studentOverrides = studentOverrides || {};
-        setChip(els.dbStatusChip, "Firebase: bağlı ✓", true);
+        setChip(els.dbStatusChip, "Veritabanı: bağlı ✓", true);
         await refreshDbMeta();
         renderTeacherSelectors();
         return true;
       } catch (e) {
         console.error(e);
-        setChip(els.dbStatusChip, "Firebase: hata", false);
-        if (!silent) showToast("Firebase bağlantısında hata oluştu.");
+        setChip(els.dbStatusChip, "Veritabanı: hata", false);
+        if (!silent) showToast("Veritabanı bağlantısında hata oluştu.");
         return false;
       }
     }
@@ -2368,7 +2387,7 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
       const activeSlots = getActiveSlots().map(s => `${s.id}: ${makeSlotLabel(s)}`).join(" • ");
       els.adminSystemInfo.innerHTML = `
         <div><b>Aktif ders saatleri:</b> ${activeSlots || "-"}</div>
-        <div style="margin-top:6px;"><b>Firebase kök yolu:</b> <span class="mono">${ROOT_PATH}</span></div>
+        <div style="margin-top:6px;"><b>Veritabanı kök yolu:</b> <span class="mono">${ROOT_PATH}</span></div>
         <div style="margin-top:6px;"><b>Öğrenci override / foto:</b> <span class="mono">${ROOT_PATH}/studentOverrides</span></div>
         <div style="margin-top:6px;"><b>Ders programı kaynağı:</b> <span class="mono">odevfeno / atamapath</span> (salt okunur)</div>
         <div style="margin-top:6px;"><b>Sürüm:</b> ${APP_VERSION}</div>
@@ -4074,7 +4093,7 @@ const searchEl = $("#fgSearch", els.modalBody);
           </div>
 
           <div class="card">
-            <h3>Öğrenci Bilgisi Güncelleme (Firebase Override)</h3>
+            <h3>Öğrenci Bilgisi Güncelleme (Veritabanı Override)</h3>
 
             <div id="suEditorArea" class="empty">Önce bir öğrenci seçin.</div>
           </div>
@@ -4754,7 +4773,7 @@ function bindEvents(){
       els.btnGoYoklama?.addEventListener("click", goToYoklamaSystem);
       $("#btnRefreshTeacherSchedule")?.addEventListener("click", async () => {
         await renderTeacherScheduleCards({ force:true });
-        showToast("Program Firebase'den yenilendi.");
+        showToast("Program veritabanından yenilendi.");
       });
       $("#btnTeacherHistory")?.addEventListener("click", openTeacherHistoryModal);
       els.teacherScheduleList?.addEventListener("click", async (e) => {
