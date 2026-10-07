@@ -948,10 +948,12 @@
 
 
     // Öğrenci fotoğraf upload sınırları / optimizasyon
-    const STUDENT_PHOTO_UPLOAD_MAX_BYTES = 8 * 1024 * 1024; // 8 MB üstü dosyalar kesinlikle alınmaz
-    const STUDENT_PHOTO_EXPORT_TARGET_BYTES = 180 * 1024; // hedef ~180 KB
-    const STUDENT_PHOTO_EXPORT_HARD_MAX_BYTES = 260 * 1024; // üst sınır ~260 KB
-    const STUDENT_PHOTO_MIN_QUALITY = 0.45;
+    const STUDENT_PHOTO_UPLOAD_MAX_BYTES = 8 * 1024 * 1024; // 8 MB üstü kaynak dosyalar alınmaz
+    const STUDENT_PHOTO_OUTPUT_SIZE = 512; // kayıt çözünürlüğü: 512x512
+    const STUDENT_PHOTO_START_QUALITY = 0.85; // JPEG ilk kalite
+    const STUDENT_PHOTO_EXPORT_TARGET_BYTES = 150 * 1024; // hedef: yaklaşık 150 KB
+    const STUDENT_PHOTO_EXPORT_HARD_MAX_BYTES = 180 * 1024; // kesin üst sınır: 180 KB
+    const STUDENT_PHOTO_MIN_QUALITY = 0.50; // gerektiğinde otomatik kalite alt sınırı
 
 
     /**********************
@@ -2457,7 +2459,7 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
       els.adminSystemInfo.innerHTML = `
         <div><b>Aktif ders saatleri:</b> ${activeSlots || "-"}</div>
         <div style="margin-top:6px;"><b>Veritabanı kök yolu:</b> <span class="mono">${ROOT_PATH}</span></div>
-        <div style="margin-top:6px;"><b>Öğrenci override / foto:</b> <span class="mono">${ROOT_PATH}/studentOverrides</span></div>
+        <div style="margin-top:6px;"><b>Öğrenci fotoğraf kayıtları:</b> <span class="mono">${ROOT_PATH}/studentOverrides</span></div>
         <div style="margin-top:6px;"><b>Ders programı kaynağı:</b> <span class="mono">odevfeno / atamapath</span> (salt okunur)</div>
         <div style="margin-top:6px;"><b>Sürüm:</b> ${APP_VERSION}</div>
       `;
@@ -4243,7 +4245,7 @@ function openFreeGroupModal(){
           </div>
 
           <div class="card">
-            <h3>Öğrenci Bilgisi Güncelleme (Veritabanı Override)</h3>
+            <h3>Öğrenci Fotoğrafı Güncelleme</h3>
 
             <div id="suEditorArea" class="empty">Önce bir öğrenci seçin.</div>
           </div>
@@ -4260,6 +4262,7 @@ function openFreeGroupModal(){
 
       let currentStudentNo = null;
       let cropCtx = null; // local crop state
+      let cropSessionToken = 0; // eski/asenkron fotoğraf işlemlerinin yeni öğrenciye karışmasını engeller
 
       function search(){
         const q = trLower(input.value.trim());
@@ -4288,8 +4291,11 @@ function openFreeGroupModal(){
           editor.innerHTML = `<div class="empty">Öğrenci bulunamadı.</div>`;
           return;
         }
+
+        const sessionId = ++cropSessionToken;
         currentStudentNo = String(s.no);
         cropCtx = null;
+        const currentPhoto = studentPhotoSrc(s) || null;
 
         editor.innerHTML = `
           <div class="form-grid">
@@ -4323,23 +4329,24 @@ function openFreeGroupModal(){
 
           <h3 style="margin-top:0;">Öğrenci Fotoğrafı</h3>
 
-
           <div class="crop-grid">
             <div>
               <div class="crop-preview">
                 <canvas id="suCropCanvas" width="320" height="320"></canvas>
               </div>
-              <div class="tiny muted" id="suPhotoInfo" style="margin-top:8px;">Mevcut foto / seçili görsel yok.</div>
+              <div class="tiny muted" id="suPhotoInfo" style="margin-top:8px;">Fotoğraf hazırlanıyor…</div>
               <div class="camera-helper tiny" style="margin-top:6px;">
-                📱 Android ve iPhone için iki aşamalı sistem: <b>Kamera ile Çek</b> doğrudan kamerayı açmayı dener; desteklenmeyen tarayıcıda otomatik olarak telefonun fotoğraf seçicisine düşer. <b>Galeriden Seç</b> her zaman yedek seçenektir.
+                📱 <b>Kamera ile Çek</b> veya <b>Galeriden Seç</b> ile fotoğraf ekleyin. Fotoğrafın konumunu sağdaki ayarlardan düzenleyebilirsiniz.
               </div>
-              <div class="tiny muted" style="margin-top:6px;">Sistem 320x320 JPEG olarak kaydeder. Büyük dosyalar yüklenmez; kayıt sırasında ek sıkıştırma uygulanır.</div>
+              <div class="tiny muted" style="margin-top:6px;">
+                Fotoğraf otomatik olarak <b>512×512 JPEG</b> hazırlanır. Kalite ve dosya boyutu sistem tarafından otomatik ayarlanır; mevcut fotoğraf değiştirilmedikçe yeniden sıkıştırılmaz.
+              </div>
               <div class="photo-action-row" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
                 <button id="suCameraBtn" class="btn small primary" type="button">📷 Kamera ile Çek</button>
                 <label class="btn small" for="suPhotoInput">🖼️ Galeriden Seç</label>
                 <input id="suCameraInput" type="file" accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif" capture="environment" style="display:none;">
                 <input id="suPhotoInput" type="file" accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif" style="display:none;">
-                <button id="suPhotoClearBtn" class="btn small" type="button">Fotoğrafı Kaldır</button>
+                <button id="suPhotoClearBtn" class="btn small danger" type="button">🗑️ Fotoğrafı Sil</button>
               </div>
             </div>
 
@@ -4356,43 +4363,65 @@ function openFreeGroupModal(){
                 <label>Dikey Kaydırma</label>
                 <input id="suOffsetY" type="range" min="-160" max="160" step="1" value="0" />
               </div>
-              <div class="range-row">
-                <label>Kalite</label>
-                <input id="suQuality" type="range" min="0.5" max="0.95" step="0.01" value="0.60" />
+
+              <div class="helper" style="margin-top:14px;">
+                <b>Basit kullanım:</b> Fotoğrafı seçin, gerekiyorsa konumunu ayarlayın ve <b>Kaydet</b>'e basın. “Fotoğrafı Sil” seçeneği yalnızca fotoğrafı silmek için kullanılır; öğrenci bilgileri silinmez.
               </div>
 
               <div class="divider"></div>
 
               <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                <button id="suSaveBtn" class="btn primary">Güncellemeyi Kaydet</button>
-                <button id="suDeleteOverrideBtn" class="btn danger">Override'ı Sil</button>
+                <button id="suSaveBtn" class="btn primary" type="button">Kaydet</button>
               </div>
             </div>
           </div>
         `;
 
-        initStudentPhotoCropper(studentPhotoSrc(s) || null);
-        bindStudentUpdateEditorEvents();
+        initStudentPhotoCropper(currentPhoto, currentStudentNo, sessionId);
+        bindStudentUpdateEditorEvents(sessionId, currentStudentNo);
       }
 
-      function initStudentPhotoCropper(currentPhoto){
+      function initStudentPhotoCropper(currentPhoto, studentNo, sessionId){
         const canvas = $("#suCropCanvas", els.modalBody);
         const ctx = canvas.getContext("2d");
         const info = $("#suPhotoInfo", els.modalBody);
         const zoom = $("#suZoom", els.modalBody);
         const offx = $("#suOffsetX", els.modalBody);
         const offy = $("#suOffsetY", els.modalBody);
+        const saveBtn = $("#suSaveBtn", els.modalBody);
 
         cropCtx = {
-          canvas, ctx,
+          sessionId,
+          studentNo: String(studentNo),
+          canvas,
+          ctx,
           img: null,
-          currentBase64: currentPhoto || null,
+          originalBase64: currentPhoto || null,
           sourceFileName: "",
           sourceFileBytes: 0,
           zoom: 1,
           offsetX: 0,
-          offsetY: 0
+          offsetY: 0,
+          photoDirty: false,
+          photoRemoved: false,
+          loading: !!currentPhoto,
+          loadToken: 0
         };
+
+        const localCtx = cropCtx;
+        const isActive = () => (
+          cropCtx === localCtx &&
+          cropCtx?.sessionId === sessionId &&
+          String(currentStudentNo || "") === String(studentNo) &&
+          canvas?.isConnected
+        );
+
+        function setLoading(isLoading, message=""){
+          if (!isActive()) return;
+          localCtx.loading = !!isLoading;
+          if (saveBtn) saveBtn.disabled = !!isLoading;
+          if (message) info.textContent = message;
+        }
 
         function drawChecker(){
           const size = 20;
@@ -4404,7 +4433,7 @@ function openFreeGroupModal(){
           }
         }
 
-        function drawPlaceholder(){
+        function drawPlaceholder(message="Fotoğraf yok"){
           drawChecker();
           ctx.strokeStyle = "rgba(255,255,255,.25)";
           ctx.setLineDash([6,6]);
@@ -4413,60 +4442,93 @@ function openFreeGroupModal(){
           ctx.fillStyle = "rgba(255,255,255,.7)";
           ctx.font = "700 14px Inter, sans-serif";
           ctx.textAlign = "center";
-          ctx.fillText("Fotoğraf yok", canvas.width/2, canvas.height/2);
-          info.textContent = "Mevcut foto / seçili görsel yok.";
+          ctx.fillText(message, canvas.width/2, canvas.height/2);
+          if (!localCtx.loading && !localCtx.photoRemoved) info.textContent = "Bu öğrenci için kayıtlı fotoğraf yok.";
+        }
+
+        function getPlacement(targetW, targetH){
+          const img = localCtx.img;
+          if (!img) return null;
+          const iw = Number(img.width || img.naturalWidth || 0);
+          const ih = Number(img.height || img.naturalHeight || 0);
+          if (!iw || !ih) return null;
+
+          const previewW = canvas.width;
+          const previewH = canvas.height;
+          const zoomValue = Math.max(1, Number(localCtx.zoom || 1));
+          const previewScale = Math.max(previewW / iw, previewH / ih) * zoomValue;
+          const previewDW = iw * previewScale;
+          const previewDH = ih * previewScale;
+
+          // Fotoğrafın kırpma alanını tamamen kaplamasını garanti eder.
+          const maxOffsetX = Math.max(0, (previewDW - previewW) / 2);
+          const maxOffsetY = Math.max(0, (previewDH - previewH) / 2);
+          const safeOffsetX = Math.max(-maxOffsetX, Math.min(maxOffsetX, Number(localCtx.offsetX || 0)));
+          const safeOffsetY = Math.max(-maxOffsetY, Math.min(maxOffsetY, Number(localCtx.offsetY || 0)));
+
+          const factorX = targetW / previewW;
+          const factorY = targetH / previewH;
+          return {
+            dx: ((previewW - previewDW) / 2 + safeOffsetX) * factorX,
+            dy: ((previewH - previewDH) / 2 + safeOffsetY) * factorY,
+            dw: previewDW * factorX,
+            dh: previewDH * factorY
+          };
         }
 
         function draw(){
-          if (!cropCtx) return;
-          const { img } = cropCtx;
-          if (!img) {
-            if (cropCtx.currentBase64) {
-              // sadece mevcut görsel gösterilsin
-              const temp = new Image();
-              temp.onload = () => {
-                cropCtx.img = temp;
-                draw();
-              };
-              temp.src = cropCtx.currentBase64;
-              cropCtx.currentBase64 = null;
-              return;
-            }
-            drawPlaceholder();
+          if (!isActive()) return;
+          if (!localCtx.img) {
+            drawPlaceholder(localCtx.photoRemoved ? "Fotoğraf silinecek" : "Fotoğraf yok");
+            if (localCtx.photoRemoved) info.textContent = "Fotoğraf silinmek üzere işaretlendi. İşlemi tamamlamak için Kaydet'e basın.";
             return;
           }
 
           drawChecker();
-          const cw = canvas.width, ch = canvas.height;
-          const scaleBase = Math.max(cw / img.width, ch / img.height);
-          const scale = scaleBase * Number(cropCtx.zoom || 1);
+          const p = getPlacement(canvas.width, canvas.height);
+          if (!p) return drawPlaceholder();
+          ctx.drawImage(localCtx.img, p.dx, p.dy, p.dw, p.dh);
 
-          const dw = img.width * scale;
-          const dh = img.height * scale;
-          const dx = (cw - dw)/2 + Number(cropCtx.offsetX || 0);
-          const dy = (ch - dh)/2 + Number(cropCtx.offsetY || 0);
-
-          ctx.drawImage(img, dx, dy, dw, dh);
-
-          // crop frame overlay
+          // Bu çerçeve yalnızca önizlemededir; kayıt edilen fotoğrafa eklenmez.
           ctx.strokeStyle = "rgba(255,255,255,.95)";
           ctx.lineWidth = 2;
-          ctx.strokeRect(2,2,cw-4,ch-4);
+          ctx.strokeRect(2,2,canvas.width-4,canvas.height-4);
 
-          const srcInfo = cropCtx.sourceFileBytes ? ` • Dosya: ${formatBytes(cropCtx.sourceFileBytes)}` : "";
-          info.textContent = `Önizleme: ${img.width}x${img.height}px${srcInfo}`;
+          const iw = Number(localCtx.img.width || localCtx.img.naturalWidth || 0);
+          const ih = Number(localCtx.img.height || localCtx.img.naturalHeight || 0);
+          const srcInfo = localCtx.sourceFileBytes ? ` • Kaynak: ${formatBytes(localCtx.sourceFileBytes)}` : "";
+          info.textContent = localCtx.photoDirty
+            ? `Yeni fotoğraf hazır: ${iw}×${ih}px${srcInfo}`
+            : `Kayıtlı fotoğraf: ${iw}×${ih}px • Değiştirilmediği sürece yeniden sıkıştırılmaz.`;
         }
 
-        cropCtx.draw = draw;
-        cropCtx.exportBase64 = () => {
-          let quality = Number($("#suQuality", els.modalBody)?.value || 0.60);
-          quality = Math.min(0.95, Math.max(STUDENT_PHOTO_MIN_QUALITY, quality));
-          let out = canvas.toDataURL("image/jpeg", quality);
+        localCtx.isActive = isActive;
+        localCtx.setLoading = setLoading;
+        localCtx.draw = draw;
+        localCtx.getPlacement = getPlacement;
+        localCtx.exportBase64 = () => {
+          if (!isActive() || !localCtx.img) return null;
+
+          const outCanvas = document.createElement("canvas");
+          outCanvas.width = STUDENT_PHOTO_OUTPUT_SIZE;
+          outCanvas.height = STUDENT_PHOTO_OUTPUT_SIZE;
+          const outCtx = outCanvas.getContext("2d", { alpha: false });
+          if (!outCtx) throw new Error("Fotoğraf çıktı alanı oluşturulamadı.");
+
+          // Yardımcı ızgara/çerçeve export'a girmez. JPEG için güvenli beyaz taban.
+          outCtx.fillStyle = "#ffffff";
+          outCtx.fillRect(0, 0, outCanvas.width, outCanvas.height);
+          const p = getPlacement(outCanvas.width, outCanvas.height);
+          if (!p) throw new Error("Fotoğraf kırpma alanı hesaplanamadı.");
+          outCtx.drawImage(localCtx.img, p.dx, p.dy, p.dw, p.dh);
+
+          let quality = STUDENT_PHOTO_START_QUALITY;
+          let out = outCanvas.toDataURL("image/jpeg", quality);
           let outBytes = base64DataUrlSizeBytes(out);
 
           while (outBytes > STUDENT_PHOTO_EXPORT_TARGET_BYTES && quality > STUDENT_PHOTO_MIN_QUALITY) {
             quality = Math.max(STUDENT_PHOTO_MIN_QUALITY, +(quality - 0.05).toFixed(2));
-            const next = canvas.toDataURL("image/jpeg", quality);
+            const next = outCanvas.toDataURL("image/jpeg", quality);
             const nextBytes = base64DataUrlSizeBytes(next);
             if (nextBytes >= outBytes) break;
             out = next;
@@ -4476,33 +4538,55 @@ function openFreeGroupModal(){
           return { dataUrl: out, bytes: outBytes, qualityUsed: quality };
         };
 
+        [zoom, offx, offy].forEach(el => {
+          el.addEventListener("input", () => {
+            if (!isActive()) return;
+            localCtx.zoom = Number(zoom.value);
+            localCtx.offsetX = Number(offx.value);
+            localCtx.offsetY = Number(offy.value);
+            // Konum değişikliği de yeni bir fotoğraf çıktısı gerektirir.
+            if (localCtx.img) localCtx.photoDirty = true;
+            localCtx.draw();
+          });
+        });
+
         if (currentPhoto) {
+          const token = ++localCtx.loadToken;
+          setLoading(true, "Kayıtlı fotoğraf yükleniyor…");
           const img = new Image();
           img.onload = () => {
-            cropCtx.img = img;
+            if (!isActive() || localCtx.loadToken !== token) return;
+            localCtx.img = img;
+            localCtx.loading = false;
+            if (saveBtn) saveBtn.disabled = false;
             draw();
+          };
+          img.onerror = () => {
+            if (!isActive() || localCtx.loadToken !== token) return;
+            localCtx.loading = false;
+            if (saveBtn) saveBtn.disabled = false;
+            drawPlaceholder("Fotoğraf açılamadı");
+            info.textContent = "Kayıtlı fotoğraf açılamadı. Yeni bir fotoğraf seçebilirsiniz.";
           };
           img.src = currentPhoto;
         } else {
+          setLoading(false);
           drawPlaceholder();
         }
-
-        [zoom, offx, offy].forEach(el => {
-          el.addEventListener("input", () => {
-            if (!cropCtx) return;
-            cropCtx.zoom = Number(zoom.value);
-            cropCtx.offsetX = Number(offx.value);
-            cropCtx.offsetY = Number(offy.value);
-            cropCtx.draw();
-          });
-        });
       }
 
-      function bindStudentUpdateEditorEvents(){
+      function bindStudentUpdateEditorEvents(sessionId, studentNo){
         const photoInput = $("#suPhotoInput", els.modalBody);
         const cameraInput = $("#suCameraInput", els.modalBody);
         const cameraBtn = $("#suCameraBtn", els.modalBody);
         const photoClearBtn = $("#suPhotoClearBtn", els.modalBody);
+        const saveBtn = $("#suSaveBtn", els.modalBody);
+
+        const isActive = () => (
+          cropCtx?.sessionId === sessionId &&
+          String(cropCtx?.studentNo || "") === String(studentNo) &&
+          String(currentStudentNo || "") === String(studentNo)
+        );
 
         const isLikelyImageFile = (file) => {
           if (!file) return false;
@@ -4512,24 +4596,57 @@ function openFreeGroupModal(){
           return /\.(jpe?g|png|webp|gif|bmp|heic|heif)$/i.test(String(file.name || ""));
         };
 
-        const applyImageToCropper = (img, file, sourceLabel) => {
-          if (!cropCtx) return;
+        const resetCropControls = () => {
+          const z = $("#suZoom", els.modalBody);
+          const x = $("#suOffsetX", els.modalBody);
+          const y = $("#suOffsetY", els.modalBody);
+          if (z) z.value = "1";
+          if (x) x.value = "0";
+          if (y) y.value = "0";
+        };
+
+        const applyImageToCropper = (img, file, sourceLabel, loadToken) => {
+          if (!isActive() || cropCtx.loadToken !== loadToken) {
+            try { img?.close?.(); } catch(_) {}
+            return;
+          }
+
+          try {
+            if (cropCtx.img && cropCtx.img !== img && typeof cropCtx.img.close === "function") cropCtx.img.close();
+          } catch(_) {}
+
           cropCtx.img = img;
-          cropCtx.currentBase64 = null;
           cropCtx.sourceFileName = file?.name || sourceLabel || "camera-photo";
           cropCtx.sourceFileBytes = Number(file?.size || 0);
           cropCtx.zoom = 1;
           cropCtx.offsetX = 0;
           cropCtx.offsetY = 0;
-          $("#suZoom", els.modalBody).value = "1";
-          $("#suOffsetX", els.modalBody).value = "0";
-          $("#suOffsetY", els.modalBody).value = "0";
+          cropCtx.photoDirty = true;
+          cropCtx.photoRemoved = false;
+          cropCtx.loading = false;
+          resetCropControls();
+          if (saveBtn) saveBtn.disabled = false;
           cropCtx.draw();
-          showToast(`${sourceLabel || "Fotoğraf"} hazır (${formatBytes(file?.size || 0)}). Kırpma ayarlarını yapabilirsiniz.`);
+          showToast(`${sourceLabel || "Fotoğraf"} hazır (${formatBytes(file?.size || 0)}).`);
         };
 
+        const decodeWithImageElement = (file, sourceLabel, loadToken) => new Promise((resolve, reject) => {
+          const objectUrl = URL.createObjectURL(file);
+          const img = new Image();
+          img.onload = () => {
+            URL.revokeObjectURL(objectUrl);
+            if (!isActive() || cropCtx.loadToken !== loadToken) return resolve(null);
+            resolve(img);
+          };
+          img.onerror = () => {
+            URL.revokeObjectURL(objectUrl);
+            reject(new Error(`${sourceLabel || "Fotoğraf"} tarayıcı tarafından açılamadı.`));
+          };
+          img.src = objectUrl;
+        });
+
         const handleSelectedPhotoFile = async (file, sourceLabel, sourceInput) => {
-          if (!file) return;
+          if (!file || !isActive()) return;
           if (!isLikelyImageFile(file)) {
             if (sourceInput) sourceInput.value = "";
             return showToast("Lütfen geçerli bir resim dosyası seçin.");
@@ -4546,19 +4663,35 @@ function openFreeGroupModal(){
             return;
           }
 
-          const reader = new FileReader();
-          reader.onerror = () => showToast("Fotoğraf okunamadı. Lütfen tekrar deneyin veya galeriden seçin.");
-          reader.onload = () => {
-            const img = new Image();
-            img.onload = () => applyImageToCropper(img, file, sourceLabel);
-            img.onerror = () => showToast("Bu fotoğraf tarayıcı tarafından açılamadı. JPEG/PNG olarak tekrar deneyin.");
-            img.src = reader.result;
-          };
-          reader.readAsDataURL(file);
+          const loadToken = ++cropCtx.loadToken;
+          cropCtx.setLoading?.(true, `${sourceLabel || "Fotoğraf"} hazırlanıyor…`);
+
+          try {
+            let img = null;
+            // Telefon fotoğraflarındaki EXIF yön bilgisini açıkça uygula.
+            if (typeof createImageBitmap === "function") {
+              try {
+                img = await createImageBitmap(file, { imageOrientation: "from-image" });
+              } catch (bitmapError) {
+                console.info("createImageBitmap kullanılamadı, standart resim çözümleyici deneniyor:", bitmapError);
+              }
+            }
+            if (!img) img = await decodeWithImageElement(file, sourceLabel, loadToken);
+            if (!img) return;
+            applyImageToCropper(img, file, sourceLabel, loadToken);
+          } catch (e) {
+            console.error("Fotoğraf çözümleme hatası:", e);
+            if (!isActive() || cropCtx.loadToken !== loadToken) return;
+            cropCtx.loading = false;
+            if (saveBtn) saveBtn.disabled = false;
+            showToast("Bu fotoğraf açılamadı. JPEG veya PNG olarak tekrar deneyin.");
+          } finally {
+            if (sourceInput) sourceInput.value = "";
+          }
         };
 
         cameraBtn?.addEventListener("click", () => {
-          // Kullanıcı hareketi içinde .click() çağrısı iOS Safari/Android Chrome için gereklidir.
+          if (!isActive()) return;
           cameraInput?.click();
         });
 
@@ -4572,77 +4705,100 @@ function openFreeGroupModal(){
           await handleSelectedPhotoFile(file, "Galeri fotoğrafı", photoInput);
         });
 
-        photoClearBtn?.addEventListener("click", () => {
-          if (!cropCtx) return;
+        photoClearBtn?.addEventListener("click", async () => {
+          if (!isActive() || cropCtx.loading) return;
+          if (!cropCtx.img && !cropCtx.originalBase64) return showToast("Silinecek bir fotoğraf yok.");
+
+          const ok = await confirmDialog(
+            "Bu öğrencinin kayıtlı fotoğrafı silinecek. Öğrencinin adı, sınıfı, grubu ve diğer bilgileri silinmez. Devam etmek istiyor musunuz?",
+            { title:"Fotoğrafı Sil", tone:"danger", okText:"Evet, Fotoğrafı Sil", cancelText:"Vazgeç", icon:"🗑️" }
+          );
+          if (!ok || !isActive()) return;
+
+          ++cropCtx.loadToken; // devam eden eski resim çözümlemelerini geçersiz kıl
+          try { cropCtx.img?.close?.(); } catch(_) {}
           cropCtx.img = null;
-          cropCtx.currentBase64 = null;
           cropCtx.sourceFileName = "";
           cropCtx.sourceFileBytes = 0;
+          cropCtx.photoDirty = true;
+          cropCtx.photoRemoved = true;
+          cropCtx.loading = false;
           cropCtx.draw();
-          showToast("Fotoğraf kaldırıldı (kaydetmeden veritabanına işlemez).");
+          showToast("Fotoğraf silinmek üzere işaretlendi. Kaydet'e basın.");
         });
 
-        $("#suSaveBtn", els.modalBody)?.addEventListener("click", async () => {
-          if (!currentStudentNo) return showToast("Öğrenci seçin.");
-          // Ad/Sınıf/Grup/Cinsiyet alanları e-Tablodan gelir; burada değiştirilmiyor (override yazılmaz).
-                    let photoBase64 = null;
+        saveBtn?.addEventListener("click", async () => {
+          if (!isActive()) return showToast("Öğrenci seçimi değişti. Lütfen tekrar deneyin.");
+          if (cropCtx.loading) return showToast("Fotoğraf hazırlanıyor. İşlem tamamlandığında kaydedebilirsiniz.");
+
+          // Bu ekranda öğrenci temel bilgileri e-Tablodan gelir; yalnızca fotoğraf değişikliği kaydedilir.
+          if (!cropCtx.photoDirty) {
+            return showToast("Fotoğrafta kaydedilecek bir değişiklik yok.");
+          }
+
+          let photoBase64 = null;
           let photoExportBytes = 0;
           let photoQualityUsed = null;
-          try {
-            const exported = cropCtx?.img ? cropCtx.exportBase64() : null;
-            if (exported?.dataUrl) {
+
+          if (!cropCtx.photoRemoved) {
+            try {
+              const exported = cropCtx.img ? cropCtx.exportBase64() : null;
+              if (!exported?.dataUrl) return showToast("Kaydedilecek fotoğraf hazırlanamadı.");
               photoBase64 = exported.dataUrl;
               photoExportBytes = Number(exported.bytes || 0);
               photoQualityUsed = exported.qualityUsed;
+            } catch (e) {
+              console.error("Foto export hatası:", e);
+              return showToast("Fotoğraf hazırlanırken hata oluştu.");
+            }
+
+            if (photoExportBytes > STUDENT_PHOTO_EXPORT_HARD_MAX_BYTES) {
+              await confirmDialog(
+                `Fotoğraf otomatik sıkıştırıldı ancak hâlâ ${formatBytes(photoExportBytes)} boyutunda.\nLütfen daha sade veya daha küçük bir fotoğraf seçin.`,
+                { title:"Fotoğraf Kaydedilemedi", tone:"danger", okText:"Tamam", cancelText:"Kapat", icon:"📷" }
+              );
+              return;
+            }
+          }
+
+          const studentKey = safeKey(studentNo);
+          const path = `${ROOT_PATH}/studentOverrides/${studentKey}`;
+          const updatedAt = new Date().toISOString();
+          const patch = {
+            no: String(studentNo),
+            updatedAt,
+            photoBase64: cropCtx.photoRemoved ? null : photoBase64
+          };
+
+          try {
+            saveBtn.disabled = true;
+            await dbUpdate(path, patch);
+
+            const prev = state.data.studentOverrides[studentKey] || {};
+            const next = { ...prev, no: String(studentNo), updatedAt };
+            if (cropCtx.photoRemoved) delete next.photoBase64;
+            else next.photoBase64 = photoBase64;
+            state.data.studentOverrides[studentKey] = next;
+
+            cropCtx.originalBase64 = cropCtx.photoRemoved ? null : photoBase64;
+            cropCtx.photoDirty = false;
+            cropCtx.photoRemoved = false;
+            cropCtx.sourceFileBytes = 0;
+
+            renderTeacherSelectors();
+            refreshGlobalStatsUI();
+            cropCtx.draw();
+
+            if (photoBase64) {
+              showToast(`Fotoğraf kaydedildi ✅ (${STUDENT_PHOTO_OUTPUT_SIZE}×${STUDENT_PHOTO_OUTPUT_SIZE} • ${formatBytes(photoExportBytes)} • kalite ${photoQualityUsed})`, 3000);
+            } else {
+              showToast("Fotoğraf silindi ✅ Öğrenci bilgileri korunuyor.", 2600);
             }
           } catch (e) {
-            console.warn("Foto export hatası:", e);
-          }
-
-          if (photoBase64 && photoExportBytes > STUDENT_PHOTO_EXPORT_HARD_MAX_BYTES) {
-            await confirmDialog(
-              `Fotoğraf sıkıştırıldı ancak hâlâ büyük (${formatBytes(photoExportBytes)}).\nDaha küçük bir fotoğraf seçin veya kırpmayı daraltın.`,
-              { title:"Fotoğraf Kaydedilemedi", tone:"danger", okText:"Tamam", cancelText:"Kapat", icon:"📷" }
-            );
-            return;
-          }
-
-          if (photoBase64 && cropCtx?.sourceFileBytes && cropCtx.sourceFileBytes > (2 * 1024 * 1024)) {
-            showToast(`Fotoğraf ${formatBytes(photoExportBytes)} boyutunda kaydedilecek (kalite: ${photoQualityUsed ?? "-"})`, 2600);
-          }
-
-          const patch = {
-            no: currentStudentNo,
-            updatedAt: new Date().toISOString()
-          };
-          if (photoBase64) patch.photoBase64 = photoBase64;
-          else patch.photoBase64 = null;
-
-          try {
-            await dbSet(`${ROOT_PATH}/studentOverrides/${safeKey(currentStudentNo)}`, patch);
-            state.data.studentOverrides[safeKey(currentStudentNo)] = patch;
-            renderTeacherSelectors();
-            refreshGlobalStatsUI();
-            showToast(photoBase64 ? `Öğrenci kaydı kaydedildi ✅ (Foto: ${formatBytes(photoExportBytes)})` : "Öğrenci override kaydedildi ✅");
-          } catch (e) {
             console.error(e);
-            showToast("Kaydetme hatası.");
-          }
-        });
-
-        $("#suDeleteOverrideBtn", els.modalBody)?.addEventListener("click", async () => {
-          if (!currentStudentNo) return;
-          if (!await confirmDialog("Bu öğrenci için kayıtlı özel güncelleme silinecek. Emin misiniz?", { title:"Öğrenci Kaydını Sil", tone:"danger" })) return;
-          try {
-            await dbRemove(`${ROOT_PATH}/studentOverrides/${safeKey(currentStudentNo)}`);
-            delete state.data.studentOverrides[safeKey(currentStudentNo)];
-            renderTeacherSelectors();
-            refreshGlobalStatsUI();
-            showToast("Override silindi.");
-            renderEditor(currentStudentNo); // sheet verisine geri döner
-          } catch (e) {
-            console.error(e);
-            showToast("Silme hatası.");
+            showToast("Fotoğraf kaydedilemedi. Lütfen tekrar deneyin.");
+          } finally {
+            if (isActive()) saveBtn.disabled = false;
           }
         });
       }
@@ -4654,6 +4810,7 @@ function openFreeGroupModal(){
         if (!item) return;
         const selectedNo = String(item.dataset.no || "");
         if (currentStudentNo && currentStudentNo === selectedNo) {
+          ++cropSessionToken;
           currentStudentNo = null;
           cropCtx = null;
           editor.innerHTML = `<div class="empty">Öğrenci seçimi kapatıldı. Başka bir öğrenci seçebilirsiniz.</div>`;
@@ -4723,7 +4880,9 @@ function openFreeGroupModal(){
           dateCount = Object.keys(sessionsByDate).length;
           for (const day of Object.values(sessionsByDate)) sessionCount += Object.keys(day || {}).length;
         }
-        const overrideCount = studentOverrides ? Object.keys(studentOverrides).length : 0;
+        const photoRecordCount = studentOverrides && typeof studentOverrides === "object"
+          ? Object.values(studentOverrides).filter(x => !!x?.photoBase64).length
+          : 0;
         const slotCount = Array.isArray(settings?.lessonSlots)
           ? settings.lessonSlots.length
           : (settings?.lessonSlots ? Object.keys(settings.lessonSlots).length : 0);
@@ -4731,7 +4890,7 @@ function openFreeGroupModal(){
         info.innerHTML = `
           <div><b>Oturum tarihi sayısı:</b> ${dateCount}</div>
           <div style="margin-top:6px;"><b>Toplam ders kaydı:</b> ${sessionCount}</div>
-          <div style="margin-top:6px;"><b>Öğrenci override kaydı:</b> ${overrideCount}</div>
+          <div style="margin-top:6px;"><b>Kayıtlı öğrenci fotoğrafı:</b> ${photoRecordCount}</div>
           <div style="margin-top:6px;"><b>Saat ayarı satırı:</b> ${slotCount}</div>
           <div style="margin-top:6px;"><b>Kök yol:</b> <span class="mono">${ROOT_PATH}</span></div>
         `;
