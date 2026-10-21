@@ -465,6 +465,34 @@
   }
 
 
+   /* ===== V1.5 • Veli WhatsApp bilgilendirme ===== */
+   .teacher-wizard-progress { grid-template-columns:repeat(4,minmax(0,1fr)); }
+   .parent-progress { display:flex; gap:8px; flex-wrap:wrap; margin:14px 0; }
+   .parent-notify-list { display:grid; gap:10px; }
+   .parent-notify-row { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; border:1px solid var(--panel-border); border-radius:14px; padding:12px 14px; background:var(--panel); }
+   .parent-notify-row.completed { border-color:#a7f3d0; background:#f0fdf4; }
+   .parent-notify-row.missing { background:#f8fafc; }
+   .parent-notify-main { flex:1 1 210px; min-width:0; display:grid; gap:5px; }
+   .parent-notify-name { font-size:.95rem; font-weight:800; color:var(--text); }
+   .parent-notify-detail { font-size:.78rem; color:var(--text-muted); line-height:1.35; }
+   .parent-notify-action { display:flex; gap:7px; flex-wrap:wrap; align-items:center; justify-content:flex-end; }
+   .btn.parent-wa-btn { flex:0 0 auto; width:auto; min-width:0; height:34px; min-height:34px; padding:7px 11px; border-radius:8px; font-size:.77rem; font-weight:750; white-space:nowrap; border:0; background:#16804a; color:#fff; }
+   .btn.parent-wa-btn:hover { background:#126b3c; }
+   .btn.parent-wa-btn[disabled] { background:#e2e8f0; color:#64748b; }
+   .btn.parent-confirm-btn { flex:0 0 auto; width:auto; min-height:34px; height:34px; padding:7px 10px; border-radius:8px; font-size:.77rem; white-space:nowrap; }
+   .parent-sent-marker { display:inline-flex; align-items:center; gap:5px; color:#047857; font-size:.79rem; font-weight:800; }
+   .parent-notify-footer { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:10px; margin-top:18px; }
+   .parent-notify-footer .btn { width:auto; }
+   @media (max-width:900px) { .teacher-wizard-progress { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+   @media (max-width:560px) {
+     .teacher-wizard-progress { grid-template-columns:1fr; }
+     .parent-notify-row { padding:11px; gap:8px; }
+     .parent-notify-main { flex:1 1 100%; }
+     .parent-notify-action { width:100%; justify-content:flex-start; }
+     .parent-notify-footer { display:grid; grid-template-columns:1fr; }
+     .parent-notify-footer .btn { width:100%; }
+   }
+
   /* ===== Admin panel mobil sığma iyileştirmeleri ===== */
   #view-admin .grid.grid-2 { gap: 16px; }
   #view-admin .grid.grid-2 > .big-button { min-width: 0; width: 100%; }
@@ -711,6 +739,13 @@
                     <div class="wiz-sub">İşlenen konuyu yazın ve dersi kaydedin.</div>
                   </div>
                 </div>
+                <div class="teacher-wizard-step" data-wizard-step-indicator="4">
+                  <div class="wiz-no">4</div>
+                  <div class="wiz-text">
+                    <div class="wiz-title">Veli bilgilendirme</div>
+                    <div class="wiz-sub">WhatsApp ile bilgilendirin veya bu adımı atlayın.</div>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -793,6 +828,17 @@
               <div class="divider"></div>
               <div class="helper warn">
                 Tüm yoklama seçimleri tamamlandıktan sonra konu alanı açılır. Son adımda ders kaydı tamamlanır.
+              </div>
+            </div>
+
+            <div id="teacherStep4" class="teacher-step-panel" data-teacher-step="4">
+              <div class="teacher-step-title"><span class="step-no">4</span><h3 style="margin:0; font-size:1rem;">Veli Bilgilendirme</h3></div>
+              <div class="helper">Ders kaydedildi. <b>WhatsApp Aç</b> ile hazır mesajı açın, WhatsApp'ta gönderdikten sonra <b>Gönderdim</b> ile onaylayın. Yalnızca onaylanan mesajlar yeşil tik alır.</div>
+              <div class="parent-progress" id="parentNotifySummary" aria-live="polite"></div>
+              <div id="parentNotifyList" class="parent-notify-list" aria-live="polite"></div>
+              <div class="parent-notify-footer">
+                <button id="btnSkipParentNotify" class="btn" type="button">Bu Adımı Atla</button>
+                <button id="btnFinishParentNotify" class="btn primary" type="button">Bilgilendirmeyi Tamamla</button>
               </div>
             </div>
 
@@ -886,7 +932,7 @@
 
       <div class="footer-space"></div>
     </main>
-    <footer class="app-version-footer">Birebir Analiz Sistemi • <span id="appVersionText">V1.4</span></footer>
+    <footer class="app-version-footer">Birebir Analiz Sistemi • <span id="appVersionText">V1.5</span></footer>
   </div>
 
   <!-- Generic Modal -->
@@ -926,7 +972,7 @@
     const GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1oJGMO7FOPV4U86peeA63lmMk-wVCKsfWuyw2yefMweg/edit?usp=sharing";
     const ADMIN_PASSWORD = "13579";
     const ROOT_PATH = "Birebirlerianaliz";
-    const APP_VERSION = "V1.4";
+    const APP_VERSION = "V1.5";
     const DEFAULT_LESSON_SLOTS = [
       { id: "S1", start: "16:00", end: "16:40", active: true },
       { id: "S2", start: "16:50", end: "17:30", active: true },
@@ -1052,6 +1098,11 @@
         freeGroupMeta: { enabled:false, start:"", end:"" },
         scheduleMeta: { enabled:false, day:null, slot:null, slotLabel:"", branch:"", assignmentKey:"" },
         editingSessionId: "",
+        notificationSession: null,
+        notificationLog: {},
+        notificationOpened: {},
+        notificationLoading: false,
+        notificationLoadFailed: false,
         step: 1
       }
     };
@@ -1094,6 +1145,8 @@
       groupSelect: $("#groupSelect"),
       lessonTopicInput: $("#lessonTopicInput"),
       teacherStudentList: $("#teacherStudentList"),
+      parentNotifySummary: $("#parentNotifySummary"),
+      parentNotifyList: $("#parentNotifyList"),
       teacherWelcome: $("#teacherWelcome"),
       teacherMetaId: $("#teacherMetaId"),
       teacherMetaBranch: $("#teacherMetaBranch"),
@@ -1301,7 +1354,8 @@
         adsoyad: pickNonEmpty(next.adsoyad, prev.adsoyad),
         sinif: pickNonEmpty(next.sinif, prev.sinif),
         grup: pickNonEmpty(next.grup, prev.grup),
-        cinsiyet: pickNonEmpty(next.cinsiyet, prev.cinsiyet)
+        cinsiyet: pickNonEmpty(next.cinsiyet, prev.cinsiyet),
+        velitel: String(next.velitel ?? prev.velitel ?? "").trim()
       };
 
       const classHistory = new Set([...(prev._sinifHistory || []), ...(next._sinifHistory || [])].filter(Boolean));
@@ -1921,6 +1975,7 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
       const idxSinif = findHeaderIndex(headers, ["SINIF","SINIFI","SUBE","ŞUBE"]);
       const idxGrup = findHeaderIndex(headers, ["GRUBU","GRUP","BIREBIRGRUBU","BIREBIR GRUBU"]);
       const idxCins = findHeaderIndex(headers, ["CINSIYET","CINS"]);
+      const idxVeliTel = findHeaderIndex(headers, ["VeliTel", "VELI TELEFONU", "VELI_TELEFON", "VELİ TEL"]);
 
       if (idxNo == null || idxAd == null || idxGrup == null) {
         console.error("Ogrenciler başlıkları:", headers, "normalize:", headers.map(normalizeText), "idx", {idxNo, idxAd, idxSinif, idxGrup, idxCins});
@@ -1934,8 +1989,9 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
         const sinif = String(row[idxSinif] ?? "").trim();
         const grup = String(row[idxGrup] ?? "").trim();
         const cinsiyet = String(row[idxCins] ?? "").trim();
+        const velitel = idxVeliTel == null ? "" : String(row[idxVeliTel] ?? "").trim();
         if (!no || !adsoyad) continue;
-        out.push({ no, adsoyad, sinif, grup, cinsiyet });
+        out.push({ no, adsoyad, sinif, grup, cinsiyet, velitel });
       }
       return out;
     }
@@ -2153,6 +2209,7 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
             <div class="schedule-card-action">
               <button class="btn ${saved ? "success" : "primary"}" type="button" data-open-schedule="${idx}">${saved ? "Düzenle" : "Dersi Aç"}</button>
               ${saved ? `<button class="btn ghost small" type="button" data-preview-schedule="${idx}">Ön İzleme</button>` : ""}
+              ${saved ? `<button class="btn small" type="button" data-notify-schedule="${idx}">Veli Bilgilendirme</button>` : ""}
             </div>
           </div>`;
       }).join("");
@@ -2319,6 +2376,7 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
           </div>
           <div class="a">
             ${editable ? `<button class="btn success small" type="button" data-history-edit="${idx}">Düzenle</button>` : ""}
+            ${editable ? `<button class="btn small" type="button" data-history-notify="${idx}">Veli Bilgilendirme</button>` : ""}
             <button class="btn small ghost" type="button" data-history-preview="${idx}">Ön İzleme</button>
           </div>
         </div>`;
@@ -2330,6 +2388,12 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
           els.modalBody.querySelectorAll("[data-history-preview]").forEach(btn => btn.addEventListener("click", () => {
             const session = list[Number(btn.dataset.historyPreview)];
             openTeacherSessionPreview(session);
+          }));
+          els.modalBody.querySelectorAll("[data-history-notify]").forEach(btn => btn.addEventListener("click", async () => {
+            const session = list[Number(btn.dataset.historyNotify)];
+            if (!session || String(session.date || "") !== todayISO()) return showToast("Bilgilendirme yalnızca bugünkü derslerde açılır.");
+            closeModal();
+            await startParentNotifications(session);
           }));
           els.modalBody.querySelectorAll("[data-history-edit]").forEach(btn => btn.addEventListener("click", () => {
             const session = list[Number(btn.dataset.historyEdit)];
@@ -2549,6 +2613,11 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
         freeGroupMeta: { enabled:false, start:"", end:"" },
         scheduleMeta: { enabled:false, day:null, slot:null, slotLabel:"", branch:"", assignmentKey:"" },
         editingSessionId: "",
+        notificationSession: null,
+        notificationLog: {},
+        notificationOpened: {},
+        notificationLoading: false,
+        notificationLoadFailed: false,
         step: 1
       };
       els.lessonDateInput.value = dateVal;
@@ -2635,15 +2704,16 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
       else if (state.teacherDraft.scheduleMeta?.enabled) base = "Programlı ders";
       else if (state.teacherDraft.freeGroupMeta?.enabled) base = "Serbest çalışma";
       if (state.teacherDraft.locked) base = "Salt okunur";
-      els.teacherDraftState.textContent = `${base} • Adım ${step}/3`;
+      els.teacherDraftState.textContent = `${state.teacherDraft.notificationSession ? 'Ders kaydedildi • Veli bilgilendirme' : base} • Adım ${step}/4`;
     }
 
     function getTeacherWizardStep(){
       const raw = Number(state.teacherDraft?.step || 1);
-      return Math.min(3, Math.max(1, raw || 1));
+      return Math.min(4, Math.max(1, raw || 1));
     }
 
     function getTeacherWizardMaxAllowedStep(){
+      if (state.teacherDraft.notificationSession) return 4;
       const hasStudents = !!(state.teacherDraft.loadedStudents || []).length;
       const sum = summarizeTeacherDraft();
       const attendanceReady = hasStudents && sum.total > 0 && sum.unknown === 0;
@@ -2655,6 +2725,7 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
     function getTeacherWizardValidationMessage(targetStep){
       const step = Number(targetStep || 1);
       if (step <= 1) return "";
+      if (step >= 4 && !state.teacherDraft.notificationSession) return "Veli bilgilendirmesi yalnızca ders kaydedildikten sonra açılır.";
       const date = (els.lessonDateInput?.value || state.teacherDraft.date || "").trim();
       const slotId = (els.lessonSlotSelect?.value || state.teacherDraft.slotId || "").trim();
       const group = (els.groupSelect?.value || state.teacherDraft.group || "").trim();
@@ -2683,10 +2754,14 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
 
       const prevBtns = ['#btnTeacherPrevStep', '#btnTeacherPrevStepMobile'].map(sel => $(sel)).filter(Boolean);
       const nextBtns = ['#btnTeacherNextStep', '#btnTeacherNextStepMobile'].map(sel => $(sel)).filter(Boolean);
-      prevBtns.forEach(btn => btn.disabled = currentStep <= 1);
+      prevBtns.forEach(btn => {
+        btn.disabled = currentStep <= 1 || currentStep === 4;
+        btn.style.display = currentStep === 4 ? 'none' : '';
+      });
       nextBtns.forEach(btn => {
         const isLast = currentStep >= 3;
         btn.disabled = isLast;
+        btn.style.display = isLast ? 'none' : '';
         btn.textContent = isLast ? 'Son adım' : 'Sonraki Adım →';
       });
 
@@ -2698,7 +2773,7 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
     }
 
     function setTeacherWizardStep(step, opts={}){
-      const target = Math.min(3, Math.max(1, Number(step || 1)));
+      const target = Math.min(4, Math.max(1, Number(step || 1)));
       const { force = false, silent = false } = opts || {};
       if (!force) {
         const msg = getTeacherWizardValidationMessage(target);
@@ -2706,6 +2781,10 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
           if (!silent) showToast(msg);
           return false;
         }
+      }
+      if (state.teacherDraft.notificationSession && target !== 4) {
+        if (!silent) showToast("Ders kaydedildi; veli bilgilendirmesini tamamlayın veya atlayın.");
+        return false;
       }
       state.teacherDraft.step = target;
       renderTeacherWizard();
@@ -3169,6 +3248,237 @@ function openFreeGroupModal(){
       });
     }
 
+    /**********************************************
+     * V1.5: VELİ BİLGİLENDİRME / WHATSAPP        *
+     * wa.me sohbeti açar; gönderme öğretmenindir. *
+     **********************************************/
+    function parentNotificationPath(session){
+      const id = String(session?.sessionId || buildTeacherSessionKey(session?.teacherId || "", session?.date || "", session?.slotId || "", session?.group || ""));
+      return `${ROOT_PATH}/parentNotifications/${safeKey(String(session?.date || ""))}/${safeKey(id)}`;
+    }
+
+    // Başında 0 veya +90 olan Türkiye cep numaralarını uluslararası formata çevir.
+    // Açıkça ülke kodu belirtilmiş yabancı numaralarda kodu aynen koru.
+    // Belirsiz/hatalı değerde hiçbir şekilde numara tahmin etme.
+    function normalizeParentPhone(value){
+      let raw = String(value ?? "").trim();
+      if (!raw) return { ok:false, reason:"Öğrencinin veli telefonu sisteme eklenmemiş." };
+      raw = raw.replace(/[\s()\-–.]/g, "");
+      if (raw.startsWith("00")) raw = `+${raw.slice(2)}`;
+      if (!/^\+?\d+$/.test(raw)) return { ok:false, reason:"Veli telefonu geçersiz. Excel kaydını kontrol edin." };
+      let digits = raw.replace(/^\+/, "");
+      if (!raw.startsWith("+")) {
+        if (/^0?5\d{9}$/.test(digits)) digits = `90${digits.replace(/^0/, "")}`;
+        else if (!/^90\d{10}$/.test(digits)) return { ok:false, reason:"Veli telefonuna ülke kodu ekleyin veya numarayı düzeltin." };
+      }
+      if (!/^[1-9]\d{7,14}$/.test(digits)) return { ok:false, reason:"Veli telefonu uluslararası biçimde geçersiz." };
+      if (digits.startsWith("90") && !/^905\d{9}$/.test(digits)) return { ok:false, reason:"Türkiye numarası geçersiz. Cep telefonu girilmelidir." };
+      return { ok:true, phone:digits };
+    }
+
+    function makeParentMessage(session, student){
+      const name = String(student?.adsoyad || "Öğrencimiz").trim();
+      const teacher = String(session?.teacherName || "-").trim();
+      const branch = String(session?.brans || "-").trim();
+      const slot = String(session?.slotLabel || session?.slotId || "-").trim();
+      const topic = String(session?.topic || "-").trim();
+      return `*FENOMEN EĞİTİM KURUMLARI*\n\nSayın Velimiz,\n\n📘 *${name}* öğrencimiz, ${formatDateTR(session?.date)} tarihinde ${slot} saatleri arasında *${teacher}* öğretmenimizle *${branch}* birebir dersini tamamlamıştır.\n\n📚 *İşlenen Konu:*\n${topic}\n\nBilginize sunar, iyi günler dileriz.`;
+    }
+
+    // İçerik veya numara değiştiğinde eski onay yanlışlıkla bu mesajda geçerli sayılmaz.
+    function parentMessageSignature(message, phone){
+      const value = `${String(phone)}|${String(message)}`;
+      let hash = 2166136261;
+      for (let i=0; i<value.length; i++) {
+        hash ^= value.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+      }
+      return `pm1-${(hash >>> 0).toString(16)}`;
+    }
+
+    function getParentNotificationRows(){
+      const session = state.teacherDraft.notificationSession;
+      if (!session) return [];
+      const live = new Map(mergedStudents().map(s => [normalizeStudentNo(s.no), s]));
+      return Object.values(session.students || {}).filter(Boolean).map(record => {
+        const no = normalizeStudentNo(record.no);
+        const student = { ...record, adsoyad: record.adsoyad || live.get(no)?.adsoyad || "-" };
+        const phone = normalizeParentPhone(live.get(no)?.velitel || "");
+        const eligible = record.status === "GELDI" || record.status === "GEC";
+        const text = makeParentMessage(session, student);
+        const signature = phone.ok ? parentMessageSignature(text, phone.phone) : "";
+        const confirmed = state.teacherDraft.notificationLog?.[safeKey(no)] || null;
+        const sent = eligible && phone.ok && confirmed?.status === "SENT" && confirmed.signature === signature;
+        const changed = eligible && phone.ok && confirmed?.status === "SENT" && confirmed.signature !== signature;
+        const opened = eligible && phone.ok && state.teacherDraft.notificationOpened?.[no] === signature;
+        return { no, student, status:record.status || "", eligible, phone, text, signature, sent, changed, opened };
+      }).sort((a,b)=>String(a.no).localeCompare(String(b.no), "tr", { numeric:true, sensitivity:"base" }));
+    }
+
+    function renderParentNotifications(){
+      const session = state.teacherDraft.notificationSession;
+      if (!session || !els.parentNotifyList) return;
+      const rows = getParentNotificationRows();
+      const applicable = rows.filter(x => x.eligible && x.phone.ok);
+      const done = applicable.filter(x => x.sent).length;
+      const disabled = rows.filter(x => x.eligible && !x.phone.ok).length;
+      const absent = rows.filter(x => !x.eligible).length;
+      const allDone = done === applicable.length;
+      const readError = !!state.teacherDraft.notificationLoadFailed;
+      els.parentNotifySummary.innerHTML = `
+        <span class="badge neutral">Öğrenci: ${rows.length}</span>
+        <span class="badge success">Onaylandı: ${done}/${applicable.length}</span>
+        <span class="badge neutral">Telefon eksik/hatalı: ${disabled}</span>
+        <span class="badge neutral">Gelmedi: ${absent}</span>
+      `;
+      if (readError) {
+        els.parentNotifyList.innerHTML = `<div class="helper danger">Önceki bilgilendirme onayları veritabanından okunamadı. Tekrarlı gönderimi önlemek için gönderim kapalıdır. <button id="btnRetryParentNotify" class="btn small" type="button">Tekrar Dene</button></div>`;
+        return;
+      }
+      els.parentNotifyList.innerHTML = rows.map(row => {
+        const no = htmlEscape(row.no);
+        let detail = "";
+        let action = "";
+        if (!row.eligible) {
+          detail = "Derse gelmedi — veliye ders tamamlandı mesajı gönderilmez.";
+          action = `<span class="badge neutral">Mesaj yok</span>`;
+        } else if (!row.phone.ok) {
+          detail = row.phone.reason;
+          action = `<button class="btn parent-wa-btn" type="button" disabled>Telefon Yok</button>`;
+        } else if (row.sent) {
+          detail = "Veli bilgilendirmesi öğretmen tarafından onaylandı.";
+          action = `<span class="parent-sent-marker">✅ Gönderildi</span>`;
+        } else {
+          detail = row.changed ? "Önceki onay farklı ders içeriğine/numaraya ait. Yeniden gönderim gerekiyor." : "WhatsApp'ta gönderin, ardından Gönderdim'i seçin.";
+          action = `<button class="btn parent-wa-btn" type="button" data-parent-open="${no}">💬 WhatsApp Aç</button>` +
+            (row.opened ? `<button class="btn success parent-confirm-btn" type="button" data-parent-confirm="${no}">✓ Gönderdim</button>` : "");
+        }
+        return `<div class="parent-notify-row ${row.sent ? 'completed' : !row.eligible || !row.phone.ok ? 'missing' : ''}">
+          <div class="parent-notify-main"><div class="parent-notify-name">${htmlEscape(row.student.adsoyad)}</div><div class="parent-notify-detail">${htmlEscape(detail)}</div></div>
+          <div class="parent-notify-action">${action}</div>
+        </div>`;
+      }).join("") || `<div class="empty">Bu ders için öğrenci bulunamadı.</div>`;
+      const finish = $("#btnFinishParentNotify");
+      if (finish) {
+        finish.disabled = !allDone || !!state.teacherDraft.notificationLoading;
+        finish.title = allDone ? "Bilgilendirme aşamasını bitir" : "Önce tüm uygun öğrencilerin gönderim onaylarını tamamlayın veya Bu Adımı Atla'yı seçin";
+      }
+    }
+
+    async function startParentNotifications(session){
+      const teacher = state.auth.teacher;
+      if (!teacher || !session || String(session.teacherId || "") !== String(teacher.id)) return showToast("Bu dersin bilgilendirmesine erişilemiyor.");
+      if (String(session.date || "") !== todayISO()) return showToast("Bilgilendirme yalnızca bugünkü derslerde açılır.");
+      state.teacherDraft.notificationSession = deepClone(session);
+      state.teacherDraft.notificationLog = {};
+      state.teacherDraft.notificationOpened = {};
+      state.teacherDraft.notificationLoadFailed = false;
+      state.teacherDraft.notificationLoading = true;
+      state.teacherDraft.locked = true;
+      state.teacherDraft.step = 4;
+      renderTeacherWizard();
+      updateTeacherDraftState();
+      els.parentNotifyList.innerHTML = '<div class="empty">Önceki bilgilendirme kayıtları kontrol ediliyor…</div>';
+      try {
+        const current = await dbGet(parentNotificationPath(session));
+        if (state.teacherDraft.notificationSession?.sessionId !== session.sessionId) return;
+        state.teacherDraft.notificationLog = current?.students || {};
+      } catch(err) {
+        console.error("Veli bilgilendirme kayıtları okunamadı:", err);
+        state.teacherDraft.notificationLoadFailed = true;
+      } finally {
+        state.teacherDraft.notificationLoading = false;
+        renderParentNotifications();
+      }
+    }
+
+    function openParentWhatsApp(studentNo){
+      if (state.teacherDraft.notificationLoading || state.teacherDraft.notificationLoadFailed) return;
+      const row = getParentNotificationRows().find(x => x.no === normalizeStudentNo(studentNo));
+      if (!row || !row.eligible || !row.phone.ok || row.sent) return;
+      const url = `https://wa.me/${row.phone.phone}?text=${encodeURIComponent(row.text)}`;
+      const popup = window.open(url, "_blank");
+      if (!popup) return showToast("WhatsApp açılamadı. Tarayıcıda açılır pencerelere izin verin.");
+      try { popup.opener = null; } catch (_) {}
+      state.teacherDraft.notificationOpened[row.no] = row.signature;
+      renderParentNotifications();
+      showToast("WhatsApp'ta mesajı gönderin. Ardından Gönderdim'e basın.", 3400);
+    }
+
+    let parentConfirmationBusy = false;
+    async function confirmParentWhatsApp(studentNo){
+      if (parentConfirmationBusy || state.teacherDraft.notificationLoading || state.teacherDraft.notificationLoadFailed) return;
+      const session = state.teacherDraft.notificationSession;
+      const teacher = state.auth.teacher;
+      const row = getParentNotificationRows().find(x => x.no === normalizeStudentNo(studentNo));
+      if (!session || !teacher || !row || row.sent || !row.opened || !row.eligible || !row.phone.ok) return;
+      parentConfirmationBusy = true;
+      try {
+        const persisted = await dbGet(`${ROOT_PATH}/sessionsByDate/${session.date}/${safeKey(session.sessionId)}`);
+        const persistedStudent = persisted?.students?.[safeKey(row.no)] || null;
+        const stillSame = persisted && persistedStudent &&
+          (persistedStudent.status === "GELDI" || persistedStudent.status === "GEC") &&
+          String(persisted.teacherId) === String(teacher.id) &&
+          String(persisted.date) === String(session.date) &&
+          parentMessageSignature(makeParentMessage(persisted, persistedStudent), row.phone.phone) === row.signature;
+        if (!stillSame) {
+          showToast("Ders bilgileri değişmiş. Mesajı yeniden açıp kontrol edin.");
+          if (persisted && String(persisted.teacherId) === String(teacher.id)) await startParentNotifications(persisted);
+          return;
+        }
+        const path = `${parentNotificationPath(session)}/students/${safeKey(row.no)}`;
+        const sentAt = new Date().toISOString();
+        const res = await dbRunTransaction(path, current => {
+          if (current?.status === "SENT" && current.signature === row.signature) return;
+          return { status:"SENT", signature:row.signature, confirmedAt:sentAt, teacherId:String(teacher.id) };
+        }, { applyLocally:false });
+        if (!res.committed && !(res.snapshot?.val()?.status === "SENT" && res.snapshot?.val()?.signature === row.signature)) {
+          showToast("Onay kaydedilemedi; tekrar deneyin.");
+          return;
+        }
+        state.teacherDraft.notificationLog[safeKey(row.no)] = res.snapshot.val();
+        delete state.teacherDraft.notificationOpened[row.no];
+        renderParentNotifications();
+        const remaining = getParentNotificationRows().filter(x => x.eligible && x.phone.ok && !x.sent);
+        if (!remaining.length) await finishParentNotifications("COMPLETED");
+        else showToast("Gönderim onayı kaydedildi ✅");
+      } catch(err) {
+        console.error("Gönderim onayı kayıt hatası:", err);
+        showToast("Onay kaydedilemedi. Bağlantınızı kontrol edin.");
+      } finally { parentConfirmationBusy = false; }
+    }
+
+    let parentFinishBusy = false;
+    async function finishParentNotifications(mode="COMPLETED"){
+      if (parentFinishBusy || state.teacherDraft.notificationLoading || state.teacherDraft.notificationLoadFailed) return;
+      const session = state.teacherDraft.notificationSession;
+      const teacher = state.auth.teacher;
+      if (!session || !teacher) return;
+      const remaining = getParentNotificationRows().filter(x => x.eligible && x.phone.ok && !x.sent);
+      if (mode === "COMPLETED" && remaining.length) return showToast("Bekleyen veliler var. Gönderimi onaylayın veya Bu Adımı Atla'yı kullanın.");
+      if (mode === "SKIPPED") {
+        const approved = await confirmDialog("Veli bilgilendirmesinin kalan kısmı mesaj gönderilmeden atlanacak. Devam edilsin mi?", {
+          title:"Veli Bilgilendirmesini Atla", okText:"Adımı Atla", cancelText:"Vazgeç", tone:"warning", icon:"⏭️"
+        });
+        if (!approved) return;
+      }
+      parentFinishBusy = true;
+      try {
+        await dbSet(`${parentNotificationPath(session)}/completion`, {
+          status:mode,
+          teacherId:String(teacher.id),
+          completedAt:new Date().toISOString(),
+          pending:remaining.length
+        });
+        resetTeacherDraft({keepDate:true});
+        await renderTeacherScheduleCards({force:false});
+        showToast(mode === "SKIPPED" ? "Veli bilgilendirme adımı atlandı." : "Veli bilgilendirmesi tamamlandı ✅", 2800);
+      } catch(err) {
+        console.error("Veli bilgilendirme bitirme hatası:", err);
+        showToast("Bilgilendirme tamamlanma kaydı oluşturulamadı.");
+      } finally { parentFinishBusy = false; }
+    }
+
     async function finalizeTeacherLesson(){
       const teacher = state.auth.teacher;
       if (!teacher) return showToast("Öğretmen oturumu yok.");
@@ -3337,8 +3647,7 @@ function openFreeGroupModal(){
         invalidateSessionsCache();
         await refreshDbMeta();
         showToast(editingSameSession ? "Değişiklikler kaydedildi ✅" : "Ders kaydedildi ✅", 2400);
-        resetTeacherDraft({ keepDate:true });
-        setTeacherWizardStep(1, { force:true, silent:true });
+        await startParentNotifications(saveRes.snapshot.val() || payload);
         await renderTeacherScheduleCards({ force:false });
       } catch (e) {
         console.error(e);
@@ -5092,6 +5401,12 @@ function bindEvents(){
           if (entry) await openScheduledAssignment(entry);
           return;
         }
+        const notifyBtn = e.target.closest("[data-notify-schedule]");
+        if (notifyBtn) {
+          const entry = state.data.schedule.currentEntries?.[Number(notifyBtn.dataset.notifySchedule)];
+          if (entry?.existing) await startParentNotifications(entry.existing);
+          return;
+        }
         const previewBtn = e.target.closest("[data-preview-schedule]");
         if (previewBtn) {
           const entry = state.data.schedule.currentEntries?.[Number(previewBtn.dataset.previewSchedule)];
@@ -5171,6 +5486,16 @@ function bindEvents(){
         renderTeacherScheduleCards({ force:false });
       });
       $("#btnFinalizeLesson").addEventListener("click", finalizeTeacherLesson);
+      els.parentNotifyList?.addEventListener("click", async e => {
+        const retryBtn = e.target.closest("#btnRetryParentNotify");
+        if (retryBtn && state.teacherDraft.notificationSession) return startParentNotifications(state.teacherDraft.notificationSession);
+        const openBtn = e.target.closest("[data-parent-open]");
+        if (openBtn) return openParentWhatsApp(openBtn.dataset.parentOpen);
+        const sentBtn = e.target.closest("[data-parent-confirm]");
+        if (sentBtn) return confirmParentWhatsApp(sentBtn.dataset.parentConfirm);
+      });
+      $("#btnSkipParentNotify")?.addEventListener("click", () => finishParentNotifications("SKIPPED"));
+      $("#btnFinishParentNotify")?.addEventListener("click", () => finishParentNotifications("COMPLETED"));
       $("#btnTeacherLogout").addEventListener("click", () => {
         state.auth.role = null;
         state.auth.teacher = null;
