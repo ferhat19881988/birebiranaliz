@@ -586,6 +586,127 @@
     .free-work-card .btn { width:100%; }
   }
 
+
+  /* ===== Öğretmen geçmiş kayıt / ön izleme modalı: bağımsız, mobil uyumlu ===== */
+  /* Serbest grup seçim penceresinin tam ekran ve overflow:hidden kurallarını devralmaz. */
+  .modal.modal-teacher-records {
+    width:min(920px, 100%);
+    min-width:0;
+  }
+  .modal.modal-teacher-records .modal-head {
+    flex:0 0 auto;
+    min-width:0;
+    gap:12px;
+  }
+  .modal.modal-teacher-records .modal-head h3 { min-width:0; overflow-wrap:anywhere; }
+  .modal.modal-teacher-records .modal-head .btn { flex:0 0 auto; width:auto; }
+  .modal.modal-teacher-records .modal-body {
+    min-width:0;
+    min-height:0;
+    overflow-x:hidden;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+  }
+  .modal.modal-teacher-history .history-session-card > div:first-child { min-width:0; }
+  .modal.modal-teacher-history .history-session-card .t,
+  .modal.modal-teacher-history .history-session-card .s { overflow-wrap:anywhere; }
+
+  @media (max-width:680px) {
+    .modal-overlay.modal-teacher-records-open {
+      padding:max(12px, env(safe-area-inset-top)) 10px max(12px, env(safe-area-inset-bottom));
+      align-items:center;
+      justify-content:center;
+    }
+    .modal.modal-teacher-records {
+      width:100%;
+      max-width:560px;
+      max-height:86dvh;
+      border-radius:18px;
+      border:1px solid var(--panel-border);
+    }
+    .modal.modal-teacher-records .modal-head {
+      padding:13px 14px 12px;
+      gap:10px;
+    }
+    .modal.modal-teacher-records .modal-head h3 { font-size:.96rem; line-height:1.35; }
+    .modal.modal-teacher-records .modal-head .btn {
+      min-height:36px;
+      padding:8px 12px;
+      font-size:.82rem;
+      border-radius:10px;
+    }
+    .modal.modal-teacher-records .modal-body {
+      padding:12px;
+      flex:0 1 auto;
+      min-height:0;
+      -webkit-overflow-scrolling:touch;
+    }
+    .modal.modal-teacher-history .history-session-list { gap:9px; }
+    .modal.modal-teacher-history .history-session-card {
+      min-width:0;
+      grid-template-columns:minmax(0,1fr);
+      padding:12px;
+      gap:10px;
+      border-radius:13px;
+    }
+    .modal.modal-teacher-history .history-session-card .t {
+      font-size:.88rem;
+      line-height:1.4;
+      letter-spacing:-.01em;
+    }
+    .modal.modal-teacher-history .history-session-card .s {
+      font-size:.77rem;
+      line-height:1.4;
+      margin-top:5px;
+    }
+    .modal.modal-teacher-history .history-session-card .a {
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      width:100%;
+      justify-content:stretch;
+      gap:7px;
+    }
+    .modal.modal-teacher-history .history-session-card .a .btn {
+      min-width:0;
+      width:100%;
+      min-height:39px;
+      padding:8px 7px;
+      font-size:.77rem;
+      line-height:1.2;
+      border-radius:9px;
+      white-space:normal;
+    }
+    .modal.modal-teacher-history .history-session-card .a .btn:only-child,
+    .modal.modal-teacher-history .history-session-card .a .btn:last-child:nth-child(3) {
+      grid-column:1 / -1;
+    }
+    .modal.modal-teacher-records-preview .modal-body > .grid { gap:10px; }
+    .modal.modal-teacher-records-preview .modal-body .card { padding:12px; border-radius:12px; }
+    .modal.modal-teacher-records-preview .summary-row {
+      display:flex;
+      width:100%;
+      flex-wrap:wrap;
+      gap:6px;
+    }
+    .modal.modal-teacher-records-preview .summary-row .badge {
+      width:auto;
+      padding:5px 8px;
+      font-size:.7rem;
+    }
+    .modal.modal-teacher-records-preview .session-preview-students { gap:8px; }
+    .modal.modal-teacher-records-preview .session-preview-row { padding:10px 11px; }
+  }
+  @media (min-width:440px) and (max-width:680px) {
+    .modal.modal-teacher-history .history-session-card .a {
+      grid-template-columns:repeat(3,minmax(0,1fr));
+    }
+    .modal.modal-teacher-history .history-session-card .a .btn:last-child:nth-child(3) {
+      grid-column:auto;
+    }
+  }
+  @media (max-width:680px) and (max-height:620px) {
+    .modal.modal-teacher-records { max-height:94dvh; }
+  }
 </style>
 </head>
 <body>
@@ -1633,6 +1754,7 @@
       const modalEl = els.modalOverlay.querySelector(".modal");
       if (modalEl) modalEl.className = `modal ${modalClass}`.trim();
       els.modalOverlay.classList.toggle("modal-free-group-open", String(modalClass).split(/\s+/).includes("modal-free-group"));
+      els.modalOverlay.classList.toggle("modal-teacher-records-open", String(modalClass).split(/\s+/).includes("modal-teacher-records"));
       els.modalBody.innerHTML = html;
       if (footerHtml) {
         els.modalFooter.style.display = "flex";
@@ -1651,6 +1773,7 @@
       const modalEl = els.modalOverlay.querySelector(".modal");
       if (modalEl) modalEl.className = "modal";
       els.modalOverlay.classList.remove("modal-free-group-open");
+      els.modalOverlay.classList.remove("modal-teacher-records-open");
       els.modalOverlay.classList.remove("show");
       els.modalOverlay.setAttribute("aria-hidden", "true");
       els.modalBody.innerHTML = "";
@@ -2285,7 +2408,7 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
             <div class="helper" style="margin-top:12px;"><b>İşlenen Konu:</b> ${htmlEscape(session.topic || "-")}</div>
           </div>
           <div class="session-preview-students">${rows}</div>
-        </div>`, { modalClass:"modal-wide modal-free-group" });
+        </div>`, { modalClass:"modal-teacher-records modal-teacher-records-preview" });
     }
 
     async function openScheduledAssignment(entry){
@@ -2383,7 +2506,7 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
       }).join("")}</div>` : `<div class="empty">Son 7 gün içinde kayıtlı birebiriniz bulunmuyor.</div>`;
 
       openModal("Birebir Kayıtlarım • Son 7 Gün", body, {
-        modalClass:"modal-wide modal-free-group",
+        modalClass:"modal-teacher-records modal-teacher-history",
         onRender: () => {
           els.modalBody.querySelectorAll("[data-history-preview]").forEach(btn => btn.addEventListener("click", () => {
             const session = list[Number(btn.dataset.historyPreview)];
