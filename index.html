@@ -465,7 +465,7 @@
   }
 
 
-   /* ===== V1.5 • Veli WhatsApp bilgilendirme ===== */
+   /* ===== V1.7 • Veli WhatsApp bilgilendirme ===== */
    .teacher-wizard-progress { grid-template-columns:repeat(4,minmax(0,1fr)); }
    .parent-progress { display:flex; gap:8px; flex-wrap:wrap; margin:14px 0; }
    .parent-notify-list { display:grid; gap:10px; }
@@ -1053,7 +1053,7 @@
 
       <div class="footer-space"></div>
     </main>
-    <footer class="app-version-footer">Birebir Analiz Sistemi • <span id="appVersionText">V1.5</span></footer>
+    <footer class="app-version-footer">Birebir Analiz Sistemi • <span id="appVersionText">V1.7</span></footer>
   </div>
 
   <!-- Generic Modal -->
@@ -1093,7 +1093,7 @@
     const GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1oJGMO7FOPV4U86peeA63lmMk-wVCKsfWuyw2yefMweg/edit?usp=sharing";
     const ADMIN_PASSWORD = "13579";
     const ROOT_PATH = "Birebirlerianaliz";
-    const APP_VERSION = "V1.5";
+    const APP_VERSION = "V1.7";
     const DEFAULT_LESSON_SLOTS = [
       { id: "S1", start: "16:00", end: "16:40", active: true },
       { id: "S2", start: "16:50", end: "17:30", active: true },
@@ -1836,6 +1836,17 @@
       return out;
     }
 
+    // Program veritabanındaki gün-saat işaretini tüm gruplara uygula.
+    // GELIS sütunu yoksa veya bu saat işaretli değilse önceki davranış korunur.
+    // Kaydedilmiş eski yoklamalar populateDraftFromSession yoluyla aynen açılır.
+    function getScheduledStudentsForGroup(group, day, slot){
+      const students=getStudentsForGroup(group);
+      const flags=state.data.schedule.program?.lateArrivalHiddenSlots;
+      const key=`${Number(day)}_${Number(slot)}`;
+      if(!flags || flags[key]!==true) return students;
+      return students.filter(s=>String(s.gelis || "").trim().toLocaleUpperCase("tr-TR")!=="G");
+    }
+
     function getAllGroups(){
       const canonicalToLabel = new Map();
       const tryAdd = (v) => {
@@ -2097,6 +2108,7 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
       const idxAd = findHeaderIndex(headers, ["ADSOYAD","AD SOYAD","ÖĞRENCİ","OGRENCI","ISIMSOYISIM","OGRENCI ADI SOYADI"]);
       const idxSinif = findHeaderIndex(headers, ["SINIF","SINIFI","SUBE","ŞUBE"]);
       const idxGrup = findHeaderIndex(headers, ["GRUBU","GRUP","BIREBIRGRUBU","BIREBIR GRUBU"]);
+      const idxGelis = findHeaderIndex(headers, ["GELIS", "GELİŞ"]);
       const idxCins = findHeaderIndex(headers, ["CINSIYET","CINS"]);
       const idxVeliTel = findHeaderIndex(headers, ["VeliTel", "VELI TELEFONU", "VELI_TELEFON", "VELİ TEL"]);
 
@@ -2111,10 +2123,11 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
         const adsoyad = String(row[idxAd] ?? "").trim();
         const sinif = String(row[idxSinif] ?? "").trim();
         const grup = String(row[idxGrup] ?? "").trim();
-        const cinsiyet = String(row[idxCins] ?? "").trim();
+        const gelis = idxGelis == null ? "" : String(row[idxGelis] ?? "").trim().toLocaleUpperCase("tr-TR");
+        const cinsiyet = idxCins == null ? "" : String(row[idxCins] ?? "").trim();
         const velitel = idxVeliTel == null ? "" : String(row[idxVeliTel] ?? "").trim();
         if (!no || !adsoyad) continue;
-        out.push({ no, adsoyad, sinif, grup, cinsiyet, velitel });
+        out.push({ no, adsoyad, sinif, grup, gelis, cinsiyet, velitel });
       }
       return out;
     }
@@ -2259,8 +2272,20 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
       return safeKey(`${teacherId}_${date}_${slotId}_${group}`);
     }
 
+    // Program günleri değiştirilmiş/sıralanmış olabilir: atama indeksini takvim gününün
+    // program içindeki gerçek konumundan bul. Geç geliş filtresi de aynı indeksi kullanır.
+    function scheduleDayIndexForDate(date){
+      const calendarIndex=isoLocalDateToDayIndex(date);
+      if(calendarIndex==null) return null;
+      const programDays=state.data.schedule.program?.days;
+      if(!Array.isArray(programDays) || !programDays.length) return calendarIndex;
+      const weekday=['Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi','Pazar'][calendarIndex];
+      const programIndex=programDays.findIndex(day=>normalizeText(day)===normalizeText(weekday));
+      return programIndex>=0 ? programIndex : null;
+    }
+
     function getTeacherAssignmentsForDate(teacher, date){
-      const dayIndex = isoLocalDateToDayIndex(date);
+      const dayIndex = scheduleDayIndexForDate(date);
       if (dayIndex == null) return [];
       return (state.data.schedule.assignments || [])
         .filter(a => assignmentTeacherMatches(a, teacher) && Number(a.day) === Number(dayIndex))
@@ -2284,8 +2309,9 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
       const token = ++state.data.schedule.renderToken;
       const date = todayISO();
       if (els.teacherScheduleDate) {
-        const dayIndex = isoLocalDateToDayIndex(date);
-        els.teacherScheduleDate.textContent = `${formatDateTR(date)} • ${scheduleDayLabel(dayIndex)}`;
+        const calendarDayIndex = isoLocalDateToDayIndex(date);
+        const calendarDay=['Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi','Pazar'][calendarDayIndex] || '-';
+        els.teacherScheduleDate.textContent = `${formatDateTR(date)} • ${calendarDay}`;
       }
       els.teacherScheduleList.innerHTML = `<div class="empty">Program kontrol ediliyor…</div>`;
 
@@ -2308,11 +2334,24 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
       catch (err) { console.warn("Bugünkü kayıtlar okunamadı:", err); }
       if (token !== state.data.schedule.renderToken || state.auth.teacher !== teacher) return;
 
+      // Ders saati sırası değiştiyse eski kaydedilmiş yoklamayı S1/S2 numarasından
+      // değil, öğretmen + grup + gerçek saat aralığından da bul. Geçmiş kaydı kopyalama.
+      const normalizeClock=(value)=>{
+        const m=/([01]\d|2[0-3]):([0-5]\d)\s*[-–—]\s*([01]\d|2[0-3]):([0-5]\d)/.exec(String(value||""));
+        return m?`${m[1]}:${m[2]}-${m[3]}:${m[4]}`:"";
+      };
       const entries = assignments.map(a => {
         const slotId = scheduleSlotId(a.slot);
         const sessionKey = buildTeacherSessionKey(teacher.id, date, slotId, a.group || "");
-        const existing = daySessions?.[sessionKey] || null;
-        return { assignment:a, key:assignmentKeyOf(a), slotId, slotLabel:scheduleSlotLabel(a.slot), sessionKey, existing };
+        const slotLabel=scheduleSlotLabel(a.slot);
+        const clock=normalizeClock(slotLabel);
+        const existing = daySessions?.[sessionKey] ||
+          (clock ? Object.values(daySessions||{}).find(session=>session &&
+            (session.source==="schedule" || session.scheduleMeta?.enabled===true) &&
+            String(session.teacherId||"")===String(teacher.id) &&
+            normalizeGroupLabel(session.group||"")===normalizeGroupLabel(a.group||"") &&
+            normalizeClock(session.slotLabel)===clock) : null) || null;
+        return { assignment:a, key:assignmentKeyOf(a), slotId, slotLabel, sessionKey, existing };
       });
       state.data.schedule.currentEntries = entries;
 
@@ -2435,7 +2474,7 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
         assignmentKey:entry.key
       };
       state.teacherDraft.freeGroupMeta = { enabled:false, start:"", end:"" };
-      state.teacherDraft.loadedStudents = getStudentsForGroup(state.teacherDraft.group);
+      state.teacherDraft.loadedStudents = getScheduledStudentsForGroup(state.teacherDraft.group,a.day,a.slot);
       state.teacherDraft.statuses = {};
       state.teacherDraft.studentNotes = {};
       state.teacherDraft.editingSessionId = "";
@@ -2447,7 +2486,10 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
       updateTeacherDraftSummary();
       if (!state.teacherDraft.loadedStudents.length) {
         setTeacherWizardStep(1, { force:true, silent:true });
-        showToast("Bu program grubunda öğrenci bulunamadı.");
+        const allGroupStudents=getStudentsForGroup(state.teacherDraft.group);
+        showToast(allGroupStudents.length
+          ? "Bu saatte GELIS=G filtresi nedeniyle yoklamada gösterilecek öğrenci bulunmuyor."
+          : "Bu program grubunda öğrenci bulunamadı.");
         return;
       }
       setTeacherWizardStep(2, { force:true, silent:true });
@@ -2957,17 +2999,32 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
       showFloatingToast(`${group} grubu yüklendi (${list.length} öğrenci).`, 1700);
     }
 
-function openFreeGroupModal(){
+async function openFreeGroupModal(){
   if (state.teacherDraft.locked) {
     showToast("Bu oturum kaydedildi. Yeni ders için formu temizleyin.");
     return;
   }
 
-  const activeSlots = getActiveSlots();
+  // Hızlı saatler ayrı öğretmen ayarından değil, her açılışta güncellenen Birebir Ata programından gelir.
+  // Ağ hatasında eski saatleri güncelmiş gibi göstermemek için açık uyarıyla yerel yedeğe düşülür.
+  let currentProgram=null;
+  try{
+    currentProgram=await assignmentDbGet("program");
+  }catch(err){console.warn("Serbest çalışma için saatler alınamadı:",err);}
+  const programAvailable=Boolean(currentProgram && typeof currentProgram==="object");
+  const rawLabels=programAvailable ? currentProgram.slotLabels : null;
+  const activeSlots=programAvailable ? (Array.isArray(rawLabels)?rawLabels:[])
+    .map((raw,i)=>{
+      const m=/^\s*([01]\d|2[0-3]):([0-5]\d)\s*[-–—]\s*([01]\d|2[0-3]):([0-5]\d)\s*$/.exec(String(raw||""));
+      if(!m)return null;
+      const start=`${m[1]}:${m[2]}`,end=`${m[3]}:${m[4]}`;
+      return end>start ? {id:`S${i+1}`,start,end,active:true} : null;
+    }).filter(Boolean) : getActiveSlots();
   const defaultDate = (els.lessonDateInput.value || state.teacherDraft.date || todayISO()).trim() || todayISO();
-  const preSlot = getSlotById((els.lessonSlotSelect.value || state.teacherDraft.slotId || "").trim());
-  const preStart = preSlot?.start || "";
-  const preEnd = preSlot?.end || "";
+  const selectedSlotId=(els.lessonSlotSelect.value || state.teacherDraft.slotId || "").trim();
+  const preSlot=activeSlots.find(s=>s.id===selectedSlotId)||null;
+  const preStart=preSlot?.start || "";
+  const preEnd=preSlot?.end || "";
 
   const all = mergedStudents();
   let filter = "";
@@ -3017,6 +3074,7 @@ function openFreeGroupModal(){
               <span>Hızlı saat seçimi</span>
             </div>
             <div class="fg-slot-list">${quickSlotsHtml}</div>
+            <div class="fg-section-hint" style="margin-top:8px;">${programAvailable ? "Saatler Birebir Ata / Firebase programından güncellendi." : "Firebase programı okunamadı; yerel saatler yedek olarak gösteriliyor."}</div>
           </div>
         </div>
 
@@ -3372,7 +3430,7 @@ function openFreeGroupModal(){
     }
 
     /**********************************************
-     * V1.5: VELİ BİLGİLENDİRME / WHATSAPP        *
+     * V1.7: VELİ BİLGİLENDİRME / WHATSAPP        *
      * wa.me sohbeti açar; gönderme öğretmenindir. *
      **********************************************/
     function parentNotificationPath(session){
