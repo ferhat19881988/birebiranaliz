@@ -708,6 +708,18 @@
     .modal.modal-teacher-records { max-height:94dvh; }
   }
 
+  /* ===== V1.9 • Otomatik giriş yükleme penceresi ===== */
+  .entry-loading-overlay { z-index:1300; overscroll-behavior:contain; padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left)); }
+  .entry-loading-dialog { width:min(440px,100%); max-height:calc(100vh - 24px); max-height:calc(100dvh - 24px); overflow:auto; outline:none; }
+  .entry-loading-dialog .app-dialog-head { align-items:center; }
+  .entry-loading-symbol { display:grid; place-items:center; flex:0 0 42px; width:42px; height:42px; border-radius:12px; background:#eef2ff; color:var(--primary); }
+  .entry-loading-spinner { width:23px; height:23px; border:3px solid #c7d2fe; border-top-color:var(--primary); border-radius:50%; animation:entryLoadingSpin .85s linear infinite; }
+  @keyframes entryLoadingSpin { to { transform:rotate(360deg); } }
+  .entry-loading-note { padding:12px 20px 16px; border-top:1px solid var(--panel-border); background:var(--bg); color:var(--text-muted); font-size:.8rem; line-height:1.45; }
+  .entry-loading-overlay.is-offline .entry-loading-symbol { background:#fff7ed; color:#b45309; }
+  .entry-loading-overlay.is-offline .entry-loading-spinner { border-color:#fcd34d; border-top-color:#b45309; }
+  @media(prefers-reduced-motion:reduce) { .entry-loading-spinner { animation:none; } }
+
   /* ===== V1.8 • Öğretmen haftalık programı ===== */
   #btnTeacherWeeklySchedule { width:100%; min-width:0; min-height:64px; text-align:left; justify-content:flex-start; padding:12px 16px; gap:12px; border-radius:14px; }
   #btnTeacherWeeklySchedule .weekly-button-copy { flex:1; min-width:0; display:grid; gap:4px; }
@@ -1100,7 +1112,7 @@
 
       <div class="footer-space"></div>
     </main>
-    <footer class="app-version-footer">Birebir Analiz Sistemi • <span id="appVersionText">V1.8</span></footer>
+    <footer class="app-version-footer">Birebir Analiz Sistemi • <span id="appVersionText">V1.9</span></footer>
   </div>
 
   <!-- Generic Modal -->
@@ -1133,6 +1145,20 @@
     </div>
   </div>
 
+  <!-- Bağımsız giriş yükleme penceresi: normal bilgi/onay kuyruğuna girmez. -->
+  <div id="entryLoadingOverlay" class="app-dialog-overlay entry-loading-overlay" aria-hidden="true">
+    <div class="app-dialog entry-loading-dialog" role="dialog" aria-modal="true" aria-labelledby="entryLoadingTitle" aria-describedby="entryLoadingMessage" tabindex="-1">
+      <div class="app-dialog-head">
+        <div class="entry-loading-symbol" aria-hidden="true"><span class="entry-loading-spinner"></span></div>
+        <div aria-live="polite" aria-atomic="true">
+          <h3 id="entryLoadingTitle" class="app-dialog-title">Giriş verileri kontrol ediliyor</h3>
+          <p id="entryLoadingMessage" class="app-dialog-message">Veritabanlarına bağlanılıyor…</p>
+        </div>
+      </div>
+      <div class="entry-loading-note">Veriler hazır olduğunda otomatik olarak devam edilecek.</div>
+    </div>
+  </div>
+
   <script type="module">
     /**********************
      * AYARLAR / SABİTLER *
@@ -1140,7 +1166,7 @@
     const GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1oJGMO7FOPV4U86peeA63lmMk-wVCKsfWuyw2yefMweg/edit?usp=sharing";
     const ADMIN_PASSWORD = "13579";
     const ROOT_PATH = "Birebirlerianaliz";
-    const APP_VERSION = "V1.8";
+    const APP_VERSION = "V1.9";
     const DEFAULT_LESSON_SLOTS = [
       { id: "S1", start: "16:00", end: "16:40", active: true },
       { id: "S2", start: "16:50", end: "17:30", active: true },
@@ -1178,7 +1204,7 @@
     // firebase-analytics içinden "resource_url_builders" hatası düşebiliyor. Uygulama akışını
     // etkilememesi için bu sürümde analytics devre dışı bırakıldı.
     import {
-      getDatabase, ref, get, set, update, remove, serverTimestamp, runTransaction
+      getDatabase, ref, get, set, update, remove, serverTimestamp, runTransaction, onValue
     } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-database.js";
 
     const firebaseConfig = {
@@ -2088,7 +2114,7 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
 
       // 1) CSV export (çoğu durumda filtre/scroll kaynaklı eksik görünüm riskine karşı daha güvenilir)
       try {
-        const csvRes = await fetch(csvUrl, { cache: "no-store" });
+        const csvRes = await fetchSheetResponse(csvUrl);
         if (csvRes.ok) {
           const csvText = await csvRes.text();
           const parsed = parseCsvText(csvText);
@@ -2106,7 +2132,7 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
 
       // 2) GViz fallback
       try {
-        const res = await fetch(gvizUrl, { cache: "no-store" });
+        const res = await fetchSheetResponse(gvizUrl);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const txt = await res.text();
         const m = txt.match(/google\.visualization\.Query\.setResponse\(([\s\S]+)\);/);
@@ -2201,7 +2227,38 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
       return out;
     }
 
+    let sheetLoadPromise = null;
+    let settingsLoadPromise = null;
+    let entrySheetReady = false;
+    let entrySettingsReady = false;
+    const entryConnections = { main:false, schedule:false };
+    let entryScheduleFresh = false;
+
+    function withDataReadTimeout(task, ms=15000){
+      let timer;
+      return Promise.race([
+        Promise.resolve(task),
+        new Promise((_, reject)=>{ timer=setTimeout(()=>reject(new Error("Veri bağlantısı zaman aşımı")),ms); })
+      ]).finally(()=>clearTimeout(timer));
+    }
+
+    async function fetchSheetResponse(url){
+      const controller = typeof AbortController === "function" ? new AbortController() : null;
+      const timer = controller ? setTimeout(()=>controller.abort(),15000) : null;
+      try {
+        const response=await withDataReadTimeout(fetch(url,{cache:"no-store", ...(controller ? {signal:controller.signal} : {})}));
+        const text=response.ok ? await withDataReadTimeout(response.text()) : "";
+        return {ok:response.ok,status:response.status,text:()=>Promise.resolve(text)};
+      } finally { if(timer!==null) clearTimeout(timer); }
+    }
+
     async function loadGoogleSheetsData(options={}){
+      if (sheetLoadPromise) return sheetLoadPromise;
+      sheetLoadPromise=readGoogleSheetsData(options).then(ok=>{entrySheetReady=ok;return ok;}).finally(()=>{sheetLoadPromise=null;});
+      return sheetLoadPromise;
+    }
+
+    async function readGoogleSheetsData(options={}){
       const { silent = false } = options || {};
       setChip(els.sheetStatusChip, "Sheet: yükleniyor…", true);
       try {
@@ -2264,8 +2321,8 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
       assignmentScheduleLoadPromise = (async () => {
         try {
           const [rawAssignments, rawProgram] = await Promise.all([
-            assignmentDbGet("atamapath"),
-            assignmentDbGet("program")
+            withDataReadTimeout(assignmentDbGet("atamapath")),
+            withDataReadTimeout(assignmentDbGet("program"))
           ]);
           const assignments = Array.isArray(rawAssignments)
             ? rawAssignments.filter(Boolean)
@@ -2273,6 +2330,7 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
           schedule.assignments = assignments;
           schedule.program = rawProgram && typeof rawProgram === "object" ? rawProgram : null;
           schedule.loaded = true;
+          entryScheduleFresh = true;
           schedule.loading = false;
           schedule.lastLoadedAt = new Date().toISOString();
           setChip(els.scheduleStatusChip, assignments.length ? `Program: bağlı ✓ (${assignments.length})` : "Program: atama yok", true);
@@ -2282,6 +2340,7 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
           schedule.assignments = [];
           schedule.program = null;
           schedule.loaded = false;
+          entryScheduleFresh = false;
           schedule.loading = false;
           schedule.error = err?.message || String(err);
           setChip(els.scheduleStatusChip, "Program: hata", false);
@@ -2696,12 +2755,18 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
     }
 
     async function loadSettingsFromDb(options={}){
+      if (settingsLoadPromise) return settingsLoadPromise;
+      settingsLoadPromise=readSettingsFromDb(options).then(ok=>{entrySettingsReady=ok;return ok;}).finally(()=>{settingsLoadPromise=null;});
+      return settingsLoadPromise;
+    }
+
+    async function readSettingsFromDb(options={}){
       const { silent = false } = options || {};
       setChip(els.dbStatusChip, "Veritabanı: bağlanıyor…", true);
       try {
         const [settings, studentOverrides] = await Promise.all([
-          dbGet(`${ROOT_PATH}/settings`),
-          dbGet(`${ROOT_PATH}/studentOverrides`)
+          withDataReadTimeout(dbGet(`${ROOT_PATH}/settings`)),
+          withDataReadTimeout(dbGet(`${ROOT_PATH}/studentOverrides`))
         ]);
 
         if (settings?.lessonSlots) {
@@ -2714,12 +2779,13 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
           }));
         } else {
           state.data.settings.lessonSlots = deepClone(DEFAULT_LESSON_SLOTS);
-          await dbSet(`${ROOT_PATH}/settings/lessonSlots`, state.data.settings.lessonSlots);
+          if (!entryConnections.main || navigator.onLine === false) throw new Error("Veritabanı bağlantısı bekleniyor.");
+          await withDataReadTimeout(dbSet(`${ROOT_PATH}/settings/lessonSlots`, state.data.settings.lessonSlots));
         }
 
         state.data.studentOverrides = studentOverrides || {};
         setChip(els.dbStatusChip, "Veritabanı: bağlı ✓", true);
-        await refreshDbMeta();
+        void refreshDbMeta(); // İstatistikler girişin hazır olmasını geciktirmez.
         renderTeacherSelectors();
         return true;
       } catch (e) {
@@ -2732,7 +2798,7 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
 
     async function refreshDbMeta(){
       try {
-        const sessionsByDate = await dbGet(`${ROOT_PATH}/sessionsByDate`);
+        const sessionsByDate = await withDataReadTimeout(dbGet(`${ROOT_PATH}/sessionsByDate`));
         let count = 0;
         if (sessionsByDate && typeof sessionsByDate === "object") {
           for (const dayVal of Object.values(sessionsByDate)) {
@@ -2759,35 +2825,137 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
     }
 
     function hasTeacherEntryDataReady(){
-      const hasTeachers = Array.isArray(state.data.teachers) && state.data.teachers.length > 0;
-      const hasStudents = Array.isArray(state.data.students) && state.data.students.length > 0;
-      const hasSlots = Array.isArray(state.data.settings?.lessonSlots) && state.data.settings.lessonSlots.length > 0;
-      return hasTeachers && hasStudents && hasSlots;
+      return navigator.onLine !== false && entryConnections.main && entryConnections.schedule &&
+        entrySheetReady && entrySettingsReady && entryScheduleFresh && state.data.schedule.loaded &&
+        Array.isArray(state.data.teachers) && state.data.teachers.length > 0 &&
+        Array.isArray(state.data.students) && state.data.students.length > 0 &&
+        Array.isArray(state.data.settings?.lessonSlots) && state.data.settings.lessonSlots.length > 0;
     }
 
     let teacherEntryReadinessPromise = null;
-    async function ensureTeacherEntryDataReady(options={}){
-      const { retryOnce = true } = options || {};
+    async function ensureTeacherEntryDataReady(){
       if (hasTeacherEntryDataReady()) return true;
-      if (teacherEntryReadinessPromise) return await teacherEntryReadinessPromise;
-
-      teacherEntryReadinessPromise = (async () => {
-        const attempts = retryOnce ? 2 : 1;
-        for (let i = 0; i < attempts; i++) {
-          const [sheetOk, dbOk] = await Promise.all([
-            loadGoogleSheetsData({ silent: true }),
-            loadSettingsFromDb({ silent: true })
+      if (teacherEntryReadinessPromise) return teacherEntryReadinessPromise;
+      if (navigator.onLine === false) return false;
+      teacherEntryReadinessPromise = (async()=>{
+        try {
+          await Promise.all([
+            entrySheetReady && !sheetLoadPromise ? true : loadGoogleSheetsData({silent:true}),
+            entrySettingsReady && !settingsLoadPromise ? true : loadSettingsFromDb({silent:true}),
+            entryScheduleFresh && state.data.schedule.loaded && !assignmentScheduleLoadPromise ? true : loadAssignmentScheduleFromFirebase({force:true,silent:true})
           ]);
-          if (sheetOk && dbOk && hasTeacherEntryDataReady()) return true;
+          return hasTeacherEntryDataReady();
+        } catch(err) {
+          console.warn("Giriş verileri henüz hazır değil:",err);
+          return false;
         }
-        return false;
-      })();
+      })().finally(()=>{teacherEntryReadinessPromise=null;});
+      return teacherEntryReadinessPromise;
+    }
 
-      try {
-        return await teacherEntryReadinessPromise;
-      } finally {
-        teacherEntryReadinessPromise = null;
+    // Tek bekleyen giriş isteği, tek yeniden deneme zamanlayıcısı.
+    let pendingTeacherEntry = null;
+    let entryRetryTimer = null;
+    let entryAttemptActive = false;
+    let entryPreviousOverflow = "";
+    let entryPreviousInert = false;
+
+    function updateEntryLoadingUI(retrying=false){
+      const overlay=$("#entryLoadingOverlay");
+      const title=$("#entryLoadingTitle"), message=$("#entryLoadingMessage");
+      const offline=navigator.onLine===false;
+      overlay.classList.toggle("is-offline",offline);
+      title.textContent=offline ? "İnternet bağlantısı bekleniyor" : "Giriş verileri kontrol ediliyor";
+      message.textContent=offline ? "İnternet bağlantısı geri geldiğinde otomatik olarak yeniden denenecek." :
+        (retrying ? "Veriler henüz hazır değil. Bağlantılar otomatik olarak yeniden kontrol ediliyor…" : "e-Tablo ve veritabanlarına bağlanılıyor…");
+    }
+
+    function showEntryLoading(){
+      const overlay=$("#entryLoadingOverlay"), appRoot=$('.app');
+      if (!overlay.classList.contains("show")) {
+        entryPreviousOverflow=document.body.style.overflow;
+        entryPreviousInert=appRoot.hasAttribute("inert");
+        appRoot.setAttribute("inert","");
+        document.body.style.overflow="hidden";
+        overlay.classList.add("show");
+        overlay.setAttribute("aria-hidden","false");
+        overlay.querySelector('.entry-loading-dialog').focus();
       }
+      updateEntryLoadingUI();
+    }
+
+    function hideEntryLoading(){
+      const overlay=$("#entryLoadingOverlay");
+      if (!overlay.classList.contains("show")) return;
+      overlay.classList.remove("show","is-offline");
+      overlay.setAttribute("aria-hidden","true");
+      if (!entryPreviousInert) $('.app').removeAttribute("inert");
+      document.body.style.overflow=entryPreviousOverflow;
+    }
+
+    function scheduleEntryRetry(delay=4000){
+      clearTimeout(entryRetryTimer);
+      entryRetryTimer=null;
+      if (!pendingTeacherEntry || navigator.onLine===false) return;
+      entryRetryTimer=setTimeout(()=>{entryRetryTimer=null;void attemptPendingTeacherEntry();},delay);
+    }
+
+    async function attemptPendingTeacherEntry(){
+      if (!pendingTeacherEntry || entryAttemptActive) return;
+      if (navigator.onLine===false) {updateEntryLoadingUI();return;}
+      entryAttemptActive=true;
+      try {
+        const ready=await ensureTeacherEntryDataReady();
+        if (!pendingTeacherEntry) return;
+        if (ready && hasTeacherEntryDataReady()) {
+          const continuation=pendingTeacherEntry;
+          pendingTeacherEntry=null;
+          clearTimeout(entryRetryTimer);entryRetryTimer=null;
+          hideEntryLoading();
+          continuation();
+        } else {
+          updateEntryLoadingUI(true);
+          scheduleEntryRetry();
+        }
+      } catch(err) {
+        console.error("Giriş kontrolü:",err);
+        if(pendingTeacherEntry){updateEntryLoadingUI(true);scheduleEntryRetry();}
+      } finally {entryAttemptActive=false;}
+    }
+
+    function requestTeacherEntry(continuation){
+      if (pendingTeacherEntry) return;
+      if (hasTeacherEntryDataReady()) { continuation(); return; }
+      pendingTeacherEntry=continuation;
+      showEntryLoading();
+      void attemptPendingTeacherEntry();
+    }
+
+    function bindEntryConnectionMonitoring(){
+      const observe=(database,key)=>onValue(ref(database,".info/connected"),snap=>{
+        entryConnections[key]=snap.val()===true;
+        if (!entryConnections[key]) {
+          if (key==='main') entrySettingsReady=false;
+          else entryScheduleFresh=false;
+        }
+        if (pendingTeacherEntry) {
+          updateEntryLoadingUI(!entryConnections[key]);
+          if(entryConnections[key]) scheduleEntryRetry(0);
+        }
+      },err=>{console.warn("Bağlantı durumu okunamadı:",err);});
+      observe(db,'main');observe(assignmentDb,'schedule');
+      window.addEventListener("offline",()=>{
+        entrySheetReady=false;entrySettingsReady=false;entryScheduleFresh=false;
+        clearTimeout(entryRetryTimer);entryRetryTimer=null;
+        if(pendingTeacherEntry) updateEntryLoadingUI();
+      });
+      window.addEventListener("online",()=>{
+        if(pendingTeacherEntry){updateEntryLoadingUI();scheduleEntryRetry(0);}
+        else if(state.ui.activeView==='home') void ensureTeacherEntryDataReady();
+      });
+      document.addEventListener("keydown",e=>{
+        if(pendingTeacherEntry && (e.key==='Tab'||e.key==='Escape'||e.key==='Enter')) {e.preventDefault();e.stopImmediatePropagation();}
+      },true);
     }
 
     /**********************
@@ -2960,21 +3128,16 @@ return sortGroupsByClassThenGroup([...canonicalToLabel.values()]);
       return true;
     }
 
-    async function handleIncomingTeacherBridge(){
+    function handleIncomingTeacherBridge(){
       const bridgedTeacherId = readTeacherBridge("birebir");
       if (!bridgedTeacherId) return false;
-
-      const ready = await ensureTeacherEntryDataReady({ retryOnce: true });
-      if (!ready) {
+      requestTeacherEntry(()=>{
+        const ok=loginTeacherById(bridgedTeacherId,{silent:true,clearInput:true,clearBridge:true});
         cleanTeacherBridgeUrl();
-        showToast("Otomatik giriş için veriler okunamadı.");
-        return false;
-      }
-
-      const ok = loginTeacherById(bridgedTeacherId, { silent: true, clearInput: true, clearBridge: true });
-      cleanTeacherBridgeUrl();
-      showToast(ok ? "Birebir sistemine otomatik giriş yapıldı ✅" : "Aktarılan öğretmen ID bulunamadı.");
-      return ok;
+        if(ok) showFloatingToast("Birebir sistemine otomatik giriş yapıldı ✅");
+        else {clearTeacherBridge();showToast("Aktarılan öğretmen ID bulunamadı.");}
+      });
+      return true;
     }
 
     function goToYoklamaSystem(){
@@ -5667,21 +5830,11 @@ function bindEvents(){
       });
 
       // home nav
-      $("#goTeacherLogin").addEventListener("click", async () => {
-        if (!hasTeacherEntryDataReady()) {
-          showToast("Giriş verileri kontrol ediliyor...");
-          const ready = await ensureTeacherEntryDataReady({ retryOnce: true });
-          if (!ready) {
-            await confirmDialog(
-              `Öğretmen giriş ekranı açılamadı. e-Tablo veya veritabanı verileri okunamadı.\n\nLütfen internet bağlantınızı kontrol edip tekrar deneyin.`,
-              { title: "Veri Okuma Hatası", okText: "Tamam", cancelText: "Kapat", tone: "danger", icon: "🌐" }
-            );
-            return;
-          }
-          showToast("Giriş verileri hazırlandı ✅");
-        }
-        setView("teacherLogin");
-        els.teacherIdInput.focus();
+      $("#goTeacherLogin").addEventListener("click", () => {
+        requestTeacherEntry(()=>{
+          setView("teacherLogin");
+          els.teacherIdInput.focus();
+        });
       });
       $("#goAdminLogin").addEventListener("click", () => {
         setView("adminLogin");
@@ -5691,7 +5844,9 @@ function bindEvents(){
 
       // teacher login
       $("#btnTeacherLogin").addEventListener("click", () => {
-        loginTeacherById(els.teacherIdInput.value, { clearInput: true });
+        const id=els.teacherIdInput.value;
+        if(!normalizeBridgeTeacherId(id)) return showToast("ID girin.");
+        requestTeacherEntry(()=>loginTeacherById(id,{clearInput:true}));
       });
       els.teacherIdInput.addEventListener("keydown", e => { if (e.key==="Enter") $("#btnTeacherLogin").click(); });
       els.btnGoYoklama?.addEventListener("click", goToYoklamaSystem);
@@ -5898,21 +6053,17 @@ function bindEvents(){
     /**********************
      * INIT               *
      **********************/
-    async function init(){
+    function init(){
       bindEvents();
+      bindEntryConnectionMonitoring();
       if (els.appVersionText) els.appVersionText.textContent = APP_VERSION;
 
       // teacher varsayılan tarih
       resetTeacherDraft({keepDate:false});
 
-      // paralel yükle
-      await Promise.all([
-        loadGoogleSheetsData(),
-        loadSettingsFromDb()
-      ]);
-
       refreshGlobalStatsUI();
-      await handleIncomingTeacherBridge();
+      // Giriş talebi varsa aynı yükleme akışı kullanılır; başlangıç işlemleri tekrarlanmaz.
+      if (!handleIncomingTeacherBridge()) void ensureTeacherEntryDataReady();
     }
 
     init();
